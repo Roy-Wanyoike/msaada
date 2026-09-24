@@ -35,6 +35,7 @@ import { TopTagsChart } from "@/components/msaada/top-tags-chart";
 import { ClassificationDonut } from "@/components/msaada/classification-donut";
 import { InsightCallouts } from "@/components/msaada/insight-callouts";
 import { CountyTable } from "@/components/msaada/county-table";
+import { AuditStrip } from "@/components/msaada/AuditStrip";
 import {
   DashboardSkeleton,
   EmptyState,
@@ -45,6 +46,7 @@ import {
   computeInsights,
   pct,
   weeklyDelta,
+  type DashboardPayload,
   type DashboardStats,
 } from "@/components/msaada/dashboard-helpers";
 
@@ -63,6 +65,13 @@ type LoadState = "loading" | "ready" | "error";
 export default function DashboardPage() {
   const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [audit, setAudit] = useState<DashboardPayload["audit"]>([]);
+  const [scope, setScope] = useState<DashboardPayload["scope"]>({
+    county: null,
+    mode: "all",
+  });
+  const [chvCounty, setChvCounty] = useState<string | null>(null);
+  const [scopeMode, setScopeMode] = useState<"mine" | "all">("all");
   const [state, setState] = useState<LoadState>("loading");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
@@ -74,21 +83,34 @@ export default function DashboardPage() {
   const reqIdRef = useRef(0);
 
   const loadStats = useCallback(
-    async (opts?: { silent?: boolean; days?: number }): Promise<DashboardStats | null> => {
+    async (opts?: {
+      silent?: boolean;
+      days?: number;
+      scope?: "mine" | "all";
+    }): Promise<DashboardStats | null> => {
       const reqId = ++reqIdRef.current;
       const rangeDays = opts?.days ?? days;
+      const scopeQ = opts?.scope ?? scopeMode;
       if (!opts?.silent) setState((s) => (s === "ready" ? s : "loading"));
       try {
-        const res = await fetch(`/api/dashboard?days=${rangeDays}`, {
-          cache: "no-store",
-        });
+        const res = await fetch(
+          `/api/dashboard?days=${rangeDays}&scope=${scopeQ}`,
+          { cache: "no-store" }
+        );
         if (!res.ok) {
           throw new Error(`Dashboard endpoint returned HTTP ${res.status}`);
         }
-        const data = (await res.json()) as DashboardStats;
+        const data = (await res.json()) as DashboardPayload;
         // Drop stale responses (a newer refresh superseded us).
         if (reqId !== reqIdRef.current) return null;
-        setStats(data);
+        setStats({
+          byCounty: data.byCounty,
+          byDay: data.byDay,
+          byTag: data.byTag,
+          totals: data.totals,
+        });
+        setAudit(data.audit ?? []);
+        setScope(data.scope ?? { county: null, mode: "all" });
         setState("ready");
         setErrorMsg(null);
         return data;
@@ -108,7 +130,7 @@ export default function DashboardPage() {
         return null;
       }
     },
-    [toast]
+    [days, scopeMode, toast]
   );
 
   const seedDemo = useCallback(
@@ -147,6 +169,28 @@ export default function DashboardPage() {
     [loadStats, toast]
   );
 
+  // On mount, also hydrate the session CHV (for the RBAC county-scope).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me", { credentials: "same-origin" });
+        const data = (await res.json()) as { chv: { county: string } | null };
+        if (cancelled) return;
+        if (data.chv?.county) {
+          setChvCounty(data.chv.county);
+          // Default to the CHV's own county scope (RBAC default).
+          setScopeMode("mine");
+        }
+      } catch {
+        // No session — fine, dashboard stays in all-county demo mode.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Initial mount: load, then auto-seed if empty (idempotent — only once).
   useEffect(() => {
     let cancelled = false;
@@ -169,13 +213,17 @@ export default function DashboardPage() {
     setRefreshing(false);
   }, [loadStats]);
 
-  // Re-fetch when the time-range filter changes.
+  // Re-fetch when the time-range filter or the RBAC scope changes.
   useEffect(() => {
     void loadStats({ silent: true });
-  }, [days, loadStats]);
+  }, [days, scopeMode, loadStats]);
 
   const handleDaysChange = useCallback((next: 7 | 14 | 30) => {
     setDays(next);
+  }, []);
+
+  const handleScopeChange = useCallback((next: "mine" | "all") => {
+    setScopeMode(next);
   }, []);
 
   /** CSV export of the county table — de-identified (counts only). */
@@ -235,6 +283,9 @@ export default function DashboardPage() {
             days={days}
             onDaysChange={handleDaysChange}
             onExportCsv={handleExportCsv}
+            chvCounty={chvCounty}
+            scopeMode={scopeMode}
+            onScopeChange={handleScopeChange}
           />
 
           {state === "loading" ? (
@@ -256,6 +307,8 @@ export default function DashboardPage() {
           ) : (
             <DashboardView
               stats={stats}
+              audit={audit}
+              scope={scope}
               onSeed={() => {
                 void seedDemo();
               }}
@@ -280,12 +333,18 @@ function DashboardHeader({
   days,
   onDaysChange,
   onExportCsv,
+  chvCounty,
+  scopeMode,
+  onScopeChange,
 }: {
   onRefresh: () => void;
   refreshing: boolean;
   days: 7 | 14 | 30;
   onDaysChange: (next: 7 | 14 | 30) => void;
   onExportCsv: () => void;
+  chvCounty: string | null;
+  scopeMode: "mine" | "all";
+  onScopeChange: (next: "mine" | "all") => void;
 }) {
   const ranges: Array<{ value: 7 | 14 | 30; label: string }> = [
     { value: 7, label: "7d" },
@@ -321,6 +380,41 @@ function DashboardHeader({
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+          {/* RBAC county-scope toggle — only shown when a CHV session exists. */}
+          {chvCounty && (
+            <div
+              role="group"
+              aria-label="Data scope (RBAC)"
+              className="inline-flex h-10 items-center rounded-md border border-border bg-muted/40 p-0.5"
+            >
+              <button
+                type="button"
+                onClick={() => onScopeChange("mine")}
+                aria-pressed={scopeMode === "mine"}
+                className={`min-h-9 rounded px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  scopeMode === "mine"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title={`Scoped to your county (${chvCounty})`}
+              >
+                {chvCounty}
+              </button>
+              <button
+                type="button"
+                onClick={() => onScopeChange("all")}
+                aria-pressed={scopeMode === "all"}
+                className={`min-h-9 rounded px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  scopeMode === "all"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="View all counties (demo/national mode)"
+              >
+                All
+              </button>
+            </div>
+          )}
           {/* Time-range segmented control */}
           <div
             role="group"
@@ -392,10 +486,14 @@ function DashboardHeader({
 
 function DashboardView({
   stats,
+  audit,
+  scope,
   onSeed,
   seeding,
 }: {
   stats: DashboardStats;
+  audit: DashboardPayload["audit"];
+  scope: DashboardPayload["scope"];
   onSeed: () => void;
   seeding: boolean;
 }) {
@@ -420,6 +518,29 @@ function DashboardView({
 
   return (
     <div className="space-y-6">
+      {/* RBAC scope banner — surfaces the county-scope filter when active. */}
+      {scope.mode === "mine" && scope.county ? (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+          <ShieldCheck className="size-4 shrink-0" aria-hidden />
+          <span>
+            <span className="font-semibold">County-scoped view (RBAC):</span>{" "}
+            showing only {scope.county} aggregates — the data-access layer
+            filtered to your county. Switch to{" "}
+            <span className="font-mono">All</span> in the header for the demo
+            / national view.
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <MapPinned className="size-4 shrink-0" aria-hidden />
+          <span>
+            <span className="font-medium text-foreground">Demo mode:</span>{" "}
+            showing all counties. Production would require a county-official
+            role for this view (RBAC TODO).
+          </span>
+        </div>
+      )}
+
       {/* KPI grid: 2-col mobile → 3-col md → 6-col lg */}
       <section aria-label="Key performance indicators" aria-live="polite">
         <h2 className="sr-only">KPI summary</h2>
@@ -553,6 +674,9 @@ function DashboardView({
           </Card>
         </motion.div>
       </section>
+
+      {/* Recent activity — de-identified audit trail strip. */}
+      <AuditStrip entries={audit} />
     </div>
   );
 }

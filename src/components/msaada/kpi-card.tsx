@@ -60,15 +60,28 @@ export function KpiCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.06, ease: "easeOut" }}
+      whileHover={{ y: -3 }}
       className="h-full"
     >
       <Card
         className={cn(
-          "relative overflow-hidden gap-0 px-4 py-4 sm:px-5 sm:py-5 border",
+          "relative overflow-hidden gap-0 px-4 py-4 sm:px-5 sm:py-5 border transition-shadow hover:shadow-md",
           t.soft,
           t.border
         )}
       >
+        {/* Decorative accent bar (top-left → bottom-right gradient strip) */}
+        <span
+          className={cn(
+            "pointer-events-none absolute inset-x-0 top-0 h-0.5 opacity-60",
+            tone === "routine" && "bg-gradient-to-r from-emerald-400 to-emerald-600",
+            tone === "needs_followup" && "bg-gradient-to-r from-amber-400 to-amber-600",
+            tone === "needs_facility_referral" && "bg-gradient-to-r from-orange-400 to-orange-600",
+            tone === "escalation" && "bg-gradient-to-r from-red-400 to-red-600",
+            tone === "teal" && "bg-gradient-to-r from-teal-400 to-teal-600"
+          )}
+          aria-hidden
+        />
         <div className="flex items-start justify-between gap-2">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {label}
@@ -76,7 +89,7 @@ export function KpiCard({
           {Icon ? (
             <span
               className={cn(
-                "inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-background/70",
+                "inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-background/70 ring-1 ring-border/40",
                 t.text
               )}
             >

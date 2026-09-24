@@ -306,3 +306,201 @@ export async function getDashboardStats(days = 14): Promise<DashboardStats> {
 
   return { byCounty, byDay, byTag, totals };
 }
+
+/* ------------------------------------------------------------------ */
+/* Audit log — compliance layer.                                       */
+/* Records WHO (actorId), WHEN, WHERE (county/ward), and the model's   */
+/* verdict (classification/escalation/fallback) for every triage      */
+/* event. NEVER stores the observation text or the redacted text.      */
+/* ------------------------------------------------------------------ */
+
+export interface AuditEntry {
+  id: string;
+  createdAt: string;
+  triageRecordId: string | null;
+  /** Truncated actor id (never the email) — enough for an activity feed. */
+  actorLabel: string;
+  event: string;
+  county: string;
+  ward: string | null;
+  classification: string | null;
+  escalation: boolean;
+  fallbackUsed: boolean;
+}
+
+export async function writeAuditEntry(args: {
+  triageRecordId?: string;
+  actorId: string;
+  event: string;
+  county: string;
+  ward?: string | null;
+  classification?: string | null;
+  escalation?: boolean;
+  fallbackUsed?: boolean;
+  piiRedactions?: Record<string, number> | null;
+}): Promise<void> {
+  await db.auditLog.create({
+    data: {
+      triageRecordId: args.triageRecordId ?? null,
+      actorId: args.actorId,
+      event: args.event,
+      county: args.county,
+      ward: args.ward ?? null,
+      classification: args.classification ?? null,
+      escalation: args.escalation ?? false,
+      fallbackUsed: args.fallbackUsed ?? false,
+      piiRedactions: args.piiRedactions
+        ? JSON.stringify(args.piiRedactions)
+        : null,
+    },
+  });
+}
+
+/** Recent audit entries for the dashboard activity strip (de-identified). */
+export async function getRecentAudit(limit = 8): Promise<AuditEntry[]> {
+  const rows = await db.auditLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      createdAt: true,
+      triageRecordId: true,
+      actorId: true,
+      event: true,
+      county: true,
+      ward: true,
+      classification: true,
+      escalation: true,
+      fallbackUsed: true,
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    createdAt: r.createdAt.toISOString(),
+    triageRecordId: r.triageRecordId,
+    // Truncated actor id — never the email. For the demo activity feed this
+    // is enough to distinguish "chv A" vs "chv B" without identifying them.
+    actorLabel: `chv·${r.actorId.slice(-4)}`,
+    event: r.event,
+    county: r.county,
+    ward: r.ward,
+    classification: r.classification,
+    escalation: r.escalation,
+    fallbackUsed: r.fallbackUsed,
+  }));
+}
+
+/**
+ * County-scoped dashboard stats — the RBAC path. When a county official is
+ * logged in (or a CHV views their own county), we filter every aggregate to
+ * a single county. The byCounty array then has at most one row; the daily
+ * trend + tags are scoped to that county only.
+ */
+export async function getDashboardStatsForCounty(
+  county: string,
+  days = 14
+): Promise<DashboardStats & { county: string }> {
+  const since = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - (days - 1));
+    return d;
+  })();
+
+  const where = {
+    county,
+    createdAt: { gte: since },
+  };
+
+  const [countyGroups, dayRows, tagGroups, totalsGroups] = await Promise.all([
+    db.triageRecord.groupBy({
+      by: ["county", "classification", "escalation"],
+      _count: true,
+      where,
+    }),
+    db.triageRecord.findMany({
+      where,
+      select: { createdAt: true, classification: true, escalation: true },
+    }),
+    db.triageRecord.groupBy({
+      by: ["aggregateTag"],
+      _count: true,
+      orderBy: { _count: { aggregateTag: "desc" } },
+      take: 12,
+      where,
+    }),
+    db.triageRecord.groupBy({
+      by: ["classification", "escalation"],
+      _count: true,
+      where,
+    }),
+  ]);
+
+  // byCounty — single row for the scoped county
+  const countyAgg: CountyAggregate = {
+    county,
+    routine: 0,
+    needs_followup: 0,
+    needs_facility_referral: 0,
+    escalation: 0,
+    total: 0,
+  };
+  for (const g of countyGroups) {
+    countyAgg.total += g._count;
+    if (g.classification === "routine") countyAgg.routine += g._count;
+    if (g.classification === "needs_followup") countyAgg.needs_followup += g._count;
+    if (g.classification === "needs_facility_referral")
+      countyAgg.needs_facility_referral += g._count;
+    if (g.escalation) countyAgg.escalation += g._count;
+  }
+  const byCounty = countyAgg.total > 0 ? [countyAgg] : [];
+
+  // byDay — full N-day ladder, populated from dayRows
+  const byDay = new Map<string, DailyAggregate>();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(since);
+    d.setDate(d.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    byDay.set(key, {
+      day: key,
+      routine: 0,
+      needs_followup: 0,
+      needs_facility_referral: 0,
+      escalation: 0,
+      total: 0,
+    });
+  }
+  for (const r of dayRows) {
+    const key = r.createdAt.toISOString().slice(0, 10);
+    const a = byDay.get(key);
+    if (!a) continue;
+    a.total++;
+    if (r.classification === "routine") a.routine++;
+    if (r.classification === "needs_followup") a.needs_followup++;
+    if (r.classification === "needs_facility_referral") a.needs_facility_referral++;
+    if (r.escalation) a.escalation++;
+  }
+
+  const byTag: TagAggregate[] = tagGroups
+    .filter((g) => g.aggregateTag)
+    .map((g) => ({ aggregateTag: g.aggregateTag as string, count: g._count }));
+
+  const totals = {
+    total: 0,
+    routine: 0,
+    needs_followup: 0,
+    needs_facility_referral: 0,
+    escalation: 0,
+    countiesCovered: byCounty.length,
+  };
+  for (const g of totalsGroups) {
+    totals.total += g._count;
+    if (g.classification === "routine") totals.routine += g._count;
+    if (g.classification === "needs_followup") totals.needs_followup += g._count;
+    if (g.classification === "needs_facility_referral")
+      totals.needs_facility_referral += g._count;
+    if (g.escalation) totals.escalation += g._count;
+  }
+
+  return { byCounty, byDay, byTag, totals, county };
+}

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionChv } from "@/lib/auth";
 import { classifyObservation } from "@/lib/qwen";
 import { scrubPII } from "@/lib/pii-scrub";
-import { insertTriageRecord } from "@/lib/triage-store";
+import { insertTriageRecord, writeAuditEntry } from "@/lib/triage-store";
 import {
   COUNTIES,
   WARDS,
@@ -87,6 +87,28 @@ export async function POST(req: Request) {
       ward: wardTyped,
       output,
       fallbackUsed,
+    });
+
+    // Compliance audit log — records WHO/WHEN/WHERE + the model's verdict,
+    // NEVER the observation text or the redacted text. This is the system
+    // of record for safety incidents and proves the never-persist invariant.
+    await writeAuditEntry({
+      triageRecordId: record.id,
+      actorId: chv.id,
+      event: record.escalation
+        ? "crisis_override"
+        : fallbackUsed
+          ? "fallback_used"
+          : "triage_classified",
+      county: record.county,
+      ward: record.ward,
+      classification: record.classification,
+      escalation: record.escalation,
+      fallbackUsed,
+      piiRedactions: redactionCount,
+    }).catch((e) => {
+      // Audit write failure must not fail the triage response.
+      console.error("[triage] audit log write failed:", e);
     });
 
     // De-identified log line — raw observation text never appears here.

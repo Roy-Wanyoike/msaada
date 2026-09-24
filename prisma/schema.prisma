@@ -61,3 +61,28 @@ model TriageRecord {
 // A separate aggregate view table is not needed with Prisma — the dashboard
 // route computes aggregates via grouped queries and NEVER selects
 // observed_indicators text. See README for the RLS / view-equivalent design.
+
+/// Audit log — records every triage event for compliance without ever
+/// storing the observation text. Each entry captures WHO (chvId, but the
+/// dashboard view renders it as a truncated hash, never the email), WHEN,
+/// WHERE (county/ward), and the model's classification/escalation verdict.
+/// This is the "system of record for safety events" — useful for incident
+/// review and for demonstrating that the never-persist invariant held.
+model AuditLog {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  triageRecordId String?  // link to the TriageRecord (nullable for non-record events)
+  actorId        String   // the CHV who triggered the event
+  event          String   // e.g. "triage_classified", "crisis_override", "fallback_used"
+  county         String
+  ward           String?
+  classification String?
+  escalation     Boolean  @default(false)
+  fallbackUsed   Boolean  @default(false)
+  piiRedactions  String?  // JSON counts from the scrubber (phone/email/id/name), never the redactions
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@index([county])
+  @@index([event])
+}

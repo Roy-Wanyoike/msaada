@@ -39,6 +39,32 @@ export interface DashboardStats {
   };
 }
 
+/** De-identified audit entry — who (truncated label)/when/where/verdict. */
+export interface AuditEntry {
+  id: string;
+  createdAt: string;
+  triageRecordId: string | null;
+  actorLabel: string;
+  event: string;
+  county: string;
+  ward: string | null;
+  classification: string | null;
+  escalation: boolean;
+  fallbackUsed: boolean;
+}
+
+/** RBAC scope returned by /api/dashboard. */
+export interface DashboardScope {
+  county: string | null;
+  mode: "mine" | "all";
+}
+
+/** Full dashboard payload (stats + audit strip + RBAC scope). */
+export interface DashboardPayload extends DashboardStats {
+  audit: AuditEntry[];
+  scope: DashboardScope;
+}
+
 /**
  * Palette — no indigo, no blue. The accent (teal) is the neutral shade used
  * for generic context (e.g. top-tags bar chart when no dominant class).
