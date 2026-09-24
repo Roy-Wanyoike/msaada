@@ -36,3 +36,4 @@ upload/
 coverage/
 .vercel
 .turbo
+tool-results/
