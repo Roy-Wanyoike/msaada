@@ -671,6 +671,78 @@ export async function getAuditPage(opts: {
 }
 
 /* ------------------------------------------------------------------ */
+/* Follow-up completion stats — for dashboard/supervisor metrics.      */
+/* ------------------------------------------------------------------ */
+
+export interface FollowUpStats {
+  pending: number;
+  done: number;
+  missed: number;
+  /** Overdue = pending AND past dueAt. */
+  overdue: number;
+  /** Completion rate = done / (done + missed). 0 if none resolved. */
+  completionRate: number;
+  total: number;
+}
+
+/**
+ * Returns aggregate follow-up stats (de-identified — counts only). Optionally
+ * filtered by county and/or a date window. Used by the dashboard's follow-up
+ * KPI card and the supervisor roster.
+ */
+export async function getFollowUpStats(
+  opts: { county?: string; days?: number } = {}
+): Promise<FollowUpStats> {
+  const since = opts.days
+    ? (() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() - (opts.days! - 1));
+        return d;
+      })()
+    : undefined;
+
+  // County filter requires joining through TriageRecord — use the relation.
+  const where = {
+    ...(since ? { createdAt: { gte: since } } : {}),
+    ...(opts.county ? { triageRecord: { county: opts.county } } : {}),
+  };
+
+  const [statusGroups, overdueCount, total] = await Promise.all([
+    db.followUp.groupBy({
+      by: ["status"],
+      _count: true,
+      where,
+    }),
+    db.followUp.count({
+      where: {
+        ...where,
+        status: "pending",
+        dueAt: { lt: new Date() },
+      },
+    }),
+    db.followUp.count({ where }),
+  ]);
+
+  const stats: FollowUpStats = {
+    pending: 0,
+    done: 0,
+    missed: 0,
+    overdue: overdueCount,
+    total,
+    completionRate: 0,
+  };
+  for (const g of statusGroups) {
+    if (g.status === "pending") stats.pending = g._count;
+    if (g.status === "done") stats.done = g._count;
+    if (g.status === "missed") stats.missed = g._count;
+  }
+  const resolved = stats.done + stats.missed;
+  stats.completionRate = resolved > 0 ? Math.round((stats.done / resolved) * 100) : 0;
+  return stats;
+}
+
+/* ------------------------------------------------------------------ */
 /* Supervisor roster — de-identified per-CHV aggregate for supervisors. */
 /* Groups triage records by submitting CHV, returning per-CHV counts    */
 /* (never the CHV email, never observation text). A supervisor sees     */

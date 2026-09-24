@@ -63,6 +63,14 @@ export interface DashboardScope {
 export interface DashboardPayload extends DashboardStats {
   audit: AuditEntry[];
   scope: DashboardScope;
+  followUpStats: {
+    pending: number;
+    done: number;
+    missed: number;
+    overdue: number;
+    completionRate: number;
+    total: number;
+  };
 }
 
 /**

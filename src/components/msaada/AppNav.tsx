@@ -9,6 +9,7 @@ import {
   ScrollText,
   Users,
   FileText,
+  Settings,
   ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { href: "/audit", label: "Audit", icon: ScrollText },
   { href: "/supervisor", label: "Supervisor", icon: Users },
   { href: "/report/mine", label: "My report", icon: FileText },
+  { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 export function AppNav() {

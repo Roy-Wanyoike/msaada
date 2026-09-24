@@ -34,6 +34,7 @@ import { InsightCallouts } from "@/components/msaada/insight-callouts";
 import { CountyTable } from "@/components/msaada/county-table";
 import { AuditStrip } from "@/components/msaada/AuditStrip";
 import { AppNav } from "@/components/msaada/AppNav";
+import { FollowUpKpiCard } from "@/components/msaada/FollowUpKpiCard";
 
 // Code-split the Recharts chart components — the dashboard's heavy bundle
 // (4 charts + table + KPIs in one client component) was OOM-crashing
@@ -91,6 +92,7 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [audit, setAudit] = useState<DashboardPayload["audit"]>([]);
+  const [followUpStats, setFollowUpStats] = useState<DashboardPayload["followUpStats"] | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [scope, setScope] = useState<DashboardPayload["scope"]>({
     county: null,
@@ -136,6 +138,7 @@ export default function DashboardPage() {
           totals: data.totals,
         });
         setAudit(data.audit ?? []);
+        setFollowUpStats(data.followUpStats ?? null);
         setScope(data.scope ?? { county: null, mode: "all" });
         setLastUpdated(Date.now());
         setState("ready");
@@ -338,6 +341,7 @@ export default function DashboardPage() {
               stats={stats}
               audit={audit}
               scope={scope}
+              followUpStats={followUpStats}
               onSeed={() => {
                 void seedDemo();
               }}
@@ -542,12 +546,14 @@ function DashboardView({
   stats,
   audit,
   scope,
+  followUpStats,
   onSeed,
   seeding,
 }: {
   stats: DashboardStats;
   audit: DashboardPayload["audit"];
   scope: DashboardPayload["scope"];
+  followUpStats: DashboardPayload["followUpStats"] | null;
   onSeed: () => void;
   seeding: boolean;
 }) {
@@ -659,6 +665,13 @@ function DashboardView({
             icon={MapPinned}
           />
         </div>
+
+        {/* Follow-up completion KPI — full-width, shows operational health */}
+        {followUpStats && followUpStats.total > 0 && (
+          <div className="mt-3">
+            <FollowUpKpiCard stats={followUpStats} index={6} />
+          </div>
+        )}
       </section>
 
       {/* Soft prompt if dataset feels thin (defensive — shouldn't fire after auto-seed). */}

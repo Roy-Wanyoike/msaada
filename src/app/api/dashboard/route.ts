@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getDashboardStats,
   getDashboardStatsForCounty,
+  getFollowUpStats,
   getRecentAudit,
 } from "@/lib/triage-store";
 import { getSessionChv } from "@/lib/auth";
@@ -58,11 +59,16 @@ export async function GET(req: Request) {
   }
 
   const audit = await getRecentAudit(8);
+  const followUpStats = await getFollowUpStats({
+    county: scopeCounty ?? undefined,
+    days,
+  });
 
   return NextResponse.json(
     {
       ...stats,
       audit,
+      followUpStats,
       scope: {
         county: scopeCounty,
         mode: scopeCounty ? ("mine" as const) : ("all" as const),
