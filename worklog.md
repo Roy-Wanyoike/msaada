@@ -404,3 +404,38 @@ Stage Summary:
   4. Extend PII scrubber (Kenyan vehicle plates, school names).
   5. Dashboard "All" toggle re-fetch crashes the sandbox dev server (process death under load) — the API path returns 200; the UI is code-correct. Would benefit from a production build to avoid Turbopack memory churn.
 - Repo: https://github.com/Roy-Wanyoike/msaada (commits d61bde6, d0891a9)
+
+---
+Task ID: review-r7
+Agent: orchestrator (webDevReview cron round 7)
+Task: 15-min scheduled review — supervisor roster, PII scrubber extension, README update.
+
+Work Log:
+- Read worklog; server was dead. Restored. Lint clean.
+- New feature: supervisor CHV roster view (/supervisor).
+  - getSupervisorRoster(county?, days) in triage-store: groups triage records by submittedById, returns per-CHV aggregate counts (total + per-classification + escalation + last7d + lastSubmission). De-identified — truncated chv·xxxx labels, never emails, never observation text.
+  - GET /api/supervisor/roster (optional county filter + days).
+  - /app/supervisor/page.tsx: summary KPIs (Active CHVs, Total observations, Escalations), filter bar (county + 7d/14d/30d), per-CHV table (label + active/inactive dot, county·ward, total, breakdown by classification, last-active). framer-motion staggered rows. RBAC TODO noted. Dashboard header gains a "Supervisor" link.
+  - Verified live via node: 1 CHV (chv·vm0m, Kilifi), 16 total, 4 escalations. Verified via agent-browser: page renders with KPIs + table + active dot. VLM 9/10: "table clearly breaks down activity, summary KPIs prominent, green active dot present, clean professional layout."
+- PII scrubber extension:
+  - New redaction patterns: Kenyan vehicle plates (KXX XXXX -> [PLATE]) and school names (shule/school/academy/primary/secondary/msingi + proper name -> kw [SCHOOL]). ScrubResult.redactionCount extended with vehiclePlate + schoolName.
+- README update (comprehensive):
+  - New "Routes" table documenting all 5 routes (/, /dashboard, /audit, /supervisor, /report/mine) with roles + key features.
+  - API surface table expanded with all 10 endpoints (incl. records/mine, stats/mine, audit, supervisor/roster) + auth/rate-limit notes.
+  - New "Defense layers (6)" section enumerating the security posture in data-flow order: never-persist -> PII scrub -> aggregate-only reads -> ownership writes -> audit trail -> rate-limit.
+  - Project structure tree updated with all new files (pii-scrub, rate-limit, audit, supervisor, report pages + APIs).
+- lint clean (exit 0).
+- Committed (e3f8434) + pushed to GitHub main.
+
+Stage Summary:
+- New role-based view: /supervisor gives a de-identified per-CHV roster for workload review — a fourth operational persona beyond CHV/county/compliance. Strengthens the "supervisor" narrative from the original build spec.
+- PII scrubber now covers 8 identifier types (phones, emails, IDs, M-Pesa, plates, plots, schools, names) — Kenya-specific.
+- README is now comprehensive: routes table, full API surface, 6-layer defense enumeration, updated project structure. Investor/judge-ready.
+- Routes: / (CHV) · /dashboard (county) · /audit (compliance) · /supervisor (supervisor) · /report/mine (CHV weekly report).
+- Remaining follow-ups for next review cycle:
+  1. Live-verify the dashboard "All" toggle (persistent sandbox dev-server process-death under heavy re-render; API returns 200).
+  2. Compliance-officer + supervisor RBAC roles (currently open for demo).
+  3. Realtime push of new audit entries to /audit.
+  4. /api/triage latency ~12-15s — consider streaming.
+  5. Cross-page nav: add a unified top-nav bar across /dashboard, /audit, /supervisor, /report/mine for easier judge navigation.
+- Repo: https://github.com/Roy-Wanyoike/msaada (commit e3f8434)
