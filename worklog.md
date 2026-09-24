@@ -710,3 +710,21 @@ Work Log:
 - Added scrubNote() for follow-up resolution notes
 Stage Summary:
 - PII scrubber now correctly handles all 8 identifier types without breaking triage context
+
+---
+Task ID: wave-1-2-final
+Agent: orchestrator (20+ agent dispatch)
+Task: Dispatch 16 agents (8 audit/judge + 8 fix) for presentation readiness.
+
+Work Log:
+- Wave 1: 8 parallel READ-ONLY agents — comprehensive codebase audit, security judge, UX judge, engineering judge, API contract audit, accessibility+mobile audit, PII+follow-up audit, README+docs audit. Each wrote a detailed report to reviews/.
+- Synthesized findings: 3 critical (forgeable session token, dashboard toasts invisible, M-Pesa regex broken) + ~12 high (crisis panel bypassable, note not scrubbed, unauthed /api/seed, 500 leaks, PII over-redaction, mobile labels, etc.).
+- Wave 2: 8 parallel fix agents touching distinct files (no conflicts) — auth HMAC, crisis panel focus-trap+tel:+beforeunload, PII regex fixes, triage 500 sanitize, API misc (followup validation + audit NaN + seed rate-limit), triage-store (fallbackUsed column + dead ternary + county-scoped audit), a11y (radix Toaster + skip-to-main + htmlFor + mobile labels), README comprehensive update.
+- Wave 3: QA verification — all APIs verified via node (login/followups/dashboard scope=mine all 200, followUpStats + county-scoped audit confirmed). Crisis panel verified live via agent-browser: alertdialog renders, tel:1199 + tel:+254722178177 clickable links present. lint clean. id='main' added to all 6 pages.
+
+Stage Summary:
+- 16 agents dispatched (8 audit/judge + 8 fix). All critical/high issues from judges rectified.
+- Judge scores: security 5->fixed (HMAC token), UX 7.5->fixed (crisis panel + mobile), eng 7.0 (type-safety TODO noted), a11y 7.5->fixed (Toaster + skip-to-main + labels).
+- Security: 6 defense layers now solid (HMAC token, PII scrub 8 types incl. fixed regexes, county-scoped audit, ownership-scoped followups, rate-limit on triage+seed, observation length guard).
+- Presentation-ready: README has 3-min demo script, all routes documented, production-target narrative, follow-up workflow documented.
+- Repo: https://github.com/Roy-Wanyoike/msaada (commit d0564fe)
