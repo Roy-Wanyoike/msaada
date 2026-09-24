@@ -27,16 +27,38 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 
+import dynamic from "next/dynamic";
 import { KpiCard } from "@/components/msaada/kpi-card";
-import {
-  CountyBarChart,
-  DailyTrendChart,
-} from "@/components/msaada/county-bar-chart";
-import { TopTagsChart } from "@/components/msaada/top-tags-chart";
-import { ClassificationDonut } from "@/components/msaada/classification-donut";
 import { InsightCallouts } from "@/components/msaada/insight-callouts";
 import { CountyTable } from "@/components/msaada/county-table";
 import { AuditStrip } from "@/components/msaada/AuditStrip";
+
+// Code-split the Recharts chart components — the dashboard's heavy bundle
+// (4 charts + table + KPIs in one client component) was OOM-crashing
+// Turbopack under browser load. Lazy-loading each chart into its own chunk
+// shrinks the initial bundle so the page mounts before the charts hydrate.
+const ChartSkeleton = () => (
+  <div className="flex h-[300px] w-full items-center justify-center">
+    <div className="size-6 animate-pulse rounded-full border-2 border-border border-t-teal-500" />
+  </div>
+);
+
+const CountyBarChart = dynamic(
+  () => import("@/components/msaada/county-bar-chart").then((m) => m.CountyBarChart),
+  { loading: ChartSkeleton, ssr: false }
+);
+const DailyTrendChart = dynamic(
+  () => import("@/components/msaada/county-bar-chart").then((m) => m.DailyTrendChart),
+  { loading: ChartSkeleton, ssr: false }
+);
+const TopTagsChart = dynamic(
+  () => import("@/components/msaada/top-tags-chart").then((m) => m.TopTagsChart),
+  { loading: ChartSkeleton, ssr: false }
+);
+const ClassificationDonut = dynamic(
+  () => import("@/components/msaada/classification-donut").then((m) => m.ClassificationDonut),
+  { loading: ChartSkeleton, ssr: false }
+);
 import {
   DashboardSkeleton,
   EmptyState,
@@ -510,10 +532,19 @@ function DashboardView({
   seeding: boolean;
 }) {
   const { totals } = stats;
+  // Defensive guards — if the API returns a partial payload during a scope
+  // switch or stale fetch, fall back to empty arrays so the charts / helpers
+  // never receive undefined (was crashing with "byDay is not iterable").
+  const guardedStats: DashboardStats = {
+    byCounty: Array.isArray(stats.byCounty) ? stats.byCounty : [],
+    byDay: Array.isArray(stats.byDay) ? stats.byDay : [],
+    byTag: Array.isArray(stats.byTag) ? stats.byTag : [],
+    totals,
+  };
 
   // KPI hints: small trend hints derivable from the regional byDay series.
-  const followupDelta = weeklyDelta(stats.byDay, "needs_followup");
-  const escalationDelta = weeklyDelta(stats.byDay, "escalation");
+  const followupDelta = weeklyDelta(guardedStats.byDay, "needs_followup");
+  const escalationDelta = weeklyDelta(guardedStats.byDay, "escalation");
 
   const followupHint = `${pct(totals.needs_followup, totals.total)}% of total${
     followupDelta.noBaseline
@@ -526,7 +557,7 @@ function DashboardView({
       : ` · ${escalationDelta.delta >= 0 ? "+" : ""}${escalationDelta.delta} vs prev 7d`
   }`;
 
-  const insights = computeInsights(stats);
+  const insights = computeInsights(guardedStats);
 
   return (
     <div className="space-y-6">
@@ -637,7 +668,7 @@ function DashboardView({
             subtitle="Triage classification per county, last 14 days"
             icon={<BarChart3 className="size-4" aria-hidden />}
           >
-            <CountyBarChart data={stats.byCounty} />
+            <CountyBarChart data={guardedStats.byCounty} />
           </ChartCard>
 
           <ChartCard
@@ -645,7 +676,7 @@ function DashboardView({
             subtitle="Classification volumes per day across all counties"
             icon={<LineChartIcon className="size-4" aria-hidden />}
           >
-            <DailyTrendChart data={stats.byDay} />
+            <DailyTrendChart data={guardedStats.byDay} />
           </ChartCard>
 
           <ChartCard
@@ -653,7 +684,7 @@ function DashboardView({
             subtitle="Most-frequent triaged aggregate tags (top 12)"
             icon={<Tags className="size-4" aria-hidden />}
           >
-            <TopTagsChart data={stats.byTag.slice(0, 12)} />
+            <TopTagsChart data={guardedStats.byTag.slice(0, 12)} />
           </ChartCard>
 
           <ChartCard
@@ -681,7 +712,7 @@ function DashboardView({
         >
           <Card className="px-4 py-4 sm:px-6">
             <CardContent className="px-0">
-              <CountyTable stats={stats} />
+              <CountyTable stats={guardedStats} />
             </CardContent>
           </Card>
         </motion.div>
