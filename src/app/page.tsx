@@ -126,11 +126,13 @@ export default function Home() {
         <CrisisPanel record={crisisRecord} onConfirm={handleCrisisConfirm} />
       )}
 
-      <main className="flex flex-1 flex-col items-center justify-start px-4 py-8 sm:py-12">
+      <main className="flex flex-1 flex-col items-center justify-center px-4 py-8 sm:py-12">
         {boot === "loading" && <BootSkeleton />}
 
         {boot === "unauthed" && (
-          <AuthCard onAuthed={handleAuthed} onDashboard={openDashboard} />
+          <div className="flex w-full max-w-4xl items-center justify-center">
+            <AuthCard onAuthed={handleAuthed} onDashboard={openDashboard} />
+          </div>
         )}
 
         {boot === "authed" && chv && (
