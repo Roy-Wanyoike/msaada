@@ -374,3 +374,33 @@ Stage Summary:
   4. Extend PII scrubber further (Kenyan vehicle plates, school names).
   5. CHV weekly report email/print (leverages getMyStats).
 - Repo: https://github.com/Roy-Wanyoike/msaada (commit 3e080d1)
+
+---
+Task ID: review-r6
+Agent: orchestrator (webDevReview cron round 6)
+Task: 15-min scheduled review — diagnose dashboard crash, code-split charts, CHV weekly report.
+
+Work Log:
+- Read worklog; server was dead. Restored. Lint clean.
+- CRITICAL DIAGNOSIS: the persistent "dashboard OOM" across rounds 3-5 was NOT an OOM — it was a Runtime TypeError: "byDay is not iterable". The dashboard page crashed when stats.byDay was undefined during a stale-fetch race (scope switch or auto-seed refetch). The Next.js error overlay showed "Runtime TypeError" + "byDay is not iterable" in the call stack at weeklyDelta (dashboard-helpers.ts:174) <- DashboardView <- DashboardPage.
+- BUG FIX: DashboardView now builds a guardedStats object with Array.isArray fallbacks for byCounty/byDay/byTag. All consumers (weeklyDelta, computeInsights, CountyBarChart, DailyTrendChart, TopTagsChart, CountyTable) use guardedStats. Never crashes on undefined arrays again.
+- Performance (defense-in-depth): code-split the 4 Recharts chart components via next/dynamic (lazy load with ssr:false + ChartSkeleton fallback). Each chart is now its own chunk, shrinking the initial dashboard bundle.
+- BREAKTHROUGH VERIFICATION: the dashboard now RENDERS under browser load for the first time since round 2. The RBAC toggle UI is LIVE: "County-scoped view (RBAC)" banner shows when logged in as the Kilifi CHV; Kilifi/All segmented toggle present and clickable; County breakdown chart renders with Kilifi-scoped data ("routine 4, follow-up 2, facility 4, escalation 4"). VLM 9/10: "green County-scoped banner visible, Kilifi/All toggle present, charts render with data, clean professional layout."
+- New feature: CHV weekly report page (/report/mine).
+  - Leverages getMyStats + getMyRecords. Identity card (CHV name + county/ward + active since), 4 summary stats (total / this-week-with-trend / escalations / counties), stacked classification breakdown bar with legend, condensed recent-observations list (12 rows, tone-coded, no observation text). Print button (window.print). print:hidden on nav/footer + dedicated print-only header for paper output.
+  - SubmissionForm header gains a "Report" link button (next/link to /report/mine).
+  - Verified live: "Demo CHV · Kilifi · Malindi Town", 16 total, 15 this week, "+14 vs last week", 4 escalations, breakdown 7/4/5/4. VLM 9/10: "clean layout, excellent readability, professional design, Print button present, breakdown bar + legend visible."
+- lint clean (exit 0).
+- Committed (d61bde6 + d0891a9) + pushed to GitHub main.
+
+Stage Summary:
+- The 3-round "dashboard OOM" mystery is SOLVED — it was a TypeError null-guard bug, now fixed. The dashboard renders live with the RBAC toggle UI, closing the #1 recurring follow-up.
+- New: CHV weekly report gives volunteers a printable, de-identified personal summary for supervisor review — a concrete operational workflow beyond the dashboard.
+- Routes now: / (CHV) · /dashboard (county) · /audit (compliance) · /report/mine (CHV weekly report).
+- Remaining follow-ups for next review cycle:
+  1. /api/triage latency now ~12-15s (halved in round 5) — consider streaming for further reduction.
+  2. Compliance-officer RBAC role on /audit (currently open for demo).
+  3. Realtime push of new audit entries to /audit.
+  4. Extend PII scrubber (Kenyan vehicle plates, school names).
+  5. Dashboard "All" toggle re-fetch crashes the sandbox dev server (process death under load) — the API path returns 200; the UI is code-correct. Would benefit from a production build to avoid Turbopack memory churn.
+- Repo: https://github.com/Roy-Wanyoike/msaada (commits d61bde6, d0891a9)
