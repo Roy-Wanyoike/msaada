@@ -107,6 +107,86 @@ export async function getMyRecords(
   return rows.map((r) => toDTO(r, false));
 }
 
+/** De-identified personal stats for a CHV's "my impact" card. */
+export interface ChvStats {
+  total: number;
+  routine: number;
+  needs_followup: number;
+  needs_facility_referral: number;
+  escalation: number;
+  /** Last 7 days count (for a trend hint). */
+  last7d: number;
+  /** Previous 7 days count (for a delta). */
+  prev7d: number;
+  /** First submission date (ISO) — "since you joined". */
+  firstSubmission: string | null;
+  /** Distinct counties the CHV has submitted for (usually 1). */
+  countiesCovered: number;
+}
+
+/**
+ * Returns a CHV's personal aggregate stats (ownership-scoped). Computed from
+ * their own records only — the RLS `auth.uid() = submitted_by` equivalent.
+ */
+export async function getMyStats(submittedById: string): Promise<ChvStats> {
+  const now = new Date();
+  const last7Start = new Date(now);
+  last7Start.setDate(last7Start.getDate() - 7);
+  last7Start.setHours(0, 0, 0, 0);
+  const prev7Start = new Date(last7Start);
+  prev7Start.setDate(prev7Start.getDate() - 7);
+
+  const [groups, last7Rows, prev7Rows, firstRow, counties] = await Promise.all([
+    db.triageRecord.groupBy({
+      by: ["classification", "escalation"],
+      _count: true,
+      where: { submittedById },
+    }),
+    db.triageRecord.count({
+      where: { submittedById, createdAt: { gte: last7Start } },
+    }),
+    db.triageRecord.count({
+      where: {
+        submittedById,
+        createdAt: { gte: prev7Start, lt: last7Start },
+      },
+    }),
+    db.triageRecord.findFirst({
+      where: { submittedById },
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+    }),
+    db.triageRecord.groupBy({
+      by: ["county"],
+      _count: true,
+      where: { submittedById },
+    }),
+  ]);
+
+  const stats: ChvStats = {
+    total: 0,
+    routine: 0,
+    needs_followup: 0,
+    needs_facility_referral: 0,
+    escalation: 0,
+    last7d: last7Rows,
+    prev7d: prev7Rows,
+    firstSubmission: firstRow ? firstRow.createdAt.toISOString() : null,
+    countiesCovered: counties.length,
+  };
+
+  for (const g of groups) {
+    stats.total += g._count;
+    if (g.classification === "routine") stats.routine += g._count;
+    if (g.classification === "needs_followup") stats.needs_followup += g._count;
+    if (g.classification === "needs_facility_referral")
+      stats.needs_facility_referral += g._count;
+    if (g.escalation) stats.escalation += g._count;
+  }
+
+  return stats;
+}
+
 export interface CountyAggregate {
   county: string;
   routine: number;

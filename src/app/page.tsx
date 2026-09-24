@@ -5,6 +5,7 @@ import { AuthCard, type Chv } from "@/components/msaada/AuthCard";
 import { CrisisPanel } from "@/components/msaada/CrisisPanel";
 import { SubmissionForm } from "@/components/msaada/SubmissionForm";
 import { MyRecentObservations } from "@/components/msaada/MyRecentObservations";
+import { MyImpactCard } from "@/components/msaada/MyImpactCard";
 import type { TriageRecordDTO } from "@/lib/types";
 
 type BootState = "loading" | "authed" | "unauthed";
@@ -133,6 +134,7 @@ export default function Home() {
 
         {boot === "authed" && chv && (
           <div className="flex w-full max-w-2xl flex-col gap-4">
+            <MyImpactCard refreshKey={recordsRefreshKey} />
             <SubmissionForm
               chv={chv}
               onLogout={handleLogout}
