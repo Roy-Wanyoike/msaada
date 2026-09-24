@@ -766,3 +766,28 @@ Work Log:
 - Created src/app/households/page.tsx
 Stage Summary:
 - CHV can create households, add members, start encounters
+
+---
+Task ID: identity-chain-spec
+Agent: orchestrator + 4 parallel agents
+Task: Implement the full patient/household identification + care workflow spec (sections 2-37).
+
+Work Log:
+- Phase 1 (orchestrator): Schema (Household, HouseholdMember, Encounter, Referral, PolicyVersion) + db:push. Deterministic policy engine (src/lib/policy-engine.ts) — crisis override fires first, fallback defaults to caution, AI can never downgrade safety. Identity types (src/lib/identity-types.ts) + identity store (src/lib/identity-store.ts). 5 APIs (/api/households, /api/households/[id], /api/households/[id]/members, /api/encounters, /api/referrals). /api/triage refactored to: accept encounterId, run policy engine, create Referral if referral_required/crisis_override, create FollowUp linked to Referral, audit-log policyVersion+workflowClass+referralId.
+- Phase 2 (4 parallel agents):
+  - /households page: CHV household workflow dashboard (create household, add members, start encounter -> link to /?encounter=ENC_ID).
+  - /referrals page: referral lifecycle view (8 status states, tone-coded, identity chain, authorized destinations).
+  - SubmissionForm refactored: identity-gated (select household -> member -> start encounter BEFORE observation). Textarea disabled until encounter. Submit includes encounterId.
+  - Seed updated: creates 4 households + 10 members + 9 encounters + 2 referrals.
+- Phase 3 (verification): lint clean. DB verified: 4 households, 10 members, 9 encounters, 2 referrals (MSD-REF-Y413N mental_health urgent, MSD-REF-5S94J crisis_self_harm emergency — authorized destinations from policy-engine config). All triage records linked to encounters.
+
+Stage Summary:
+- The spec's core principle (section 36) is now implemented: IDENTITY -> OBSERVATION -> INTERPRETATION -> SAFETY -> ACTION -> OUTCOME, never collapsed into a single AI decision.
+- The deterministic policy engine (section 12) is separate from, and cannot be overridden by, the AI.
+- Stable internal IDs (MSD-HH-XXXX, MSD-M-XXXX, MSD-ENC-XXXX, MSD-REF-XXXX) — names are attributes, never primary keys (section 2).
+- Data minimization: no phone/address on members, ageBand not DOB, household label is a mnemonic not a name (section 3).
+- Referrals have a full lifecycle (section 13) — "Referral Created" != "Help Received".
+- Follow-ups link to referrals (section 14).
+- Ownership-scoped throughout (section 18) — CHV sees only their assigned households.
+- Routes now: / (CHV submission, identity-gated) · /households (CHV workflow) · /dashboard (county) · /audit (compliance) · /supervisor (supervisor) · /referrals (referral lifecycle) · /report/mine (CHV weekly report) · /settings (CHV profile).
+- Repo: https://github.com/Roy-Wanyoike/msaada
