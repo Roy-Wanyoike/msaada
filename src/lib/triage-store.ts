@@ -390,6 +390,62 @@ export async function getRecentAudit(limit = 8): Promise<AuditEntry[]> {
   }));
 }
 
+/** Paginated audit entries for the compliance viewer page (de-identified). */
+export async function getAuditPage(opts: {
+  page?: number;
+  pageSize?: number;
+  county?: string;
+  event?: string;
+  escalationOnly?: boolean;
+} = {}): Promise<{ entries: AuditEntry[]; total: number; page: number; pageSize: number }> {
+  const page = Math.max(1, opts.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, opts.pageSize ?? 25));
+  const where: { county?: string; event?: string; escalation?: boolean } = {};
+  if (opts.county) where.county = opts.county;
+  if (opts.event) where.event = opts.event;
+  if (opts.escalationOnly) where.escalation = true;
+
+  const [rows, total] = await Promise.all([
+    db.auditLog.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        createdAt: true,
+        triageRecordId: true,
+        actorId: true,
+        event: true,
+        county: true,
+        ward: true,
+        classification: true,
+        escalation: true,
+        fallbackUsed: true,
+      },
+    }),
+    db.auditLog.count({ where }),
+  ]);
+
+  return {
+    entries: rows.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt.toISOString(),
+      triageRecordId: r.triageRecordId,
+      actorLabel: `chv·${r.actorId.slice(-4)}`,
+      event: r.event,
+      county: r.county,
+      ward: r.ward,
+      classification: r.classification,
+      escalation: r.escalation,
+      fallbackUsed: r.fallbackUsed,
+    })),
+    total,
+    page,
+    pageSize,
+  };
+}
+
 /**
  * County-scoped dashboard stats — the RBAC path. When a county official is
  * logged in (or a CHV views their own county), we filter every aggregate to

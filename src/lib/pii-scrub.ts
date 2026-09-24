@@ -22,6 +22,8 @@ export interface ScrubResult {
     email: number;
     idNumber: number;
     namePattern: number;
+    mpesaCode: number;
+    plotNumber: number;
   };
   /** True if at least one redaction was made. */
   hadRedactions: boolean;
@@ -56,6 +58,22 @@ const ID_RE = /(?<!\d)(\d{7,9})(?!\d)/g;
 const KINSHIP_NAME_RE =
   /\b(mama|baba|mtoto|dada|ndugu|shangazi|mjomba|nyanya|babu)\s+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)\b/gi;
 
+/**
+ * M-Pesa transaction codes: 10 alphanumeric chars, uppercase, starting with a
+ * letter — e.g. "QGR4H9X7ZP", "SI9K2M4N1P". Redact so a CHV doesn't leak a
+ * payment reference (common in Kenya when describing household circumstances).
+ */
+const MPESA_CODE_RE = /\b([A-Z]{2}\d{4}[A-Z0-9]{4})\b/g;
+
+/**
+ * Plot/house-number patterns common in Kenyan addresses:
+ *  - "Plot 123", "House No. 45", "PLOT 67 Mandazi"
+ *  - "plot 12, Kwa Njenga" — we redact just the plot number token, keep the
+ *    area name (area names are coarse enough not to identify a household, and
+ *    triage context like "Kibra" matters).
+ */
+const PLOT_RE = /\b(plot|house\s*no\.?|door\s*no\.?|apt\.?)\s*#?\s*(\d+[A-Za-z]?)\b/gi;
+
 export function scrubPII(input: string): ScrubResult {
   let redacted = input;
   const redactionCount = {
@@ -63,6 +81,8 @@ export function scrubPII(input: string): ScrubResult {
     email: 0,
     idNumber: 0,
     namePattern: 0,
+    mpesaCode: 0,
+    plotNumber: 0,
   };
 
   // Phones first (before ID regex catches the digit tail).
@@ -77,10 +97,20 @@ export function scrubPII(input: string): ScrubResult {
     return "[EMAIL]";
   });
 
+  // M-Pesa transaction codes (before the ID regex catches the digit tail).
+  redacted = redacted.replace(MPESA_CODE_RE, () => {
+    redactionCount.mpesaCode++;
+    return "[MPESA]";
+  });
+
+  // Plot / house numbers.
+  redacted = redacted.replace(PLOT_RE, (match, prefix: string, _num: string) => {
+    redactionCount.plotNumber++;
+    return `${prefix} [PLOT]`;
+  });
+
   // National-ID-like digit runs (7-9 digits).
   redacted = redacted.replace(ID_RE, (match) => {
-    // Avoid redacting 4-digit years (1000-2999) — the regex already requires
-    // 7-9 digits, so years are safe, but be defensive.
     redactionCount.idNumber++;
     return "[ID]";
   });
@@ -90,8 +120,6 @@ export function scrubPII(input: string): ScrubResult {
     KINSHIP_NAME_RE,
     (match, kinship: string, _name: string) => {
       redactionCount.namePattern++;
-      // Preserve the kinship word (it carries household-relationship context
-      // useful for triage) but redact the proper name.
       return `${kinship} [NAME]`;
     }
   );
@@ -100,7 +128,9 @@ export function scrubPII(input: string): ScrubResult {
     redactionCount.phone +
       redactionCount.email +
       redactionCount.idNumber +
-      redactionCount.namePattern >
+      redactionCount.namePattern +
+      redactionCount.mpesaCode +
+      redactionCount.plotNumber >
     0;
 
   return { redacted, redactionCount, hadRedactions };

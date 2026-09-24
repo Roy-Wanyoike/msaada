@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionChv } from "@/lib/auth";
 import { classifyObservation } from "@/lib/qwen";
 import { scrubPII } from "@/lib/pii-scrub";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { insertTriageRecord, writeAuditEntry } from "@/lib/triage-store";
 import {
   COUNTIES,
@@ -34,6 +35,19 @@ export async function POST(req: Request) {
   const chv = await getSessionChv();
   if (!chv) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+
+  // Rate-limit per CHV — production-hardening TODO #4. 10 triage submissions
+  // per 60s per CHV. Returns 429 with Retry-After when exceeded.
+  const rl = checkRateLimit(`triage:${chv.id}`);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "RATE_LIMITED", retryAfter: Math.ceil(rl.retryAfterMs / 1000) },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      }
+    );
   }
 
   let body: unknown;

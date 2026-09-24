@@ -145,6 +145,14 @@ export function SubmissionForm({
         onLogout();
         return;
       }
+      if (res.status === 429) {
+        const retry = (data as { retryAfter?: number }).retryAfter ?? 60;
+        const msg = `Too many submissions. Please wait ${retry}s before trying again.`;
+        setInlineError(msg);
+        toast.error("Rate limited", { description: msg });
+        setStatus("error");
+        return;
+      }
       if (!res.ok || "error" in data) {
         const errMsg =
           (data as { error?: string }).error ??

@@ -18,6 +18,7 @@ import {
   PieChart as PieChartIcon,
   Table2,
   Download,
+  ScrollText,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -457,6 +458,17 @@ function DashboardHeader({
               <ArrowLeft className="size-4" aria-hidden />
               <span className="hidden sm:inline">Back to CHV submission</span>
               <span className="sm:hidden">Back</span>
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="h-10 min-h-[44px] px-3"
+          >
+            <Link href="/audit" aria-label="View audit log">
+              <ScrollText className="size-4" aria-hidden />
+              <span className="hidden sm:inline">Audit</span>
             </Link>
           </Button>
           <Button
