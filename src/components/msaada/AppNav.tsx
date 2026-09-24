@@ -13,6 +13,8 @@ import {
   Settings,
   BookOpen,
   Building2,
+  ClipboardList,
+  Megaphone,
   ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,6 +33,8 @@ import { cn } from "@/lib/utils";
  */
 
 const NAV_ITEMS = [
+  { href: "/report", label: "Report", icon: Megaphone },
+  { href: "/cases", label: "Cases", icon: ClipboardList },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/households", label: "Households", icon: Users },
   { href: "/referrals", label: "Referrals", icon: Stethoscope },

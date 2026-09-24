@@ -7,6 +7,7 @@ import { SubmissionForm } from "@/components/msaada/SubmissionForm";
 import { MyRecentObservations } from "@/components/msaada/MyRecentObservations";
 import { MyImpactCard } from "@/components/msaada/MyImpactCard";
 import { PendingFollowUps } from "@/components/msaada/PendingFollowUps";
+import { CaseNotifications } from "@/components/msaada/CaseNotifications";
 import type { TriageRecordDTO } from "@/lib/types";
 
 type BootState = "loading" | "authed" | "unauthed";
@@ -135,6 +136,7 @@ export default function Home() {
 
         {boot === "authed" && chv && (
           <div className="flex w-full max-w-2xl flex-col gap-4">
+            <CaseNotifications />
             <MyImpactCard refreshKey={recordsRefreshKey} />
             <PendingFollowUps refreshKey={recordsRefreshKey} />
             <SubmissionForm

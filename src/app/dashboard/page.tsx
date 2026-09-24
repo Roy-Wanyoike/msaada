@@ -35,6 +35,7 @@ import { CountyTable } from "@/components/msaada/county-table";
 import { AuditStrip } from "@/components/msaada/AuditStrip";
 import { AppNav } from "@/components/msaada/AppNav";
 import { FollowUpKpiCard } from "@/components/msaada/FollowUpKpiCard";
+import { CommunityIntelligenceWidget } from "@/components/msaada/CommunityIntelligenceWidget";
 
 // Code-split the Recharts chart components — the dashboard's heavy bundle
 // (4 charts + table + KPIs in one client component) was OOM-crashing
@@ -753,6 +754,9 @@ function DashboardView({
 
       {/* Recent activity — de-identified audit trail strip. */}
       <AuditStrip entries={audit} />
+
+      {/* Community reporting intelligence (CR-015) */}
+      <CommunityIntelligenceWidget />
     </div>
   );
 }

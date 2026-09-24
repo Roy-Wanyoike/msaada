@@ -791,3 +791,81 @@ Stage Summary:
 - Ownership-scoped throughout (section 18) — CHV sees only their assigned households.
 - Routes now: / (CHV submission, identity-gated) · /households (CHV workflow) · /dashboard (county) · /audit (compliance) · /supervisor (supervisor) · /referrals (referral lifecycle) · /report/mine (CHV weekly report) · /settings (CHV profile).
 - Repo: https://github.com/Roy-Wanyoike/msaada
+
+---
+Task ID: CR-010
+Agent: report-encounter-link
+Task: Community Report → Encounter Integration
+Work Log:
+- Created /api/response-cases/[id]/encounter (POST — create encounter from case)
+Stage Summary:
+- CHVs can create encounters from community reports; unidentified subjects require human confirmation
+
+---
+Task ID: CR-014
+Agent: community-report-analytics
+Task: Analytics Events + Audit for Community Reporting
+Work Log:
+- Created src/lib/community-report-audit.ts
+Stage Summary:
+- Community report events are audited; aggregate stats available for dashboards
+
+---
+Task ID: CR-009
+Agent: chv-response-ui
+Task: CHV Response Workflow UI
+Work Log:
+- Created /cases page (CHV response case dashboard)
+Stage Summary:
+- CHVs can accept, advance, and resolve assigned community response cases
+
+---
+Task ID: CR-015
+Agent: community-intelligence-ui
+Task: Management Intelligence Widget
+Work Log:
+- Created src/components/msaada/CommunityIntelligenceWidget.tsx
+Stage Summary:
+- Dashboard widget shows community demand + response status
+
+---
+Task ID: CR-005-006
+Agent: ai-intake-safety-routing
+Task: AI Intake + Deterministic Safety Routing
+Work Log:
+- Created /api/community-reports/[id]/process (POST — AI + policy)
+- Reuses classifyObservation (qwen.ts) + evaluatePolicy (policy-engine.ts) — NO duplication
+Stage Summary:
+- Community reports are AI-structured + policy-routed; crisis override fires unconditionally
+
+---
+Task ID: CR-011-SEED
+Agent: notifications-seed
+Task: In-app Notifications + Community Report Seed
+Work Log:
+- Created CaseNotifications component (polls for new assignments, toast notifications)
+- Created community-report-seed.ts (3-4 demo reports with AI + policy pre-processed)
+Stage Summary:
+- CHVs get notified of new assignments; demo data shows realistic community reports
+
+---
+Task ID: CR-007-008
+Agent: response-case-dispatch
+Task: Response Case domain + CHV Dispatch
+Work Log:
+- Created /api/response-cases (GET list)
+- Created /api/response-cases/[id] (GET + PATCH lifecycle)
+- Created /api/response-cases/[id]/assign (POST deterministic assignment)
+Stage Summary:
+- CHVs can accept/advance cases; supervisors can assign; ownership enforced
+
+---
+Task ID: CR-003-004
+Agent: community-report-api-ui
+Task: Community Report API + Public Reporting UI
+Work Log:
+- Created /api/community-reports (POST public + GET authed)
+- Created /api/community-reports/[id] (GET authed)
+- Created /report page (public multi-step reporting form)
+Stage Summary:
+- Community members can submit concerns; CHVs can view reports

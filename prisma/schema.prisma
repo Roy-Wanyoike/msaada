@@ -382,3 +382,114 @@ model PolicyVersion {
   isActive    Boolean  @default(false)
   createdAt   DateTime @default(now())
 }
+
+// =====================================================================
+// COMMUNITY REPORTING & CHV DISPATCH (CR-001 through CR-018)
+// A community member submits a concern → AI structures it → deterministic
+// policy routes it → a CHV is assigned → the CHV attends → an encounter is
+// created → referral/follow-up → outcome → analytics.
+// =====================================================================
+
+/// CommunityReport — a concern submitted by a community member or assisted
+/// reporter. The description is PII-scrubbed before persistence (the raw
+/// text with names/phones removed IS the "raw fact" — de-identification
+/// invariant maintained). AI interpretation is stored separately.
+/// Reporter ≠ Reported Subject (the person submitting may not be the
+/// person who needs help).
+model CommunityReport {
+  id              String   @id @default(cuid())
+  reportCode      String   @unique // MSD-RPT-XXXX
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // ---- Reporter (who submitted the concern) ----
+  reporterName    String?  // optional — the submitter's name
+  reporterContact String?  // optional — phone/email for follow-up
+  reporterType    String   @default("self") // self | assisted | anonymous
+  // A CHV/Supervisor who assisted (nullable — only for assisted reports)
+  assistedById    String?
+
+  // ---- Reported Subject (who the concern is about) ----
+  // The subject may be a known person, a known household, an unidentified
+  // person, or an unknown household. NO automatic identity merges (§9).
+  subjectType     String   @default("unidentified_person") // known_person | known_household | unidentified_person | unknown_household
+  subjectPersonId      String?  // links to HouseholdMember if known
+  subjectHouseholdId   String?  // links to Household if known
+
+  // ---- The concern (PII-scrubbed before persistence) ----
+  description     String   // the PII-scrubbed concern text (de-identified)
+  category        String   @default("mental_health") // mental_health | maternal | child_health | social_support | other
+
+  // ---- Location (operational address — for the CHV to find the person) ----
+  county          String
+  ward            String?
+  landmark        String?  // "near the market" etc.
+  directions      String?  // operational directions
+
+  // ---- Channel ----
+  channel         String   @default("web") // web | sms | ussd | in_person
+
+  // ---- Lifecycle (CR-001) ----
+  status          String   @default("received") // received|triage_pending|triaged|ready_for_assignment|duplicate|outside_scope|cancelled|closed
+
+  // ---- AI Interpretation (CR-005 — stored separately from the raw report) ----
+  aiInterpretation String?  // JSON: structured signals from Qwen
+  aiModelVersion   String?  // which model was used
+  aiConfidence     Float?   // 0.0-1.0
+  aiUncertainty    String?  // JSON: uncertainty notes
+  aiProcessedAt    DateTime?
+
+  // ---- Policy Decision (CR-006 — deterministic, not AI) ----
+  policyVersion    String?
+  policyDecision   String?  // JSON: the deterministic routing decision
+  policyWorkflowClass String? // routine|follow_up_required|referral_required|crisis_override
+
+  // ---- Idempotency (CR-017) ----
+  idempotencyKey   String?  @unique
+
+  responseCases    ResponseCase[]
+
+  @@index([county, createdAt])
+  @@index([status])
+  @@index([category])
+  @@index([subjectPersonId])
+  @@index([subjectHouseholdId])
+}
+
+/// ResponseCase — the operational case created from a community report.
+/// Links the report → CHV assignment → encounter → outcome (CR-007).
+/// "Referral Created" ≠ "Help Received" — the full lifecycle is tracked.
+model ResponseCase {
+  id              String   @id @default(cuid())
+  caseCode        String   @unique // MSD-CASE-XXXX
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // ---- Links ----
+  reportId        String
+  report          CommunityReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  // ---- CHV Assignment (CR-008 — deterministic, not AI) ----
+  assignedChvId       String?
+  assignedSupervisorId String?
+  assignmentReason    String?  // why this CHV was chosen (explainable)
+  assignmentRuleVersion String? // which rule version was used
+  assignedAt          DateTime?
+  acceptedAt          DateTime?
+  reassignedAt        DateTime?
+
+  // ---- Lifecycle (CR-007) ----
+  status          String   @default("received") // received|triaged|ready_for_assignment|assigned|accepted|response_started|attended|follow_up_required|resolved|unable_to_reach|reassignment_required|duplicate|escalated|cancelled
+
+  // ---- Encounter link (CR-010 — when CHV attends, an encounter is created) ----
+  encounterId     String?
+
+  // ---- Resolution ----
+  resolvedAt      DateTime?
+  resolutionNote  String?  // de-identified — what happened during the response
+
+  @@index([reportId])
+  @@index([assignedChvId, status])
+  @@index([status])
+  @@index([encounterId])
+}
