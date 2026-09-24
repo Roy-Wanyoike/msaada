@@ -111,37 +111,72 @@ Then:
 | POST | `/api/auth/login` | — | Login |
 | POST | `/api/auth/logout` | session | Logout |
 | GET  | `/api/auth/me` | session | Current CHV |
-| POST | `/api/triage` | session | Classify + persist (de-identified) |
-| GET  | `/api/dashboard` | — (TODO: county RBAC) | Aggregate stats |
+| POST | `/api/triage` | session + **rate-limited** | Classify + persist (de-identified). 10 submissions/60s per CHV. |
+| GET  | `/api/dashboard` | optional session | Aggregate stats. `?days=14&scope=mine\|all`. `scope=mine` county-scopes to the logged-in CHV (RBAC). |
+| GET  | `/api/records/mine` | session | CHV's own recent triage records (ownership-scoped) |
+| GET  | `/api/stats/mine` | session | CHV's personal aggregate stats (for the "My impact" card) |
+| GET  | `/api/audit` | — (TODO: compliance RBAC) | Paginated, filterable audit trail (de-identified) |
+| GET  | `/api/supervisor/roster` | — (TODO: supervisor RBAC) | Per-CHV aggregate roster (de-identified, truncated labels) |
 | POST | `/api/seed` | — (demo) | Seed 9 synthetic transcripts |
 | POST | `/api/demo-chv` | — | Provision demo CHV |
+
+### Routes
+
+| Route | Role | Key features |
+|---|---|---|
+| `/` | CHV | Login/signup, observation submission, non-dismissable crisis panel, "My impact" stats card, "My recent observations" panel |
+| `/dashboard` | County official | Aggregate charts (county/daily/tags/donut), KPIs, insight callouts, **county-level RBAC toggle** (mine/all), time-range filter (7d/14d/30d), CSV export, audit activity strip |
+| `/audit` | Compliance officer | Full audit-log viewer — paginated, filterable (county/event/escalations-only), de-identified |
+| `/supervisor` | Supervisor | Per-CHV roster — activity/load/escalation burden per volunteer, de-identified (truncated labels), active/inactive indicator |
+| `/report/mine` | CHV | Printable weekly report — personal stats + classification breakdown bar + recent observations, `window.print()` with print-only header |
 
 ### Seed transcripts (9, mixed Eng/Swa/Sheng)
 4 routine · 3 needs-followup · 1 needs-facility-referral · **1 explicit crisis** (self-harm intent + stated means). Backdated across the last 10 days so the daily-trend chart shows a realistic spread.
 
 ---
 
+## Defense layers (6, in order of the data flow)
+
+1. **Never persist the raw observation** — `/api/triage` sends it to Qwen in-memory and discards it; there is no DB column for it.
+2. **PII scrubber before the model** — `src/lib/pii-scrub.ts` redacts phones, emails, national-IDs, M-Pesa codes, vehicle plates, plot numbers, school names, and kinship+name patterns *before* the text reaches Qwen. Defense-in-depth on top of #1.
+3. **Aggregate-only dashboard reads** — `getDashboardStats` issues `groupBy` queries that never `select` `observedIndicators`/`chpNextAction`/`confidenceNote` text. The Postgres VIEW equivalent, enforced at the data-access layer.
+4. **Ownership-scoped writes** — `insertTriageRecord` requires `submittedById` from the session (the `auth.uid() = submitted_by` RLS equivalent). A CHV can only create records attributed to themselves.
+5. **Audit trail** — every triage writes an `AuditLog` row (who/when/where/verdict, never observation text). Viewable at `/audit` and as a strip on `/dashboard`.
+6. **Rate-limit per CHV** — `src/lib/rate-limit.ts` (10 submissions/60s, in-memory token bucket, Redis-swap-ready).
+
+---
+
 ## Project structure
 
 ```
-prisma/schema.prisma              # ChvUser, TriageRecord models
+prisma/schema.prisma              # ChvUser, TriageRecord, AuditLog models
 src/lib/
   types.ts                        # COUNTIES, WARDS, Classification, DTOs
   qwen.ts                         # Qwen call + JSON validation + retry + fallback
+  pii-scrub.ts                    # PII scrubber (phones, emails, IDs, M-Pesa, plates, plots, schools, names)
+  rate-limit.ts                   # in-memory token-bucket rate limiter (per CHV)
   auth.ts                         # demo cookie-session auth (scrypt)
-  triage-store.ts                 # data-access: insert (ownership) + aggregate-only reads
+  triage-store.ts                 # data-access: insert + aggregate-only reads + audit + supervisor roster
   db.ts                           # PrismaClient singleton
 src/app/
-  page.tsx                        # CHV: login + submission + crisis panel
-  dashboard/page.tsx             # County: aggregate charts
+  page.tsx                        # CHV: login + submission + crisis panel + My impact + recent observations
+  dashboard/page.tsx             # County: aggregate charts + RBAC toggle + time-range + CSV + audit strip
+  audit/page.tsx                 # Compliance: paginated/filterable audit-log viewer
+  supervisor/page.tsx            # Supervisor: per-CHV de-identified roster
+  report/mine/page.tsx           # CHV: printable weekly report
   api/
-    triage/route.ts               # POST: Qwen classify + de-identified write
+    triage/route.ts               # POST: Qwen classify + scrub + de-identified write + audit
     auth/{signup,login,logout,me}/route.ts
-    dashboard/route.ts            # GET: aggregate stats
+    dashboard/route.ts            # GET: aggregate stats + audit + scope (RBAC)
+    records/mine/route.ts         # GET: CHV's own records (ownership-scoped)
+    stats/mine/route.ts           # GET: CHV's personal stats
+    audit/route.ts                # GET: paginated/filterable audit trail
+    supervisor/roster/route.ts    # GET: per-CHV de-identified roster
     seed/route.ts                 # POST: seed synthetic transcripts
     demo-chv/route.ts             # POST: provision demo CHV
 src/components/msaada/            # AuthCard, SubmissionForm, CrisisPanel,
-                                 # TriageResultCard, dashboard charts + helpers
+                                 # TriageResultCard, MyImpactCard, MyRecentObservations,
+                                 # AuditStrip, dashboard charts + helpers
 ```
 
 ---

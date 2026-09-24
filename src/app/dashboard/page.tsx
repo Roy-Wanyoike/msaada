@@ -19,6 +19,7 @@ import {
   Table2,
   Download,
   ScrollText,
+  Users,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -491,6 +492,17 @@ function DashboardHeader({
             <Link href="/audit" aria-label="View audit log">
               <ScrollText className="size-4" aria-hidden />
               <span className="hidden sm:inline">Audit</span>
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="h-10 min-h-[44px] px-3"
+          >
+            <Link href="/supervisor" aria-label="View supervisor roster">
+              <Users className="size-4" aria-hidden />
+              <span className="hidden sm:inline">Supervisor</span>
             </Link>
           </Button>
           <Button

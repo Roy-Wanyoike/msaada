@@ -24,6 +24,8 @@ export interface ScrubResult {
     namePattern: number;
     mpesaCode: number;
     plotNumber: number;
+    vehiclePlate: number;
+    schoolName: number;
   };
   /** True if at least one redaction was made. */
   hadRedactions: boolean;
@@ -74,6 +76,24 @@ const MPESA_CODE_RE = /\b([A-Z]{2}\d{4}[A-Z0-9]{4})\b/g;
  */
 const PLOT_RE = /\b(plot|house\s*no\.?|door\s*no\.?|apt\.?)\s*#?\s*(\d+[A-Za-z]?)\b/gi;
 
+/**
+ * Kenyan vehicle number plates: "KXX XXXX" or "KXX XXXX" (county prefix letter
+ * + 2 letters + space + 4 digits, e.g. "KDA 1234", "KCB 7890"). Also catches
+ * the no-space variant. Redact so a CHV doesn't leak a vehicle reference.
+ */
+const PLATE_RE = /\bK[A-Z]{2}\s?\d{3}[A-Z]?\d?\b/g;
+
+/**
+ * School names common in CHV observations when describing a child's context:
+ *  - "anashinda Shule ya Msingi Mwangaza", "anafanya St. Mary's Primary"
+ *  - "Mwalimu wa Acacia Academy alisema..."
+ * We redact the proper-noun school name following "shule"/"school"/"academy"/
+ * "primary"/"secondary"/"msingi", keeping the context word. Conservative —
+ * only triggers when a clear institution keyword precedes a capitalized name.
+ */
+const SCHOOL_RE =
+  /\b(shule|school|academy|primary|secondary|msingi)\s+(ya\s+)?([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{1,}){0,3})\b/gi;
+
 export function scrubPII(input: string): ScrubResult {
   let redacted = input;
   const redactionCount = {
@@ -83,6 +103,8 @@ export function scrubPII(input: string): ScrubResult {
     namePattern: 0,
     mpesaCode: 0,
     plotNumber: 0,
+    vehiclePlate: 0,
+    schoolName: 0,
   };
 
   // Phones first (before ID regex catches the digit tail).
@@ -103,11 +125,26 @@ export function scrubPII(input: string): ScrubResult {
     return "[MPESA]";
   });
 
+  // Vehicle plates (before the ID regex catches the digit tail).
+  redacted = redacted.replace(PLATE_RE, () => {
+    redactionCount.vehiclePlate++;
+    return "[PLATE]";
+  });
+
   // Plot / house numbers.
   redacted = redacted.replace(PLOT_RE, (match, prefix: string, _num: string) => {
     redactionCount.plotNumber++;
     return `${prefix} [PLOT]`;
   });
+
+  // School names (before the kinship regex could catch a following name).
+  redacted = redacted.replace(
+    SCHOOL_RE,
+    (match, kw: string, ya: string | undefined, _name: string) => {
+      redactionCount.schoolName++;
+      return `${kw}${ya ?? ""} [SCHOOL]`;
+    }
+  );
 
   // National-ID-like digit runs (7-9 digits).
   redacted = redacted.replace(ID_RE, (match) => {
@@ -130,7 +167,9 @@ export function scrubPII(input: string): ScrubResult {
       redactionCount.idNumber +
       redactionCount.namePattern +
       redactionCount.mpesaCode +
-      redactionCount.plotNumber >
+      redactionCount.plotNumber +
+      redactionCount.vehiclePlate +
+      redactionCount.schoolName >
     0;
 
   return { redacted, redactionCount, hadRedactions };

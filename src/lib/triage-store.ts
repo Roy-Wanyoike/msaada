@@ -526,6 +526,142 @@ export async function getAuditPage(opts: {
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* Supervisor roster — de-identified per-CHV aggregate for supervisors. */
+/* Groups triage records by submitting CHV, returning per-CHV counts    */
+/* (never the CHV email, never observation text). A supervisor sees     */
+/* activity + load + escalation burden per volunteer.                   */
+/* ------------------------------------------------------------------ */
+
+export interface SupervisorChvRow {
+  /** Truncated CHV id — never the email. */
+  chvLabel: string;
+  county: string;
+  ward: string | null;
+  total: number;
+  routine: number;
+  needs_followup: number;
+  needs_facility_referral: number;
+  escalation: number;
+  /** Last 7 days count (for activity recency). */
+  last7d: number;
+  /** Most recent submission (ISO) — null if none. */
+  lastSubmission: string | null;
+}
+
+export interface SupervisorRoster {
+  rows: SupervisorChvRow[];
+  totals: {
+    chvs: number;
+    total: number;
+    escalations: number;
+  };
+}
+
+/**
+ * Returns a de-identified per-CHV roster for the supervisor view. Groups
+ * triage records by submittedById, computes per-CHV aggregates, and labels
+ * each row with a truncated id (chv·xxxx) — never the email. Optionally
+ * filter by county. Ownership is NOT bypassed at the row level (the
+ * supervisor sees aggregates only, never individual observation text).
+ *
+ * TODO (production): require a supervisor RBAC role. Currently open for demo.
+ */
+export async function getSupervisorRoster(
+  county?: string,
+  days = 14
+): Promise<SupervisorRoster> {
+  const since = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - (days - 1));
+    return d;
+  })();
+  const last7Start = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - 7);
+    return d;
+  })();
+
+  const where = {
+    createdAt: { gte: since },
+    ...(county ? { county } : {}),
+  };
+
+  // Group by submittedById + classification + escalation for per-CHV breakdowns.
+  const [groups, chvs, last7Counts, lastSubs] = await Promise.all([
+    db.triageRecord.groupBy({
+      by: ["submittedById", "classification", "escalation"],
+      _count: true,
+      where,
+    }),
+    db.chvUser.findMany({
+      where: county ? { county } : undefined,
+      select: { id: true, county: true, ward: true },
+    }),
+    db.triageRecord.groupBy({
+      by: ["submittedById"],
+      _count: true,
+      where: { ...where, createdAt: { gte: last7Start } },
+    }),
+    db.triageRecord.findMany({
+      where,
+      distinct: ["submittedById"],
+      orderBy: { createdAt: "desc" },
+      select: { submittedById: true, createdAt: true },
+    }),
+  ]);
+
+  const chvMeta = new Map(chvs.map((c) => [c.id, c]));
+  const last7Map = new Map(last7Counts.map((g) => [g.submittedById, g._count]));
+  const lastSubMap = new Map(lastSubs.map((r) => [r.submittedById, r.createdAt.toISOString()]));
+
+  const byChv = new Map<string, SupervisorChvRow>();
+  const ensure = (id: string): SupervisorChvRow => {
+    let r = byChv.get(id);
+    if (!r) {
+      const meta = chvMeta.get(id);
+      r = {
+        chvLabel: `chv·${id.slice(-4)}`,
+        county: meta?.county ?? "—",
+        ward: meta?.ward ?? null,
+        total: 0,
+        routine: 0,
+        needs_followup: 0,
+        needs_facility_referral: 0,
+        escalation: 0,
+        last7d: last7Map.get(id) ?? 0,
+        lastSubmission: lastSubMap.get(id) ?? null,
+      };
+      byChv.set(id, r);
+    }
+    return r;
+  };
+
+  let totalAll = 0;
+  let totalEsc = 0;
+  for (const g of groups) {
+    const r = ensure(g.submittedById);
+    r.total += g._count;
+    totalAll += g._count;
+    if (g.classification === "routine") r.routine += g._count;
+    if (g.classification === "needs_followup") r.needs_followup += g._count;
+    if (g.classification === "needs_facility_referral") r.needs_facility_referral += g._count;
+    if (g.escalation) {
+      r.escalation += g._count;
+      totalEsc += g._count;
+    }
+  }
+
+  const rows = Array.from(byChv.values()).sort((a, b) => b.total - a.total);
+
+  return {
+    rows,
+    totals: { chvs: rows.length, total: totalAll, escalations: totalEsc },
+  };
+}
+
 /**
  * County-scoped dashboard stats — the RBAC path. When a county official is
  * logged in (or a CHV views their own county), we filter every aggregate to
