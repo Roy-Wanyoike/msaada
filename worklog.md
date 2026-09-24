@@ -223,3 +223,41 @@ Stage Summary:
   4. PII scrubber pass before the model call (production hardening).
   5. /api/triage latency ~25s — consider response_format json or streaming.
 - Repo: https://github.com/Roy-Wanyoike/msaada (commit 517f9b2)
+
+---
+Task ID: review-r2
+Agent: orchestrator (webDevReview cron round 2)
+Task: 15-min scheduled review — assess status, QA via agent-browser, security hardening + new features + styling polish, push to GitHub.
+
+Work Log:
+- Read worklog; server healthy (/, /dashboard, /api/* all 200); lint clean (1 unused-disable warning, fixed).
+- agent-browser QA: login card VLM 6/10 (typography + interactions to improve); dashboard confirmed stable from round 1.
+- Security hardening — PII scrubber before model call (production-hardening TODO from README):
+  - New `src/lib/pii-scrub.ts`: redacts Kenyan phone numbers (+254/0[17]XXX XXX XXX), emails, national-ID-like digit runs (7-9 digits, preserves 4-digit years), and "mama/baba/mtoto/dada/ndugu + proper name" kinship patterns. Preserves the kinship word (household-relationship context) + behavioral context; only strips identifiers. Replacements: [PHONE]/[EMAIL]/[ID]/[NAME].
+  - `/api/triage` now calls `scrubPII()` before `classifyObservation()`; logs redaction counts (not the redactions themselves).
+  - Live-verified: submitted "Mama Wanjiru Kamau ... 0722 345 678 ..." → log shows `scrubbed={"phone":1,"email":0,"idNumber":0,"namePattern":1}` → Qwen still classified correctly as needs_followup. Defense-in-depth on top of the never-persist invariant.
+- New feature: dashboard time-range filter (7d/14d/30d).
+  - `getDashboardStats(days=14)`, `getAggregateByCounty(days?)`, `getAggregateByTag(limit, days?)` all accept an optional date filter; totals groupBy also filtered.
+  - `/api/dashboard` accepts `?days=` query param (default 14, max 90).
+  - Segmented control in dashboard header (7d/14d/30d) with aria-pressed states; useEffect re-fetches on days change.
+  - Verified: 7d total=13, 30d total=13 (seed data within 10 days), API returns different byCounty counts (Kilifi 6 @7d vs 7 @30d).
+- New feature: CSV export of county table.
+  - Client-side Blob download (de-identified — counts only, no indicator text). Filename: `msaada-county-triage-{days}d-{date}.csv`. Toast on success.
+- Styling polish:
+  - AuthCard: replaced flat header with gradient band (emerald→teal), glass icon tile (bg-white/15 ring-1 backdrop-blur), dashed demo-creds box with select-all spans, hover states on buttons/links. VLM login polish 6→**8/10**.
+  - Dashboard subtitle contrast bumped (text-muted-foreground → text-foreground/70); "Last N days" badge made font-medium.
+- Final VLM dashboard QA: **9/10** — "7d/14d/30d toggle clearly visible and clean... CSV button present... professional layout, clear data hierarchy, excellent visual polish."
+- `bun run lint`: clean (exit 0).
+- Committed (57ea57e) + pushed to GitHub main (token inline, remote URL token-free).
+
+Stage Summary:
+- Security: PII scrubber is now the 4th defense layer (never-persist → aggregate-only reads → ownership-scoped writes → PII scrubbed before model). README's production-hardening TODO #3 (PII scrubber) is now implemented for the demo.
+- Features: time-range filter + CSV export strengthen the county-official dashboard narrative ("Kilifi: needs_followup up 3x this week" now works across selectable windows; CSV enables offline reporting).
+- Polish: login 6→8/10, dashboard stable at 9/10.
+- Remaining follow-ups for next review cycle:
+  1. County-level RBAC on /dashboard (documented TODO — read session CHV, filter by chv.county).
+  2. /api/triage latency ~25s — consider response_format json or streaming to cut the double-call.
+  3. Audit log table (who/when/county/classification, no observation text) for production compliance.
+  4. Rate-limit /api/triage per CHV.
+  5. PII scrubber: extend to catch M-Pesa transaction codes, plot/village names (Kenya-specific geographic PII).
+- Repo: https://github.com/Roy-Wanyoike/msaada (commit 57ea57e)
