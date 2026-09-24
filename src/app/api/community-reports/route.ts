@@ -3,6 +3,7 @@ import { getSessionChv } from "@/lib/auth";
 import { scrubPII } from "@/lib/pii-scrub";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createReport, getReports } from "@/lib/community-report-store";
+import { writeCommunityReportAudit } from "@/lib/community-report-audit";
 import { REPORT_CATEGORIES } from "@/lib/community-report-types";
 import { COUNTIES, WARDS, type County } from "@/lib/types";
 
@@ -188,6 +189,17 @@ export async function POST(req: Request) {
         report.status
       } ip=${ip.slice(0, 8)}`
     );
+
+    // Audit the report creation (CR-014 — de-identified, non-fatal).
+    await writeCommunityReportAudit({
+      actorId: "public",
+      event: "community_report_created",
+      county: report.county,
+      ward: report.ward,
+      classification: report.policyWorkflowClass,
+      escalation: report.policyWorkflowClass === "crisis_override",
+      policyVersion: report.policyVersion,
+    }).catch(() => {});
 
     return NextResponse.json(report, { status: 201 });
   } catch (err) {

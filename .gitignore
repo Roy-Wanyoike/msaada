@@ -1,51 +1,12 @@
-# dependencies
+skills/
 node_modules/
+seed-all.cjs
 
-# next.js
+# Build artifacts
 .next/
-out/
-build/
-dist/
 
-# env
-.env
-.env.*
-!.env.example
-
-# database
-db/
-*.db
-*.db-journal
-
-# logs
-dev.log
-server.log
-*.log
-
-# screenshots / local artifacts
-shot-*.png
-dashboard-full.png
-*.png
-
-# uploaded secrets / tokens (NEVER commit)
+# Uploaded files (contains secrets — NEVER commit)
 upload/
 
-# misc
-.DS_Store
-*.pem
-coverage/
-.vercel
-.turbo
-tool-results/
-tsconfig.tsbuildinfo
-
-# Hackathon cleanup — internal artifacts not needed in the public repo
-agent-ctx/
-reviews/
-tests/
-examples/
-download/
-.zscripts/
-mini-services/
-tool-results/
-*.tsbuildinfo
+# ESLint ignore (use flat config instead)
+.eslintignore
