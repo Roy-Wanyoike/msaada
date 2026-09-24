@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
   ChevronDown,
   ExternalLink,
+  FileText,
   Loader2,
   LogOut,
   Lock,
@@ -220,6 +222,11 @@ export function SubmissionForm({
         </div>
         <Button variant="outline" size="sm" className="h-9" onClick={onDashboard}>
           View dashboard <ExternalLink className="h-3.5 w-3.5" />
+        </Button>
+        <Button asChild variant="outline" size="sm" className="h-9">
+          <Link href="/report/mine">
+            <FileText className="h-3.5 w-3.5" /> Report
+          </Link>
         </Button>
         <Button
           variant="ghost"
