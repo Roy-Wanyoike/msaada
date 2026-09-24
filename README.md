@@ -2,198 +2,143 @@
 
 > *Msaada* — "help" / "assistance" in Swahili.
 
-**An AI-powered community-health intelligence platform that helps Community Health Volunteers (CHVs) in Kenya capture home-visit observations, structure them with Qwen AI, apply deterministic safety policy, and connect people to the right health-system workflow — without the AI ever becoming the authority over the patient.**
+**Msaada is an AI-powered, offline-first Community Health Intelligence Platform designed to strengthen the connection between Community Health Volunteers (CHVs), households, health facilities, county health teams, and the Ministry of Health.**
 
 ---
 
 ## Problem
 
-In Kenya, Community Health Volunteers (CHVs) walk door-to-door visiting households — they are the frontline of community health. They observe critical mental-health and social-wellbeing signals every day: a mother who's stopped sleeping, a child who's withdrawn, a father in acute distress, a household pushed to the edge by financial stress.
-
-**Today, those observations are lost.**
-
-- CHVs record observations in paper notebooks that never reach a health system.
-- There is no structured way to triage which households need follow-up vs urgent referral.
-- When a crisis is brewing — suicidal ideation, self-harm risk — the CHV may be the only person who sees the signs, and there is no protocol that fires immediately.
-- County health officials have zero visibility into community-level mental-health signals until they escalate to acute incidents.
-- The Kenya Mental Health Policy 2015–2030 recognizes community-level mental health as a critical gap, but there is no tool that turns frontline observations into structured intelligence + safe workflow.
-
-The core tension: **the people closest to the need (CHVs) have no structured tool, and the people with the resources (county officials, facility staff) have no signal.**
+Msaada addresses a major gap in community healthcare: CHVs are already present in communities and often observe important health and social signals, but information can remain fragmented across notebooks, memory, phone calls, WhatsApp messages, and disconnected reporting systems. This makes it difficult to identify people who need follow-up, track referrals, understand community-level trends, and give health managers timely intelligence.
 
 ## Proposed Solution
 
-**Msaada** (Swahili for "help") is an AI-powered human-assistance coordination platform built for the CHV workflow. It is **not** an AI doctor, therapist, or diagnostic system. It is a **human coordination layer for AI**:
+Msaada creates a complete digital workflow:
 
-> *AI finds and structures the need. Deterministic policy controls safety. Authorized humans provide and verify the help.*
+**Institution → Community Health Officer → Supervisor → CHV → Household → Person → Encounter → Referral → Follow-up → Community Intelligence.**
 
-### The flow
+---
 
-```
-CHV selects Household → Member → starts Encounter
-    ↓
-CHV speaks or types what they observed (English / Swahili / Sheng)
-    ↓
-PII scrubber redacts identifiers BEFORE the model sees them
-    ↓
-Qwen AI structures the observation (WHO-aligned triage flag)
-    ↓
-DETERMINISTIC POLICY ENGINE evaluates (separate from the AI — the model
-can never override or downgrade a safety-critical signal)
-    ↓
-Policy decision → Referral + Follow-up (linked to the correct person)
-    ↓
-If crisis detected → non-dismissable crisis panel with Kenya Red Cross 1199
-    ↓
-Aggregate intelligence → county dashboard (de-identified)
-```
+## Key Features
 
-### What makes it different
+### 1. Institutional onboarding and authentication
+- Ministry of Health and county health-team accounts.
+- County administrators onboard supervisors and CHVs.
+- Role-based and geographic access controls.
+- CHV assignment to Community Health Units and specific communities.
+- Device registration and secure authentication.
+- Full audit trail of sensitive actions.
 
-1. **The AI is not the authority.** Qwen produces structured *interpretation*. A separate, deterministic, versioned, auditable policy engine controls the *workflow decision*. The crisis-override logic is hardcoded — the model cannot downgrade it.
+### 2. CHV field application
+- Simple Android application designed for field environments (production target — the hackathon MVP is a Next.js web app).
+- Assigned household and patient lists.
+- Household profiles and previous encounters.
+- Offline-first operation for areas with poor connectivity.
+- Secure synchronization when connectivity returns.
+- Tasks, pending follow-ups, referrals, and urgent actions.
 
-2. **Identity is preserved.** Every observation is linked through a full chain: Household → Member → Encounter → Observation → Policy Decision → Referral → Follow-up. Stable internal IDs (MSD-HH-XXXX, MSD-M-XXXX, etc.) — names are attributes, never primary keys. No referral is ever created without knowing which person it belongs to.
+### 3. Household and patient traceability
+- Structured household records.
+- Individual community-member profiles.
+- Address, village/community, landmarks, contact information, and optional location information.
+- Household-to-person relationships.
+- Longitudinal encounter history.
+- Duplicate detection and human-confirmed identity matching.
 
-3. **Privacy is architectural.** The raw observation text is **never persisted**. A PII scrubber (8 Kenya-specific identifier types) runs before the model call. Dashboard reads are aggregate-only. Ownership is enforced at the data-access layer (the Supabase RLS equivalent). An audit trail logs every event with the policy version used.
+### 4. Voice-first data collection
+CHVs can record observations naturally in **Kiswahili, Sheng, English, or code-switched language** instead of completing lengthy clinical forms. Msaada converts voice or text into structured observations while preserving the original source information for auditability.
 
-4. **Safety is deterministic.** If the observation contains any indication of suicidal ideation, self-harm, or acute danger, a full-screen, non-dismissable crisis panel fires immediately — focus-trapped, refresh-guarded, 5-second countdown, clickable `tel:` links to Kenya Red Cross (1199) and Befrienders Kenya (+254 722 178 177).
+### 5. AI-assisted information extraction
+AI helps identify relevant signals such as changes in wellbeing, sleep, social functioning, family circumstances, environmental stressors, and other configured community-health indicators. The AI does **not diagnose patients**. It structures information and assists the CHV with the next operational step.
 
-5. **It meets CHVs where they are.** Natural-language capture in English, Swahili, Sheng, or mixed code-switching — no clinical forms. The CHV describes what they saw; the AI structures it.
+### 6. Deterministic safety and routing engine
+Critical safety decisions are separated from the AI model. The system applies versioned, auditable rules to determine whether an encounter requires routine monitoring, follow-up, or urgent referral/escalation. **The AI cannot override the configured safety rules.**
+
+### 7. Referral management
+- Create referrals from encounters.
+- Route people toward configured health services.
+- Track referral status (created → sent → acknowledged → in_progress → completed/declined/cancelled/expired).
+- Record acknowledgement and completion.
+- Identify referrals that have not been completed.
+- Support supervisor intervention when follow-up is overdue.
+
+### 8. Follow-up management
+CHVs and supervisors can see who needs follow-up, why it's required, when it's due, who is responsible, whether the person was successfully reached, and what happened during the follow-up.
+
+### 9. Community health intelligence
+County and authorized Ministry teams receive aggregated intelligence rather than unrestricted patient-level information. Dashboards show community reporting coverage, encounter volumes, follow-up rates, referral activity and completion, geographic distribution, changes over time, emerging areas, and CHV/CHU activity.
+
+### 10. Early-warning signals
+Msaada can identify unusual changes in reported community signals — presented as **signals requiring human investigation**, not as automatic diagnoses or claims about population prevalence.
+
+### 11. Supervisor command center
+Supervisors can monitor active CHVs, household coverage, pending encounters, follow-ups, referral status, data-quality issues, synchronization problems, and areas with emerging signals.
+
+### 12. Offline synchronization (production target)
+A CHV can open assigned households while offline, capture an encounter, record voice or structured information, store securely on device, continue working without connectivity, and synchronize automatically when connection returns. The sync layer handles retries, duplicate prevention, interrupted transfers, and conflict resolution.
+
+### 13. Privacy and security
+- Role-based access, geographic authorization, encryption, secure device storage, audit logging.
+- Controlled patient-location visibility.
+- No unnecessary patient information in AI prompts or system logs.
+- Aggregation and de-identification for population dashboards.
+- Configurable retention and access policies.
+
+### 14. AI transparency and evaluation
+Msaada records which AI model/version generated a structured interpretation and keeps the source observation separate from the AI interpretation. The system can be evaluated using synthetic multilingual datasets covering different languages, accents, incomplete information, ambiguity, code-switching, and safety-sensitive scenarios.
+
+### 15. Future interoperability
+The platform is designed so that Msaada can eventually connect with existing health information systems, referral networks, and benefits-navigation services rather than becoming another isolated health database.
+
+---
+
+## What makes Msaada different
+
+We are not asking vulnerable people to download another chatbot. We are strengthening the **existing community health network**. A CHV already visits households. Msaada gives that CHV better tools to capture information, operate offline, identify when follow-up is needed, coordinate referrals, and ensure that important community signals reach the people responsible for public-health decisions.
+
+Mental health is our initial use case, but the underlying infrastructure can become a broader **Community Health Intelligence Layer** for Kenya and other African health systems.
+
+---
 
 ## Current Progress
 
-This is a **working hackathon MVP** — end-to-end functional, seeded with realistic synthetic data, demoed live. Built in ~15 review rounds across 30+ agent dispatches.
-
-### ✅ What works (live, demo-able)
+Working hackathon MVP built with Next.js + Qwen AI. End-to-end functional with seeded synthetic data.
 
 | Feature | Status |
 |---|---|
-| **CHV auth** (HMAC-signed session, scrypt-hashed) | ✅ |
-| **Identity chain** — Household → Member → Encounter (stable IDs, data minimization) | ✅ |
-| **Natural-language observation capture** (English/Swahili/Sheng sample transcripts) | ✅ |
-| **PII scrubber** (8 Kenya-specific types: phones, emails, IDs, M-Pesa, plates, plots, schools, names) | ✅ |
-| **Qwen AI triage** (structured JSON output, retry + fallback, never silently drops) | ✅ |
-| **Deterministic policy engine** (v1.0.0, separate from AI, crisis override unmodifiable) | ✅ |
-| **Non-dismissable crisis panel** (focus-trapped, tel: links, beforeunload guard, 5s countdown) | ✅ |
-| **Referral lifecycle** (8 states: created → sent → acknowledged → in_progress → completed/declined/cancelled/expired) | ✅ |
-| **Follow-up workflow** (pending → done/missed, 24h crisis / 48h standard, linked to referrals) | ✅ |
-| **County aggregate dashboard** (Recharts, RBAC county-scope toggle, time-range filter, CSV export, freshness badge) | ✅ |
-| **Compliance audit trail** (paginated, filterable, de-identified, policy-version logged) | ✅ |
-| **Supervisor roster** (per-CHV de-identified activity/load/escalation burden) | ✅ |
-| **CHV weekly report** (printable, de-identified personal stats) | ✅ |
-| **6 defense layers** (never-persist → PII scrub → aggregate-only reads → ownership writes → audit trail → rate-limit) | ✅ |
-| **Seed data** (4 households, 10 members, 9 encounters, 2 referrals — incl. 1 crisis) | ✅ |
+| Institutional onboarding + invitation-based CHV creation | ✅ |
+| Role-based auth (9 roles: MoH, County Admin, Supervisor, CHV, etc.) | ✅ |
+| Identity chain (Household → Member → Encounter → Observation) | ✅ |
+| Qwen AI triage (structured JSON, retry + fallback) | ✅ |
+| Deterministic policy engine (separate from AI, v1.0.0) | ✅ |
+| Non-dismissable crisis panel (Kenya Red Cross 1199) | ✅ |
+| Referral lifecycle (8 states) | ✅ |
+| Follow-up tracking (pending → done/missed, linked to referrals) | ✅ |
+| County aggregate dashboard (RBAC, time-range, CSV, charts) | ✅ |
+| Compliance audit trail (policy-version logged) | ✅ |
+| Supervisor roster (per-CHV de-identified) | ✅ |
+| PII scrubber (8 Kenya-specific types, before model) | ✅ |
+| 6 defense layers (never-persist → scrub → aggregate → ownership → audit → rate-limit) | ✅ |
+| Offline-first sync + Android app | ☐ Production target |
+| NATS JetStream + Temporal workflows | ☐ Production target |
 
-### ⚠️ Production targets (documented, not in the MVP)
+---
 
-| Feature | Status | Note |
-|---|---|---|
-| Go backend (domain + application logic) | ☐ | Next.js is the web layer only in the target architecture |
-| PostgreSQL + PostGIS (core data + geo) | ☐ | Sandbox uses Prisma + SQLite |
-| NATS JetStream (async events) | ☐ | encounter.created, referral.acknowledged… |
-| Temporal (durable workflows) | ☐ | Referral + follow-up + AI-processing workflows |
-| Android CHW app (Kotlin, offline-first) | ☐ | Next.js is the web/management layer |
-| Offline-first sync (local outbox + idempotency) | ☐ | The spec demands it; the MVP is online-only |
-| Postgres RLS (row-level security at the DB) | ☐ | Sandbox enforces at the data-access layer |
-| Compliance RBAC roles (CHV/Supervisor/County/Admin) | ☐ | Sandbox uses ownership-scoping + documented TODOs |
-| Multi-channel (WhatsApp / SMS / USSD) | ☐ | |
-| Security test suite (OWASP + prompt-injection) | ☐ | |
-| Qwen evaluation dataset (multilingual + adversarial) | ☐ | |
-
-### Routes (8, all live)
-
-`/` (CHV submission, identity-gated) · `/households` (CHV workflow) · `/dashboard` (county aggregate) · `/audit` (compliance) · `/supervisor` (per-CHV roster) · `/referrals` (referral lifecycle) · `/report/mine` (CHV weekly report) · `/settings` (CHV profile + crisis-line reference)
-
-### Quick start
+## Quick Start
 
 ```bash
 bun install && bun run db:push && bun run dev   # http://localhost:3000
 ```
 
-**Demo:** `demo@msaada.health` / `msaada123` (or click "Use demo account"). The dashboard auto-seeds if empty.
+**Demo accounts:**
+- CHV: `demo@msaada.health` / `msaada123`
+- County Admin: `county.admin@msaada.health` / `msaada123`
 
-**Repo:** https://github.com/Roy-Wanyoike/msaada
+**Tech Stack:** Next.js 16 (App Router, TypeScript) + Qwen (via z-ai-web-dev-sdk) + Prisma + Tailwind CSS 4 + shadcn/ui + Recharts
 
----
-
-## The 3-minute demo (for judges)
-
-| Time | Action | What to show |
-|---|---|---|
-| 0:00 | Open `/` → **"Use demo account"** | Auto-login. Show **My Impact** card + **Pending Follow-ups**. |
-| 0:20 | **Households** nav → open a household → **Start encounter** on a member | The identity chain: MSD-HH-XXXX → MSD-M-XXXX → MSD-ENC-XXXX. Deep-links to submission. |
-| 0:40 | Pick the **⚠ CRISIS** sample → **Submit** | PII-scrubbed → Qwen → `escalation: true`. |
-| 1:00 | **Crisis panel fires** | Non-dismissable, 5s countdown, `tel:1199` + `tel:+254722178177`. Focus-trapped. Refresh-guarded. |
-| 1:20 | **Confirm** → show the **Referral** (MSD-REF-XXXX, emergency) | Policy engine created an emergency referral + 24h follow-up. |
-| 1:40 | **Dashboard** nav | RBAC toggle (Kilifi/All), charts, follow-up completion KPI, freshness badge, audit strip. |
-| 2:00 | **Audit** nav | Compliance trail — policy version + workflow class logged. De-identified. |
-| 2:15 | **Supervisor** nav | Per-CHV roster. |
-| 2:30 | **Referrals** nav | 8-state lifecycle. "Referral Created ≠ Help Received." |
-| 2:45 | **My report** → **Print** | Printable weekly report. |
-| 3:00 | Close: **"Msaada is a human coordination layer for AI, not an autonomous medical decision-maker."** | |
+**GitHub:** https://github.com/Roy-Wanyoike/msaada
 
 ---
 
-## The design decision judges ask about: AI ≠ Authority
+## License
 
-> **The AI produces interpretation. A separate, deterministic, versioned, auditable policy engine controls the workflow decision. The AI can NEVER override or downgrade a safety-critical signal.**
-
-```typescript
-// src/lib/policy-engine.ts — PURE function, no side effects, no I/O
-// Testable. Deterministic. Independently deployable from the model.
-
-export function evaluatePolicy(interpretation: ModelInterpretation): PolicyDecision {
-  // CRISIS OVERRIDE — fires first + unconditionally. The AI cannot downgrade this.
-  if (interpretation.escalation) {
-    return { workflowClass: "crisis_override", referralPriority: "emergency", ... };
-  }
-  // FALLBACK — never silently drop. Default to caution (human_review).
-  if (interpretation.fallbackUsed) {
-    return { workflowClass: "human_review", ... };
-  }
-  // NORMAL — deterministic mapping.
-  switch (interpretation.classification) {
-    case "routine":                 return { workflowClass: "routine", ... };
-    case "needs_followup":          return { workflowClass: "follow_up_required", ... };
-    case "needs_facility_referral": return { workflowClass: "referral_required", ... };
-  }
-}
-```
-
-Referral destinations come from an **authorized config** (`AUTHORIZED_DESTINATIONS`) — never invented by the AI (spec §12, §27).
-
-## The 6 defense layers (de-identification)
-
-| # | Layer | What it does |
-|---|---|---|
-| 1 | **Never persist the raw observation** | Sent to Qwen in-memory, discarded. No DB column. |
-| 2 | **PII scrubber before the model** | 8 Kenya-specific identifier types redacted before Qwen sees the text. |
-| 3 | **Aggregate-only dashboard reads** | groupBy queries that never select indicator text (Postgres VIEW equivalent). |
-| 4 | **Ownership-scoped writes** | HMAC-signed session → `submittedById` enforced (RLS equivalent). |
-| 5 | **Audit trail** | Every triage logged: who/when/where/verdict/policy-version/referral. Never observation text. |
-| 6 | **Rate-limit per CHV** | 10 triage/60s per CHV + 3 seeds/10min per IP. Redis-swap-ready. |
-
-## Tech stack
-
-| Layer | Choice |
-|---|---|
-| Framework | Next.js 16 (App Router, TypeScript) |
-| Styling | Tailwind CSS 4 + shadcn/ui (New York) |
-| Charts | Recharts (code-split via next/dynamic) |
-| Database | Prisma + SQLite *(sandbox adaptation of Supabase)* |
-| AI | Qwen via z-ai-web-dev-sdk (server-side only) |
-| Auth | HMAC-signed cookie session (scrypt-hashed) |
-| Policy | Deterministic policy engine (policy-engine.ts, v1.0.0) |
-
-## The Qwen triage system prompt (fixed — crisis logic must not be modified)
-
-> *You are Msaada, an AI triage-support tool for Community Health Volunteers (CHVs) in Kenya conducting routine household visits. You are NOT a diagnostic tool and NOT a therapist.*
->
-> *CRISIS OVERRIDE (check first, always): If the observation contains any indication of suicidal ideation, expressed intent to self-harm, a means/plan mentioned, or acute danger to self or others, output ONLY:* `{"escalation": true, "chp_instruction": "Do not leave the household unaccompanied. Contact your CHV supervisor and the nearest Level 4+ facility immediately. If immediate danger, call Kenya Red Cross Emergency: 1199.", "crisis_line": "Kenya Red Cross Emergency: 1199 | Befrienders Kenya: +254 722 178 177", "record_for_reporting": true}`
->
-> *Otherwise classify into exactly one of: routine, needs_followup, needs_facility_referral. Never diagnose. If information is too limited to classify confidently, default to needs_followup — under-triage is the higher-risk error.*
-
-## Safety note
-
-Msaada is **not** a diagnostic tool and **not** a therapist. It surfaces the Kenya Red Cross (1199) and Befrienders Kenya (+254 722 178 177) crisis lines. Reporting language says *"reported distress-related observations increased"* — never *"depression increased by 30%"* unless the methodology supports it.
-
-**License:** MIT — hackathon MVP, not for clinical use without validation + compliance review + authorized Kenyan health-system integration.
+MIT — hackathon MVP, not for clinical use without validation + compliance review + authorized Kenyan health-system integration.

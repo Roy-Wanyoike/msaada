@@ -13,9 +13,6 @@ import {
   Phone,
   ArrowRight,
   ArrowLeft,
-  Sparkles,
-  Stethoscope,
-  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { COUNTIES, WARDS, type County } from "@/lib/types";
+import { LandingPage } from "@/components/msaada/LandingPage";
 
 export interface Chv {
   role?: string;
@@ -257,107 +255,16 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
     </div>
   );
 
-  // ============ HERO VIEW ============
+  // ============ HERO VIEW ============ (full landing page — website → webapp)
   if (view === "hero") {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.4 }}
-        className="flex w-full max-w-3xl flex-col items-center text-center"
-      >
-        {/* Brand */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-6 flex items-center gap-3"
-        >
-          <span className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-950/20">
-            <HeartPulse className="size-7" aria-hidden />
-          </span>
-          <h1 className="text-4xl font-bold tracking-tight">Msaada</h1>
-        </motion.div>
-
-        {/* Tagline */}
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mb-2 text-lg text-foreground"
-        >
-          Community health, intelligently coordinated.
-        </motion.p>
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="mb-8 max-w-md text-sm text-muted-foreground"
-        >
-          AI interprets. Deterministic policy controls safety. Authorized
-          humans control care. A triage-support tool for Community Health
-          Volunteers in Kenya.
-        </motion.p>
-
-        {/* CTA buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="flex w-full max-w-sm flex-col gap-3"
-        >
-          <Button
-            onClick={() => setView("login")}
-            className="h-12 w-full bg-emerald-600 text-base hover:bg-emerald-700"
-          >
-            <LogIn className="mr-2 size-5" />
-            Login
-            <ArrowRight className="ml-2 size-4" />
-          </Button>
-          <Button
-            onClick={() => setView("signup")}
-            variant="outline"
-            className="h-12 w-full border-emerald-300 text-base text-emerald-700 hover:bg-emerald-50 hover:border-emerald-400 dark:border-emerald-800 dark:text-emerald-300"
-          >
-            <UserPlus className="mr-2 size-5" />
-            Sign up
-          </Button>
-        </motion.div>
-
-        {/* Demo + dashboard */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="mt-6 flex w-full max-w-sm flex-col gap-3"
-        >
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-background px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                or
-              </span>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            className="h-10 w-full text-sm text-muted-foreground hover:text-foreground"
-            onClick={handleDemoAccount}
-            disabled={demoLoading}
-          >
-            {demoLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-            {demoLoading ? "Preparing demo…" : "Use demo account"}
-          </Button>
-          <button
-            onClick={onDashboard}
-            className="flex items-center justify-center gap-1.5 text-sm font-medium text-emerald-700 transition-colors hover:text-emerald-800 dark:text-emerald-300"
-          >
-            View county dashboard <ExternalLink className="size-3.5" />
-          </button>
-        </motion.div>
-      </motion.div>
+      <LandingPage
+        onLogin={() => setView("login")}
+        onSignup={() => setView("signup")}
+        onDashboard={onDashboard}
+        onDemo={handleDemoAccount}
+        demoLoading={demoLoading}
+      />
     );
   }
 

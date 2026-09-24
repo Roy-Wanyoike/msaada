@@ -38,3 +38,14 @@ coverage/
 .turbo
 tool-results/
 tsconfig.tsbuildinfo
+
+# Hackathon cleanup — internal artifacts not needed in the public repo
+agent-ctx/
+reviews/
+tests/
+examples/
+download/
+.zscripts/
+mini-services/
+tool-results/
+*.tsbuildinfo
