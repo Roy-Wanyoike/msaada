@@ -500,3 +500,35 @@ Stage Summary:
   4. Realtime push of new audit entries.
   5. /api/triage latency ~12-15s — consider streaming.
 - Repo: https://github.com/Roy-Wanyoike/msaada
+
+---
+Task ID: review-r10
+Agent: orchestrator (webDevReview cron round 10)
+Task: 15-min scheduled review — dashboard follow-up completion KPI, settings page.
+
+Work Log:
+- Read worklog; server was dead. Restored. Lint clean.
+- Dashboard follow-up completion metric (closes round-9 follow-up #2):
+  - getFollowUpStats(county?, days?) in triage-store: pending/done/missed/overdue counts + completionRate (done/(done+missed)). De-identified counts. County filter joins through TriageRecord; overdue = pending AND past dueAt.
+  - /api/dashboard now returns followUpStats in its payload (county + days scoped to match the dashboard's RBAC + time-range).
+  - FollowUpKpiCard component: full-width card under the KPI grid showing completion-rate % (green >=80 / amber 50-79 / red <50), "X done · Y missed" hint, and a 3-col breakdown (Pending / Overdue / Done, tone-coded). Accent bar color reflects urgency (red if overdue, amber if pending, emerald if clear). Hover-lift + framer-motion entrance.
+  - DashboardView receives followUpStats and renders the card conditionally (only when total > 0).
+  - Verified live: dashboard API returns followUpStats={pending:1,done:0,missed:0,overdue:0,total:1,completionRate:0}. Card renders "FOLLOW-UPS / No resolved follow-ups yet / PENDING 1 / OVERDUE 0 / DONE 0".
+- New /settings page (CHV profile + crisis-line reference):
+  - /app/settings/page.tsx: gradient profile header (CHV name + role), profile rows (Email / County / Ward / Account ID with de-identified chv·xxxx label), crisis-line quick-reference card (Kenya Red Cross 1199 + Befrienders Kenya as tel: links, with the CHV crisis protocol), session actions (Refresh + Sign out).
+  - AppNav gains a "Settings" link (5th nav item).
+  - Verified live: VLM 9/10 — "CHV profile card with green gradient header clear, crisis-line cards for Kenya Red Cross + Befrienders visible, clean professional design."
+- lint clean (exit 0).
+- Committed (2dde103) + pushed to GitHub main.
+
+Stage Summary:
+- Dashboard now surfaces the operational health of the follow-up workflow: a county official / supervisor sees at a glance whether CHVs are completing their recommended revisits (completion rate % + overdue count). Closes the round-9 follow-up #2.
+- Settings page gives the CHV a profile view + crisis-line quick reference (tel: links) — a practical safety resource, not just a config page.
+- Routes: / (CHV) · /dashboard (county) · /audit (compliance) · /supervisor (supervisor) · /report/mine (CHV weekly report) · /settings (CHV profile).
+- Remaining follow-ups for next review cycle:
+  1. Live-verify the mark-done -> "All caught up" state transition + dashboard follow-up KPI updating (server died mid-response in round 9; API logic verified).
+  2. Compliance-officer + supervisor RBAC roles.
+  3. Realtime push of new audit entries.
+  4. /api/triage latency ~12-15s — consider streaming.
+  5. Supervisor roster: add a per-CHV follow-up completion column.
+- Repo: https://github.com/Roy-Wanyoike/msaada (commit 2dde103)
