@@ -1,0 +1,69 @@
+// Shared types for the Msaada triage flow.
+
+export const COUNTIES = ["Kilifi", "Nairobi", "Turkana", "Mombasa"] as const;
+export type County = (typeof COUNTIES)[number];
+
+export const WARDS: Record<County, string[]> = {
+  Kilifi: ["Malindi Town", "Magarini", "Ganze", "Kaloleni"],
+  Nairobi: ["Kibra", "Mathare", "Mukuru", "Kasarani"],
+  Turkana: ["Turkana Central", "Loima", "Turkana North", "Turkana South"],
+  Mombasa: ["Mvita", "Likoni", "Kisauni", "Changamwe"],
+};
+
+export type Classification =
+  | "routine"
+  | "needs_followup"
+  | "needs_facility_referral";
+
+export const CLASSIFICATIONS: Classification[] = [
+  "routine",
+  "needs_followup",
+  "needs_facility_referral",
+];
+
+/** Shape returned by Qwen (crisis override path). */
+export interface CrisisResult {
+  escalation: true;
+  chp_instruction: string;
+  crisis_line: string;
+  record_for_reporting: boolean;
+}
+
+/** Shape returned by Qwen (normal classification path). */
+export interface NormalResult {
+  escalation: false;
+  classification: Classification;
+  observed_indicators: string[];
+  chp_next_action: string;
+  confidence_note: string | null;
+  aggregate_tag: string;
+}
+
+export type TriageModelOutput = CrisisResult | NormalResult;
+
+/**
+ * What the /api/triage route persists + returns to the client.
+ * The raw observation text is intentionally NOT present here.
+ */
+export interface TriageRecordDTO {
+  id: string;
+  createdAt: string;
+  county: string;
+  ward: string | null;
+  classification: Classification;
+  escalation: boolean;
+  observedIndicators: string[];
+  aggregateTag: string | null;
+  chpNextAction: string | null;
+  chpInstruction: string | null;
+  crisisLine: string | null;
+  confidenceNote: string | null;
+  fallbackUsed: boolean;
+}
+
+/** Payload the client sends to /api/triage. */
+export interface TriageRequest {
+  observation_text: string;
+  county: string;
+  ward?: string;
+}

@@ -1,2 +1,38 @@
-skills/
+# dependencies
 node_modules/
+
+# next.js
+.next/
+out/
+build/
+dist/
+
+# env
+.env
+.env.*
+!.env.example
+
+# database
+db/
+*.db
+*.db-journal
+
+# logs
+dev.log
+server.log
+*.log
+
+# screenshots / local artifacts
+shot-*.png
+dashboard-full.png
+*.png
+
+# uploaded secrets / tokens (NEVER commit)
+upload/
+
+# misc
+.DS_Store
+*.pem
+coverage/
+.vercel
+.turbo

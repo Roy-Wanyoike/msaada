@@ -1,0 +1,63 @@
+// Msaada schema — adapted from the Supabase migration to Prisma + SQLite.
+// NOTE: SQLite has no native `text[]`/`timestamptz`/`gen_random_uuid()`.
+// - observed_indicators is stored as a JSON-encoded TEXT and decoded in app code.
+// - timestamps default to now() (Prisma stores ISO strings).
+// - ids use cuid().
+// De-identification is enforced at the data layer: the raw free-text CHV
+// observation is NEVER persisted. Only the Qwen-returned structured fields
+// (classification, observed_indicators, aggregate_tag, chp_next_action,
+// confidence_note, escalation) plus county/ward and the submitting CHV id.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model ChvUser {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  fullName  String?
+  county    String?
+  ward      String?
+  passwordHash String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  triageRecords TriageRecord[]
+}
+
+model TriageRecord {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+
+  // Demographic context (de-identified: no household names / addresses)
+  county            String
+  ward              String?
+
+  // Triage output (model-derived, never raw observation text)
+  classification    String   // routine | needs_followup | needs_facility_referral
+  escalation        Boolean  @default(false)
+  observedIndicators String   // JSON-encoded string[] (SQLite has no arrays)
+  aggregateTag      String?
+  chpNextAction     String?
+  chpInstruction     String?  // populated only on escalation=true (crisis)
+  crisisLine        String?  // populated only on escalation=true (crisis)
+  confidenceNote    String?
+
+  // Submission audit / ownership (mirrors the `submitted_by` RLS column)
+  submittedById     String
+  submittedBy       ChvUser  @relation(fields: [submittedById], references: [id])
+
+  @@index([county, createdAt])
+  @@index([classification])
+  @@index([aggregateTag])
+  @@index([escalation])
+}
+
+// A separate aggregate view table is not needed with Prisma — the dashboard
+// route computes aggregates via grouped queries and NEVER selects
+// observed_indicators text. See README for the RLS / view-equivalent design.
