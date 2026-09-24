@@ -11,6 +11,7 @@ import {
   Stethoscope,
   FileText,
   Settings,
+  BookOpen,
   ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { href: "/referrals", label: "Referrals", icon: Stethoscope },
   { href: "/report/mine", label: "My report", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/docs", label: "Docs", icon: BookOpen },
 ] as const;
 
 export function AppNav() {
