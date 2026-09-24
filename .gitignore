@@ -37,3 +37,4 @@ coverage/
 .vercel
 .turbo
 tool-results/
+tsconfig.tsbuildinfo
