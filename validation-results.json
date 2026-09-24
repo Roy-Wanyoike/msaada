@@ -1,0 +1,51 @@
+{
+  "results": [
+    {
+      "step": "Login as demo CHV (POST /api/auth/login)",
+      "ok": true,
+      "detail": "200 in 803ms; cookie set; chv.email=demo@msaada.health; role=chv"
+    },
+    {
+      "step": "GET /api/auth/me",
+      "ok": true,
+      "detail": "200; chv.email=demo@msaada.health; role=chv"
+    },
+    {
+      "step": "GET /api/community-reports (seeded)",
+      "ok": true,
+      "detail": "status=200; reports.length=4; total=4"
+    },
+    {
+      "step": "GET /api/response-cases (seeded)",
+      "ok": true,
+      "detail": "status=200; cases.length=2"
+    },
+    {
+      "step": "GET /api/dashboard",
+      "ok": true,
+      "detail": "status=200; totals.total=9; byCounty.length=4; byDay.length=14"
+    },
+    {
+      "step": "POST /api/community-reports (public)",
+      "ok": true,
+      "detail": "status=201; reportCode=MSD-RPT-Z49NL; status=received"
+    },
+    {
+      "step": "PATCH /api/response-cases/[id] action=accept",
+      "ok": true,
+      "detail": "status=200; case.status=accepted; acceptedAt=set"
+    },
+    {
+      "step": "PATCH /api/response-cases/[id] action=start",
+      "ok": true,
+      "detail": "status=200; case.status=response_started"
+    },
+    {
+      "step": "Logout (POST /api/auth/logout)",
+      "ok": true,
+      "detail": "status=200"
+    }
+  ],
+  "pass": 9,
+  "fail": 0
+}

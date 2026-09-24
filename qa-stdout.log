@@ -1,0 +1,828 @@
+=== Starting dev server ===
+Waiting for server to be ready...
+Server ready after 3s
+Initial / ping: 200
+
+=== Warming 12 routes via curl ===
+warm / 200
+warm /report 200
+warm /cases 200
+warm /households 200
+warm /dashboard 200
+warm /audit 200
+warm /supervisor 200
+warm /referrals 200
+warm /report/mine 200
+warm /settings 200
+warm /admin 200
+warm /docs 200
+Server still alive after warming
+
+=== Starting agent-browser verification ===
+[agent-browser] launched browser
+✓ Done
+
+--- PUBLIC: /report ---
+✓ Cookies cleared
+✓ Msaada — CHV mental-health triage
+  http://127.0.0.1:3000/report
+✓ Done
+  [snapshot]
+- link "Skip to main content" [ref=e1]
+- banner
+  - link "Msaada" [ref=e4]
+- main
+  - alert
+  - list "Progress"
+  - generic
+  - StaticText "Tell a community health volunteer what is happening."
+  - paragraph
+  - list
+  - button "Start a report" [ref=e5]
+  - link "Back to home" [ref=e6]
+  - button "Continue" [ref=e7]
+  - paragraph
+    - StaticText "Msaada · Not a diagnostic tool · Crisis line: Kenya Red Cross 1199 · Befrienders Kenya +254 722 178 177"
+- contentinfo
+  - paragraph
+    - link "CHV sign in" [ref=e8]
+- region "Notifications alt+T" [ref=e2]
+- region "Notifications (F8)" [ref=e3]
+  [errors]
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/public_report.png
+  [title]
+Msaada — CHV mental-health triage
+
+--- PUBLIC: /docs ---
+✓ Cookies cleared
+✓ Msaada — CHV mental-health triage
+  http://127.0.0.1:3000/docs
+✓ Done
+  [snapshot]
+- link "Skip to main content" [ref=e9]
+- navigation "Primary" [ref=e10]
+  - link "Msaada home" [ref=e13]
+  - generic
+    - link "Report" [ref=e44]
+    - link "Cases" [ref=e45]
+    - link "Dashboard" [ref=e46]
+    - link "Households" [ref=e47]
+    - link "Referrals" [ref=e48]
+    - link "Supervisor" [ref=e49]
+    - link "Audit" [ref=e50]
+    - link "Admin" [ref=e51]
+    - link "My report" [ref=e52]
+    - link "Settings" [ref=e53]
+    - link "Docs" [ref=e54]
+  - link "CHV submission" [ref=e14]
+- main
+  - sectionheader
+    - link "Back to app" [ref=e55]
+    - heading "Documentation" [level=1, ref=e56]
+    - paragraph
+      - StaticText "Switch between the README, the problem statement, and the license."
+  - button "README" [ref=e15]
+    - StaticText "README"
+  - button "Problem" [ref=e16]
+  - button "License" [ref=e17]
+  - heading "Msaada" [level=1, ref=e18]
+  - blockquote
+    - paragraph
+      - emphasis
+      - StaticText " — \"help\" / \"assistance\" in Swahili."
+  - paragraph
+    - strong
+      - StaticText "Msaada is an AI-powered, offline-first Community Health Intelligence Platform designed to strengthen the connection between Community Health Volunteers (CHVs), households, health facilities, county health teams, and the Ministry of Health."
+  - separator
+  - heading "Problem" [level=2, ref=e19]
+  - paragraph
+    - StaticText "Msaada addresses a major gap in community healthcare: CHVs are already present in communities and often observe important health and social signals, but information can remain fragmented across notebooks, memory, phone calls, WhatsApp messages, and disconnected reporting systems. This makes it difficult to identify people who need follow-up, track referrals, understand community-level trends, and give health managers timely intelligence."
+  - heading "Proposed Solution" [level=2, ref=e20]
+  - paragraph
+    - StaticText "Msaada creates a complete digital workflow:"
+  - paragraph
+    - strong
+      - StaticText "Institution → Community Health Officer → Supervisor → CHV → Household → Person → Encounter → Referral → Follow-up → Community Intelligence."
+  - separator
+  - heading "Key Features" [level=2, ref=e21]
+  - heading "1. Institutional onboarding and authentication" [level=3, ref=e22]
+  - list
+    - listitem [level=1]
+      - StaticText "Ministry of Health and county health-team accounts."
+    - listitem [level=1]
+      - StaticText "County administrators onboard supervisors and CHVs."
+    - listitem [level=1]
+      - StaticText "Role-based and geographic access controls."
+    - listitem [level=1]
+      - StaticText "CHV assignment to Community Health Units and specific communities."
+    - listitem [level=1]
+      - StaticText "Device registration and secure authentication."
+    - listitem [level=1]
+      - StaticText "Full audit trail of sensitive actions."
+  [errors]
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/public_docs.png
+  [title]
+Msaada — CHV mental-health triage
+
+=== Auth flow: clear cookies -> open / -> click demo account ===
+✓ Cookies cleared
+✓ Msaada — CHV mental-health triage
+  http://127.0.0.1:3000/
+✓ Done
+[snapshot of login page]
+- link "Skip to main content" [ref=e205]
+- heading "Msaada" [level=1, ref=e228]
+- button "Login" [ref=e229]
+- button "Sign up" [ref=e230]
+- button "Use demo account" [ref=e231]
+- button "View county dashboard" [ref=e232]
+- link "1199" [ref=e233]
+- link "Befrienders Kenya" [ref=e234]
+- heading "What is Msaada?" [level=2, ref=e208]
+- heading "Key Features" [level=2, ref=e209]
+- heading "Institutional onboarding" [level=3, ref=e210]
+- heading "Household traceability" [level=3, ref=e211]
+- heading "Voice-first data collection" [level=3, ref=e212]
+- heading "AI-assisted extraction" [level=3, ref=e213]
+- heading "Deterministic safety engine" [level=3, ref=e214]
+- heading "Referral management" [level=3, ref=e215]
+- heading "Follow-up management" [level=3, ref=e216]
+- heading "Community intelligence" [level=3, ref=e217]
+- heading "Early-warning signals" [level=3, ref=e218]
+- heading "Supervisor command center" [level=3, ref=e219]
+- heading "Offline-first (target)" [level=3, ref=e220]
+- heading "Privacy & security" [level=3, ref=e221]
+- heading "AI transparency" [level=3, ref=e222]
+- heading "Future interoperability" [level=3, ref=e223]
+- heading "Audit trail" [level=3, ref=e224]
+- heading "Geographic intelligence" [level=3, ref=e225]
+- heading "What makes Msaada different" [level=2, ref=e235]
+- button "Login" [ref=e236]
+- button "Sign up" [ref=e237]
+- link "1199" [ref=e226]
+- link "Befrienders Kenya" [ref=e227]
+- region "Notifications alt+T" [ref=e206]
+- region "Notifications (F8)" [ref=e207]
+[clicking demo account button]
+✓ Done
+✓ Done
+✓ Done
+[post-demo snapshot]
+- generic
+  - link "Skip to main content" [ref=e205]
+  - main
+    - StaticText "My impact"
+    - paragraph
+      - StaticText "18 observations since 9 days ago"
+    - paragraph
+      - StaticText "THIS WEEK"
+    - paragraph
+      - StaticText "14/ 18 total"
+    - StaticText "+10 vs last week"
+    - StaticText "ROUTINE"
+    - paragraph
+      - StaticText "8"
+    - StaticText "FOLLOW-UP"
+    - paragraph
+      - StaticText "6"
+    - StaticText "REFERRAL"
+    - paragraph
+      - StaticText "4"
+    - StaticText "ESCALATIONS"
+    - paragraph
+      - StaticText "2"
+    - StaticText "Since "
+    - StaticText "9 days ago"
+    - StaticText "4"
+    - StaticText " count"
+    - StaticText "ies"
+    - StaticText "Pending follow-ups"
+    - paragraph
+      - StaticText "10 pending"
+    - button "Refresh follow-ups" [ref=e238]
+    - list
+      - listitem [level=1]
+        - button "FACILITY REFERRAL crisis self harm Kilifi · Malindi Town 23h 35m left" [expanded=false, ref=e254]
+      - listitem [level=1]
+        - button "FACILITY REFERRAL crisis self harm Kilifi · Malindi Town 23h 47m left" [expanded=false, ref=e255]
+      - listitem [level=1]
+        - button "NEEDS FOLLOW-UP social withdrawal Kilifi · Malindi Town 47h 35m left" [expanded=false, ref=e256]
+      - listitem [level=1]
+http://127.0.0.1:3000/
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/authed_root.png
+
+--- AUTHED: /cases ---
+✓ Msaada — CHV mental-health triage
+  http://127.0.0.1:3000/cases
+✓ Done
+✓ Done
+  [snapshot]
+- generic
+  - link "Skip to main content" [ref=e281]
+  - navigation "Primary" [ref=e282]
+    - link "Msaada home" [ref=e285]
+      - StaticText "Msaada"
+    - generic
+      - link "Report" [ref=e289]
+      - link "Cases" [ref=e290]
+      - link "Dashboard" [ref=e291]
+      - link "Households" [ref=e292]
+      - link "Referrals" [ref=e293]
+      - link "Supervisor" [ref=e294]
+      - link "Audit" [ref=e295]
+      - link "Admin" [ref=e296]
+      - link "My report" [ref=e297]
+      - link "Settings" [ref=e298]
+      - link "Docs" [ref=e299]
+    - link "CHV submission" [ref=e286]
+  - main
+    - sectionheader
+      - StaticText "CHV workflow"
+      - heading "My Response Cases" [level=1, ref=e300]
+      - paragraph
+      - link "Back to CHV submission" [ref=e301]
+      - button "Refresh case list" [ref=e302]
+    - region "Case summary" [ref=e287]
+      - StaticText "TOTAL ASSIGNED"
+      - paragraph
+      - StaticText "PENDING ACTION"
+      - paragraph
+      - StaticText "ATTENDED"
+      - paragraph
+      - StaticText "RESOLVED"
+      - paragraph
+    - region "Filter cases" [ref=e288]
+      - LabelText
+      - combobox "Filter cases by status" [expanded=false, ref=e303]: All cases
+        - generic [ref=e304] clickable [onclick]
+      - paragraph
+    - list "Response cases"
+      - listitem [level=1]
+        - button "Mark attended" [ref=e305]
+        - button "Unable to reach" [ref=e306]
+      - listitem [level=1]
+      - listitem [level=1]
+        - button "Mark attended" [ref=e307]
+        - button "Unable to reach" [ref=e308]
+    - paragraph
+      - StaticText "Msaada · De-identified community reports · Ownership-scoped (your assignments only) · Crisis line: Kenya Red Cross 1199 / Befrienders Kenya +254 722 178 177"
+  - region "Notifications alt+T" [ref=e283]
+  - region "Notifications (F8)" [ref=e284]
+  [errors]
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/authedcases.png
+  [title]
+Msaada — CHV mental-health triage
+
+--- AUTHED: /households ---
+✓ Msaada — CHV mental-health triage
+  http://127.0.0.1:3000/households
+✓ Done
+✓ Done
+  [snapshot]
+- link "Skip to main content" [ref=e309]
+- navigation "Primary" [ref=e310]
+  - link "Msaada home" [ref=e313]
+  - generic
+    - link "Report" [ref=e316]
+    - link "Cases" [ref=e317]
+    - link "Dashboard" [ref=e318]
+    - link "Households" [ref=e319]
+    - link "Referrals" [ref=e320]
+    - link "Supervisor" [ref=e321]
+    - link "Audit" [ref=e322]
+    - link "Admin" [ref=e323]
+    - link "My report" [ref=e324]
+    - link "Settings" [ref=e325]
+    - link "Docs" [ref=e326]
+  - link "CHV submission" [ref=e314]
+- main
+  - sectionheader
+    - StaticText "Identity chain - Household register"
+    - StaticText "8"
+    - StaticText " household"
+    - StaticText "s"
+    - StaticText " - "
+    - StaticText "18"
+    - StaticText " member"
+    - StaticText "s"
+    - StaticText " - "
+    - StaticText "18"
+    - StaticText " encounter"
+    - StaticText "s"
+    - heading "My households" [level=1, ref=e327]
+    - paragraph
+    - button "Refresh households" [ref=e328]
+    - button "Create a new household" [ref=e329]
+  - region "Household list" [ref=e315]
+    - article
+      - button "View household roster" [expanded=false, ref=e330]
+    - article
+      - button "View household roster" [expanded=false, ref=e331]
+    - article
+      - button "View household roster" [expanded=false, ref=e332]
+    - article
+      - button "View household roster" [expanded=false, ref=e333]
+    - article
+      - button "View household roster" [expanded=false, ref=e334]
+    - article
+      - button "View household roster" [expanded=false, ref=e335]
+    - article
+      - button "View household roster" [expanded=false, ref=e336]
+    - article
+      - button "View household roster" [expanded=false, ref=e337]
+- region "Notifications alt+T" [ref=e311]
+- region "Notifications (F8)" [ref=e312]
+  [errors]
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/authedhouseholds.png
+  [title]
+Msaada — CHV mental-health triage
+
+--- AUTHED: /dashboard ---
+✓ Msaada · County Triage Dashboard
+  http://127.0.0.1:3000/dashboard
+✓ Done
+✓ Done
+  [snapshot]
+- link "Skip to main content" [ref=e338]
+- navigation "Primary" [ref=e339]
+  - link "Msaada home" [ref=e342]
+  - generic
+    - link "Report" [ref=e350]
+    - link "Cases" [ref=e351]
+    - link "Dashboard" [ref=e352]
+    - link "Households" [ref=e353]
+    - link "Referrals" [ref=e354]
+    - link "Supervisor" [ref=e355]
+    - link "Audit" [ref=e356]
+    - link "Admin" [ref=e357]
+    - link "My report" [ref=e358]
+    - link "Settings" [ref=e359]
+    - link "Docs" [ref=e360]
+  - link "CHV submission" [ref=e343]
+- main
+  - sectionheader
+    - StaticText "Aggregate view · De-identified"
+    - StaticText "Last "
+    - StaticText "14"
+    - StaticText " days"
+    - generic
+      - StaticText "Updated just now"
+    - heading "Msaada — County Triage Dashboard" [level=1, ref=e361]
+    - paragraph
+      - StaticText "Aggregate community mental-health triage signals (last 14days). De-identified — no individual observation text is exposed at any layer of the data pipeline."
+    - group "Data scope (RBAC)"
+      - button "Kilifi" [ref=e371]
+      - button "All" [ref=e372]
+    - group "Time range"
+      - button "7d" [ref=e373]
+      - button "14d" [ref=e374]
+      - button "30d" [ref=e375]
+    - button "Export county data as CSV" [ref=e362]
+      - StaticText "CSV"
+    - link "Back to CHV submission" [ref=e363]
+      - StaticText "Back to CHV submission"
+    - link "View audit log" [ref=e364]
+      - StaticText "Audit"
+    - link "View supervisor roster" [ref=e365]
+      - StaticText "Supervisor"
+    - button "Refresh dashboard data" [ref=e366]
+      - StaticText "Refresh"
+  - StaticText "County-scoped view (RBAC):"
+  - StaticText "showing only "
+  - StaticText "Kilifi"
+  - StaticText " aggregates — the data-access layer filtered to your county. Switch to"
+  - StaticText "All"
+  - StaticText " in the header for the demo / national view."
+  - region "Key performance indicators" [ref=e344]
+    - heading "KPI summary" [level=2, ref=e367]
+    - generic
+      - paragraph
+        - StaticText "TOTAL OBSERVATIONS"
+      - paragraph
+        - StaticText "6"
+      - paragraph
+        - StaticText "Last 14 days"
+    - generic
+  [errors]
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/autheddashboard.png
+  [title]
+Msaada · County Triage Dashboard
+
+--- AUTHED: /audit ---
+✓ Msaada — CHV mental-health triage
+  http://127.0.0.1:3000/audit
+✓ Done
+✓ Done
+  [snapshot]
+- generic
+  - link "Skip to main content" [ref=e392]
+  - navigation "Primary" [ref=e393]
+    - link "Msaada home" [ref=e396]
+    - generic
+      - link "Report" [ref=e403]
+      - link "Cases" [ref=e404]
+      - link "Dashboard" [ref=e405]
+      - link "Households" [ref=e406]
+      - link "Referrals" [ref=e407]
+      - link "Supervisor" [ref=e408]
+      - link "Audit" [ref=e409]
+      - link "Admin" [ref=e410]
+      - link "My report" [ref=e411]
+      - link "Settings" [ref=e412]
+      - link "Docs" [ref=e413]
+    - link "CHV submission" [ref=e397]
+  - main
+    - sectionheader
+      - heading "Audit log" [level=1, ref=e414]
+      - link "Back to CHV submission" [ref=e415]
+      - link "Back to dashboard" [ref=e416]
+      - button "Refresh audit log" [ref=e417]
+    - paragraph
+    - combobox [expanded=false, ref=e398]: All counties
+      - generic [ref=e418] clickable [onclick]
+    - paragraph
+    - combobox [expanded=false, ref=e399]: All events
+      - generic [ref=e419] clickable [onclick]
+    - button "Escalations only" [ref=e400]
+    - StaticText "23 records"
+    - StaticText "WHEN"
+    - StaticText "ACTOR"
+    - StaticText "EVENT"
+    - StaticText "COUNTY · WARD"
+    - StaticText "VERDICT"
+    - StaticText "FLAGS"
+    - list
+    - button "Prev" [disabled, ref=e401]
+    - StaticText "Page "
+    - StaticText "1"
+    - StaticText " of "
+    - StaticText "2"
+    - button "Next" [ref=e402]
+  - contentinfo
+    - paragraph
+      - StaticText "Msaada audit log · Compliance trail · De-identified (truncated CHV labels, no observation text) · TODO: RBAC for compliance-officer role"
+  - region "Notifications alt+T" [ref=e394]
+  - region "Notifications (F8)" [ref=e395]
+  [errors]
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/authedaudit.png
+  [title]
+Msaada — CHV mental-health triage
+
+--- AUTHED: /supervisor ---
+✓ Msaada — CHV mental-health triage
+  http://127.0.0.1:3000/supervisor
+✓ Done
+✓ Done
+  [snapshot]
+- generic
+  - link "Skip to main content" [ref=e420]
+  - navigation "Primary" [ref=e421]
+    - link "Msaada home" [ref=e424]
+    - generic
+      - link "Report" [ref=e427]
+      - link "Cases" [ref=e428]
+      - link "Dashboard" [ref=e429]
+      - link "Households" [ref=e430]
+      - link "Referrals" [ref=e431]
+      - link "Supervisor" [ref=e432]
+      - link "Audit" [ref=e433]
+      - link "Admin" [ref=e434]
+      - link "My report" [ref=e435]
+      - link "Settings" [ref=e436]
+      - link "Docs" [ref=e437]
+    - link "CHV submission" [ref=e425]
+  - main
+    - sectionheader
+      - heading "CHV roster" [level=1, ref=e438]
+      - link "Back to dashboard" [ref=e439]
+      - link "Audit log" [ref=e440]
+      - button "Refresh roster" [ref=e441]
+    - paragraph
+    - combobox [expanded=false, ref=e426]: All counties
+      - generic [ref=e442] clickable [onclick]
+    - paragraph
+    - group "Time range"
+      - button "7d" [ref=e443]
+      - button "14d" [ref=e444]
+      - button "30d" [ref=e445]
+    - StaticText "1 CHV · 18 observations"
+    - StaticText "ACTIVE CHVS"
+    - paragraph
+    - StaticText "TOTAL OBSERVATIONS"
+    - paragraph
+    - StaticText "ESCALATIONS"
+    - paragraph
+    - StaticText "CHV"
+    - StaticText "COUNTY · WARD"
+    - StaticText "TOTAL"
+    - StaticText "ROUTINE"
+    - StaticText "FOLLOW-UP"
+    - StaticText "REFERRAL"
+    - StaticText "ESCALATION"
+    - StaticText "LAST ACTIVE"
+    - list
+  - contentinfo
+    - paragraph
+      - StaticText "Msaada supervisor roster · De-identified per-CHV aggregates · TODO: supervisor RBAC role for production"
+  - region "Notifications alt+T" [ref=e422]
+  - region "Notifications (F8)" [ref=e423]
+  [errors]
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/authedsupervisor.png
+  [title]
+Msaada — CHV mental-health triage
+
+--- AUTHED: /referrals ---
+✓ Msaada — CHV mental-health triage
+  http://127.0.0.1:3000/referrals
+✓ Done
+✓ Done
+  [snapshot]
+- generic
+  - link "Skip to main content" [ref=e446]
+  - navigation "Primary" [ref=e447]
+    - link "Msaada home" [ref=e450]
+    - generic
+      - link "Report" [ref=e454]
+      - link "Cases" [ref=e455]
+      - link "Dashboard" [ref=e456]
+      - link "Households" [ref=e457]
+      - link "Referrals" [ref=e458]
+      - link "Supervisor" [ref=e459]
+      - link "Audit" [ref=e460]
+      - link "Admin" [ref=e461]
+      - link "My report" [ref=e462]
+      - link "Settings" [ref=e463]
+      - link "Docs" [ref=e464]
+    - link "CHV submission" [ref=e451]
+  - main
+    - sectionheader
+      - heading "Referrals" [level=1, ref=e465]
+      - link "Back to CHV submission" [ref=e466]
+      - button "Refresh referrals" [ref=e467]
+    - region "Referral summary" [ref=e452]
+    - paragraph
+    - combobox "Filter by status" [expanded=false, ref=e453]: All statuses
+      - generic [ref=e468] clickable [onclick]
+  - region "Notifications alt+T" [ref=e448]
+  - region "Notifications (F8)" [ref=e449]
+  [errors]
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/authedreferrals.png
+  [title]
+Msaada — CHV mental-health triage
+
+--- AUTHED: /report/mine ---
+✓ Msaada — CHV mental-health triage
+  http://127.0.0.1:3000/report/mine
+✓ Done
+✓ Done
+  [snapshot]
+- link "Skip to main content" [ref=e469]
+- navigation "Primary" [ref=e470]
+  - link "Msaada home" [ref=e473]
+  - generic
+    - link "Report" [ref=e475]
+    - link "Cases" [ref=e476]
+    - link "Dashboard" [ref=e477]
+    - link "Households" [ref=e478]
+    - link "Referrals" [ref=e479]
+    - link "Supervisor" [ref=e480]
+    - link "Audit" [ref=e481]
+    - link "Admin" [ref=e482]
+    - link "My report" [ref=e483]
+    - link "Settings" [ref=e484]
+    - link "Docs" [ref=e485]
+  - link "CHV submission" [ref=e474]
+- main
+  - sectionheader
+    - heading "My triage report" [level=1, ref=e486]
+    - link "Back to CHV submission" [ref=e487]
+    - button "Print" [ref=e488]
+  - paragraph
+  - paragraph
+  - paragraph
+  - paragraph
+  - paragraph
+  - StaticText "TOTAL OBSERVATIONS"
+  - paragraph
+  - StaticText "THIS WEEK"
+  - paragraph
+  - paragraph
+  - StaticText "ESCALATIONS"
+  - paragraph
+  - StaticText "COUNTIES"
+  - paragraph
+  - StaticText "Classification breakdown"
+  - StaticText "8"
+  - StaticText "6"
+  - StaticText "4"
+  - StaticText "2"
+  - StaticText "Routine"
+  - StaticText ":"
+  - StaticText "8"
+  - StaticText "Follow-up"
+  - StaticText ":"
+  - StaticText "6"
+  - StaticText "Referral"
+  - StaticText ":"
+  - StaticText "4"
+  - StaticText "Escalation"
+  - StaticText ":"
+  - StaticText "2"
+  - generic
+  - paragraph
+  - list
+  - paragraph
+    - StaticText "Msaada · De-identified weekly report · Not a diagnostic tool · Crisis line: Kenya Red Cross 1199 / Befrienders Kenya +254 722 178 177"
+- region "Notifications alt+T" [ref=e471]
+- region "Notifications (F8)" [ref=e472]
+  [errors]
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/authedreport_mine.png
+  [title]
+Msaada — CHV mental-health triage
+
+--- AUTHED: /settings ---
+✓ Msaada — CHV mental-health triage
+  http://127.0.0.1:3000/settings
+✓ Done
+✓ Done
+  [snapshot]
+- link "Skip to main content" [ref=e489]
+- navigation "Primary" [ref=e490]
+  - link "Msaada home" [ref=e493]
+  - generic
+    - link "Report" [ref=e499]
+    - link "Cases" [ref=e500]
+    - link "Dashboard" [ref=e501]
+    - link "Households" [ref=e502]
+    - link "Referrals" [ref=e503]
+    - link "Supervisor" [ref=e504]
+    - link "Audit" [ref=e505]
+    - link "Admin" [ref=e506]
+    - link "My report" [ref=e507]
+    - link "Settings" [ref=e508]
+    - link "Docs" [ref=e509]
+  - link "CHV submission" [ref=e494]
+- main
+  - sectionheader
+    - heading "Settings" [level=1, ref=e510]
+  - generic
+  - StaticText "EMAIL"
+  - paragraph
+  - StaticText "COUNTY"
+  - paragraph
+  - StaticText "WARD"
+  - paragraph
+  - StaticText "ACCOUNT ID"
+  - paragraph
+  - paragraph
+  - StaticText "Crisis-line quick reference"
+  - paragraph
+  - link "Kenya Red Cross Emergency Toll-free · 24/7 1199" [ref=e495]
+  - link "Befrienders Kenya Emotional support · 24/7 +254 722 178 177" [ref=e496]
+  - generic
+    - StaticText "CHV protocol: Do not leave the household unaccompanied. Contact your CHV supervisor and the nearest Level 4+ facility immediately."
+  - button "Refresh" [ref=e497]
+  - button "Sign out" [ref=e498]
+- region "Notifications alt+T" [ref=e491]
+- region "Notifications (F8)" [ref=e492]
+  [errors]
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/authedsettings.png
+  [title]
+Msaada — CHV mental-health triage
+
+--- AUTHED: /admin ---
+✓ Msaada — CHV mental-health triage
+  http://127.0.0.1:3000/admin
+✓ Done
+✓ Done
+  [snapshot]
+- link "Skip to main content" [ref=e511]
+- navigation "Primary" [ref=e512]
+  - link "Msaada home" [ref=e515]
+  - generic
+    - link "Report" [ref=e517]
+    - link "Cases" [ref=e518]
+    - link "Dashboard" [ref=e519]
+    - link "Households" [ref=e520]
+    - link "Referrals" [ref=e521]
+    - link "Supervisor" [ref=e522]
+    - link "Audit" [ref=e523]
+    - link "Admin" [ref=e524]
+    - link "My report" [ref=e525]
+    - link "Settings" [ref=e526]
+    - link "Docs" [ref=e527]
+  - link "CHV submission" [ref=e516]
+- main
+  - paragraph
+  - paragraph
+    - StaticText "Only County Admins, Supervisors, and MoH officers can access this page. Your role: chv"
+  - paragraph
+    - StaticText "Demo: log in as county.admin@msaada.health / msaada123"
+- region "Notifications alt+T" [ref=e513]
+- region "Notifications (F8)" [ref=e514]
+  [errors]
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/authedadmin.png
+  [title]
+Msaada — CHV mental-health triage
+
+=== Mobile audit (375x667) ===
+✓ Done
+
+--- MOBILE: /report ---
+✓ Msaada — CHV mental-health triage
+  http://127.0.0.1:3000/report
+✓ Done
+✓ Done
+  [mobile snapshot]
+- link "Skip to main content" [ref=e528]
+- banner
+  - link "Msaada" [ref=e531]
+- main
+  - alert
+  - list "Progress"
+  - generic
+  - StaticText "Tell a community health volunteer what is happening."
+  - paragraph
+  - list
+  - button "Start a report" [ref=e532]
+  - link "Back to home" [ref=e533]
+  - button "Continue" [ref=e534]
+  - paragraph
+    - StaticText "Msaada · Not a diagnostic tool · Crisis line: Kenya Red Cross 1199 · Befrienders Kenya +254 722 178 177"
+- contentinfo
+  - paragraph
+    - link "CHV sign in" [ref=e535]
+- region "Notifications alt+T" [ref=e529]
+- region "Notifications (F8)" [ref=e530]
+  [mobile errors]
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/mobilereport.png
+  [overflow check]
+"{\"scrollW\":375,\"clientW\":375,\"overflow\":false}"
+  [touch target audit - first 20 interactive]
+"[{\"tag\":\"a\",\"text\":\"Skip to main content\",\"w\":1,\"h\":1},{\"tag\":\"a\",\"text\":\"Msaada\",\"w\":97,\"h\":24},{\"tag\":\"button\",\"text\":\"Start a report\",\"w\":293,\"h\":44},{\"tag\":\"a\",\"text\":\"Back to home\",\"w\":293,\"h\":44},{\"tag\":\"button\",\"text\":\"Continue\",\"w\":293,\"h\":44},{\"tag\":\"a\",\"text\":\"CHV sign in\",\"w\":69,\"h\":14}]"
+
+--- MOBILE: /cases ---
+✓ Msaada — CHV mental-health triage
+  http://127.0.0.1:3000/cases
+✓ Done
+✓ Done
+  [mobile snapshot]
+- generic
+  - link "Skip to main content" [ref=e536]
+  - navigation "Primary" [ref=e537]
+    - link "Msaada home" [ref=e540]
+    - generic
+      - link "Report" [ref=e543]
+      - link "Cases" [ref=e544]
+      - link "Dashboard" [ref=e545]
+      - link "Households" [ref=e546]
+      - link "Referrals" [ref=e547]
+      - link "Supervisor" [ref=e548]
+      - link "Audit" [ref=e549]
+      - link "Admin" [ref=e550]
+      - link "My report" [ref=e551]
+      - link "Settings" [ref=e552]
+      - link "Docs" [ref=e553]
+  - main
+    - sectionheader
+      - StaticText "CHV workflow"
+      - heading "My Response Cases" [level=1, ref=e554]
+      - paragraph
+      - link "Back to CHV submission" [ref=e555]
+      - button "Refresh case list" [ref=e556]
+    - region "Case summary" [ref=e541]
+      - StaticText "TOTAL ASSIGNED"
+      - paragraph
+      - StaticText "PENDING ACTION"
+      - paragraph
+      - StaticText "ATTENDED"
+      - paragraph
+      - StaticText "RESOLVED"
+      - paragraph
+    - region "Filter cases" [ref=e542]
+      - LabelText
+      - combobox "Filter cases by status" [expanded=false, ref=e557]: All cases
+        - generic [ref=e558] clickable [onclick]
+      - paragraph
+    - list "Response cases"
+      - listitem [level=1]
+        - button "Mark attended" [ref=e559]
+        - button "Unable to reach" [ref=e560]
+      - listitem [level=1]
+      - listitem [level=1]
+        - button "Mark attended" [ref=e561]
+        - button "Unable to reach" [ref=e562]
+    - paragraph
+      - StaticText "Msaada · De-identified community reports · Ownership-scoped (your assignments only) · Crisis line: Kenya Red Cross 1199 / Befrienders Kenya +254 722 178 177"
+  - region "Notifications alt+T" [ref=e538]
+  - region "Notifications (F8)" [ref=e539]
+  [mobile errors]
+✓ Screenshot saved to /home/z/my-project/reviews/screenshots/mobilecases.png
+  [overflow check]
+"{\"scrollW\":375,\"clientW\":375,\"overflow\":false}"
+  [touch target audit - first 20 interactive]
+"[{\"tag\":\"a\",\"text\":\"Skip to main content\",\"w\":1,\"h\":1},{\"tag\":\"a\",\"text\":\"Msaada home\",\"w\":40,\"h\":32},{\"tag\":\"a\",\"text\":\"Report\",\"w\":80,\"h\":28},{\"tag\":\"a\",\"text\":\"Cases\",\"w\":76,\"h\":28},{\"tag\":\"a\",\"text\":\"Dashboard\",\"w\":105,\"h\":28},{\"tag\":\"a\",\"text\":\"Households\",\"w\":110,\"h\":28},{\"tag\":\"a\",\"text\":\"Referrals\",\"w\":93,\"h\":28},{\"tag\":\"a\",\"text\":\"Supervisor\",\"w\":104,\"h\":28},{\"tag\":\"a\",\"text\":\"Audit\",\"w\":71,\"h\":28},{\"tag\":\"a\",\"text\":\"Admin\",\"w\":78,\"h\":28},{\"tag\":\"a\",\"text\":\"My report\",\"w\":98,\"h\":28},{\"tag\":\"a\",\"text\":\"Settings\",\"w\":89,\"h\":28},{\"tag\":\"a\",\"text\":\"Docs\",\"w\":69,\"h\":28},{\"tag\":\"a\",\"text\":\"CHV submission\",\"w\":0,\"h\":0},{\"tag\":\"a\",\"text\":\"Back to CHV submission\",\"w\":38,\"h\":44},{\"tag\":\"button\",\"text\":\"Refresh case list\",\"w\":38,\"h\":44},{\"tag\":\"button\",\"text\":\"All cases\",\"w\":258,\"h\":44},{\"tag\":\"button\",\"text\":\"Mark attended\",\"w\":144,\"h\":44},{\"tag\":\"button\",\"text\":\"Unable to reach\",\"w\":155,\"h\":44},{\"tag\":\"button\",\"text\":\"Mark attended\",\"w\":144,\"h\":44}]"
+
+=== Cleanup ===
+✓ Browser closed
+DONE

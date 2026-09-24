@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { hashPassword, setSession } from "@/lib/auth";
+import { hashPassword, setSession, rateLimitIdentifier } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { COUNTIES, WARDS, type County } from "@/lib/types";
 
 // Cookie-session writes → never static.
@@ -17,8 +18,31 @@ function bad(error: string, field?: string) {
  * Body: { email, password, fullName, county, ward? }
  * Creates a ChvUser, issues a session cookie, returns the public profile.
  * Email is stored lowercased so lookups are case-insensitive.
+ *
+ * 429 RATE_LIMITED after 5 attempts / 60s per IP — the email may not exist
+ * yet (the account is being created), so the rate-limit key is IP-only.
  */
 export async function POST(req: Request) {
+  // Rate-limit BEFORE any DB query. Email may not exist yet (the account is
+  // being created), so key on IP alone. See src/lib/auth.ts →
+  // rateLimitIdentifier for the rationale.
+  const ip = req.headers
+    .get("x-forwarded-for")
+    ?.split(",")[0]
+    ?.trim();
+  const rlKey = rateLimitIdentifier(ip, null);
+  const rl = checkRateLimit(rlKey, { capacity: 5, windowMs: 60_000 });
+  if (!rl.allowed) {
+    const retryAfter = Math.max(1, Math.ceil(rl.retryAfterMs / 1000));
+    return NextResponse.json(
+      { error: "RATE_LIMITED", retryAfter },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfter) },
+      }
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();

@@ -24,12 +24,14 @@ function resolveSessionSecret(): string {
   const envSecret = process.env.MSAADA_SESSION_SECRET;
   if (envSecret && envSecret.length >= 32) return envSecret;
   if (process.env.NODE_ENV === "production") {
-    // Don't throw — keep the demo bootable — but make the risk loud.
-    console.warn(
-      "[msaada/auth] WARNING: MSAADA_SESSION_SECRET is missing or shorter " +
-        "than 32 chars in production. Falling back to a hard-coded demo " +
-        "secret — session tokens are forgeable. Set MSAADA_SESSION_SECRET " +
-        "(>= 32 chars, high entropy) before deploying."
+    // Production MUST set a strong secret — anyone with the source can
+    // otherwise compute HMAC-SHA256(DEFAULT_SESSION_SECRET, payload) and
+    // mint a valid session token for any CHV/supervisor/admin id (the token
+    // is just base64url(payload).base64url(hmac)). Fail fast so a deployed
+    // instance without the env var refuses to boot, rather than silently
+    // running with a forgeable secret.
+    throw new Error(
+      "FATAL: MSAADA_SESSION_SECRET must be set to a >=32 char string in production."
     );
   }
   return DEFAULT_SESSION_SECRET;

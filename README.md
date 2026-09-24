@@ -89,6 +89,13 @@ Msaada records which AI model/version generated a structured interpretation and 
 ### 15. Future interoperability
 The platform is designed so that Msaada can eventually connect with existing health information systems, referral networks, and benefits-navigation services rather than becoming another isolated health database.
 
+### 16. Community reporting + CHV dispatch
+Msaada is not a CHV-only system. **Any community member** — a neighbour, a teacher, a community leader, even someone without an account — can submit a concern through the public `/report` form. The full flow is:
+
+**Community member submits concern** → **AI structures the free-text** (reuses the same Qwen `classifyObservation` used for CHV encounters) → **deterministic policy engine routes it** (reuses the same `evaluatePolicy`, never the model alone) → **a `ResponseCase` is created and a CHV is assigned** (deterministic assignment, ownership-scoped) → **the CHV is notified in-app** (`CaseNotifications` toasts poll for new assignments) → **the CHV attends** (`/cases` dashboard: accept → advance → resolve) → **an encounter can be created from the case** (closing the loop into the existing identity → encounter → referral → follow-up chain) → **an outcome is recorded**.
+
+This keeps the same non-negotiables intact: the AI cannot override the safety rules, the crisis override fires unconditionally, the policy version is audit-logged, and managers see community demand + response status through the `CommunityIntelligenceWidget` — never raw reporter PII.
+
 ---
 
 ## What makes Msaada different
@@ -118,6 +125,14 @@ Working hackathon MVP built with Next.js + Qwen AI. End-to-end functional with s
 | Supervisor roster (per-CHV de-identified) | ✅ |
 | PII scrubber (8 Kenya-specific types, before model) | ✅ |
 | 6 defense layers (never-persist → scrub → aggregate → ownership → audit → rate-limit) | ✅ |
+| Community reporting — public `/report` form (anonymous submit, no account) | ✅ |
+| AI intake + deterministic safety routing for community reports (reuses classifyObservation + evaluatePolicy) | ✅ |
+| Response case domain + CHV dispatch (assign → accept → advance → resolve) | ✅ |
+| CHV response workflow dashboard (`/cases`) | ✅ |
+| In-app case notifications (CaseNotifications poll + toast) | ✅ |
+| Community report → encounter link (close loop into existing identity chain) | ✅ |
+| Community intelligence widget (demand + response status for managers) | ✅ |
+| Community report analytics + audit events | ✅ |
 | Offline-first sync + Android app | ☐ Production target |
 | NATS JetStream + Temporal workflows | ☐ Production target |
 
@@ -136,6 +151,53 @@ bun install && bun run db:push && bun run dev   # http://localhost:3000
 **Tech Stack:** Next.js 16 (App Router, TypeScript) + Qwen (via z-ai-web-dev-sdk) + Prisma + Tailwind CSS 4 + shadcn/ui + Recharts
 
 **GitHub:** https://github.com/Roy-Wanyoike/msaada
+
+---
+
+## Routes
+
+| Path | Persona | Key features |
+|---|---|---|
+| `/` | CHV | Identity-gated observation submission (household → member → encounter → observation). Non-dismissable crisis panel. Pending follow-ups list. |
+| `/report` | **Public (no account)** | Multi-step community reporting form. Anonymous submit. Triggers AI intake + policy routing on submit. |
+| `/cases` | CHV | Response-case dashboard: accept → advance → resolve. In-app `CaseNotifications` toasts poll for new assignments. |
+| `/households` | CHV | Assigned households, members, encounter history. Ownership-scoped (CHV sees only their assigned households). |
+| `/referrals` | CHV / Supervisor | Referral lifecycle (8 states: created → sent → acknowledged → in_progress → completed/declined/cancelled/expired). |
+| `/report/mine` | CHV | De-identified weekly activity report (print-friendly). |
+| `/settings` | CHV | CHV profile (county / ward / community health unit). |
+| `/dashboard` | County / MoH | Aggregate charts (county / day / tag), time-range, CSV export, RBAC, freshness badge. `CommunityIntelligenceWidget` shows community demand + response status. |
+| `/supervisor` | Supervisor | De-identified per-CHV roster (workload, escalations, last active). |
+| `/audit` | Compliance | Policy-version-logged audit trail of triage, referrals, follow-ups, community-report events. |
+| `/admin` | MoH / County Admin | Institutional onboarding + invitation-based CHV creation. |
+| `/docs` | All | Project documentation hub. |
+
+---
+
+## API surface
+
+All routes are server-side; auth is cookie-session (`msaada_session`). Sensitive endpoints are rate-limited (`src/lib/rate-limit.ts`). The raw observation/reporter text is never persisted — only model-returned structured fields + de-identified metadata.
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/auth/signup` `/login` `/logout` `/me` | POST / POST / POST / GET | Demo auth (scrypt-hashed, cookie session). |
+| `/api/triage` | POST | Qwen classify + de-identified DB write (CHV encounter). Creates follow-up if needs_followup / needs_facility_referral. |
+| `/api/seed` `/demo-chv` | POST / POST | Synthetic transcripts + demo CHV seeding. |
+| `/api/dashboard` | GET | Aggregate stats (byCounty / byDay / byTag / totals) — never selects indicator text. |
+| `/api/records/mine` `/api/stats/mine` | GET / GET | CHV-scoped records + personal impact stats. |
+| `/api/households` `/[id]` `/[id]/members` | GET,POST / GET / POST | Household CRUD + member creation. Ownership-scoped. |
+| `/api/encounters` | POST | Create encounter (identity-gated). |
+| `/api/referrals` | GET, PATCH | Referral lifecycle (8 states). |
+| `/api/followups` `/[id]` | GET / PATCH | Follow-up list (mine) + resolve (done / missed). |
+| `/api/audit` | GET | Audit-trail feed (policy-version-logged). |
+| `/api/supervisor/roster` | GET | De-identified per-CHV roster (county + days filter). |
+| `/api/invitations` `/[token]` | POST / POST | Invitation-based CHV onboarding. |
+| `/api/community-reports` | POST (public), GET (authed) | **Community member submits a concern** (no account). Authed list for CHVs/supervisors. |
+| `/api/community-reports/[id]` | GET (authed) | Fetch a single community report. |
+| `/api/community-reports/[id]/process` | POST | **AI structuring + deterministic policy routing** (reuses `classifyObservation` + `evaluatePolicy` — no duplication). Crisis override fires unconditionally. |
+| `/api/response-cases` | GET (authed) | List response cases (mine / assigned / open). |
+| `/api/response-cases/[id]` | GET, PATCH | Case lifecycle (assigned → accepted → in_progress → resolved). |
+| `/api/response-cases/[id]/assign` | POST | Deterministic CHV assignment (ownership-scoped; supervisor can re-assign). |
+| `/api/response-cases/[id]/encounter` | POST | Create an encounter from a case — closes the loop into the existing identity → encounter → referral → follow-up chain. |
 
 ---
 

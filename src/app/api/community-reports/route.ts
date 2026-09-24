@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionChv } from "@/lib/auth";
-import { scrubPII } from "@/lib/pii-scrub";
+import { scrubPII, scrubNote } from "@/lib/pii-scrub";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createReport, getReports } from "@/lib/community-report-store";
 import { writeCommunityReportAudit } from "@/lib/community-report-audit";
@@ -9,6 +9,20 @@ import { COUNTIES, WARDS, type County } from "@/lib/types";
 
 // Always dynamic -- rate-limit / auth / per-request DB writes.
 export const dynamic = "force-dynamic";
+
+/**
+ * Roles that operate county-wide (county_admin, moh_admin, system_admin) —
+ * may inspect community reports filed in ANY county. All other roles (chv,
+ * cho_supervisor, subcounty_admin, moh_officer, program_admin, auditor, etc.)
+ * are scoped to their own session county (county-RLS equivalent — issue #13).
+ * Default-deny: any unlisted role is treated as county-scoped (least
+ * privilege) rather than as an admin.
+ */
+const ADMIN_ROLES = new Set([
+  "county_admin",
+  "moh_admin",
+  "system_admin",
+]);
 
 function bad(error: string, field?: string, status = 400) {
   return NextResponse.json(field ? { error, field } : { error }, { status });
@@ -135,21 +149,31 @@ export async function POST(req: Request) {
   }
 
   // Optional free-text fields (landmark, directions, reporter name/contact).
-  // These are passed through as-is to the store; the store persists them as
-  // TEXT columns. Note: PII scrubbing here focuses on the DESCRIPTION (which
-  // is the substantive free-text concern). Landmark/directions may
-  // legitimately contain coarse-area names (per the pii-scrub design notes).
+  // PII scrubbing (issue #11): landmark + directions are run through
+  // `scrubNote()` — the lighter scrubber that skips 7-9 digit ID redaction,
+  // since these operational-address fields may legitimately contain plot /
+  // house numbers that are NOT national IDs (e.g. "Plot 12, near Mama
+  // Wanjiru's shop, call 0712 345 678" → "Plot 12, near mama [NAME]'s shop,
+  // call [PHONE]"). `reporterName` is a personal name by definition and is
+  // run through the full `scrubPII()` pass (catches kinship-prefixed names,
+  // phones, emails, plates, M-Pesa codes, plot numbers, school names).
+  // `reporterContact` is persisted raw — the operational follow-up use
+  // case (assigned CHV needs to phone the reporter) is legitimate, but
+  // encryption-at-rest is P2 hardening per the security review. To close
+  // the leak in MVP scope, `reporterContact` is STRIPPED from LIST
+  // responses (GET handler below) so it is only visible on the
+  // single-fetch endpoint to an authenticated CHV/supervisor.
   const landmarkTyped =
     typeof landmark === "string" && landmark.trim().length > 0
-      ? landmark.trim().slice(0, 500)
+      ? scrubNote(landmark.trim().slice(0, 500))
       : undefined;
   const directionsTyped =
     typeof directions === "string" && directions.trim().length > 0
-      ? directions.trim().slice(0, 1000)
+      ? scrubNote(directions.trim().slice(0, 1000))
       : undefined;
   const reporterNameTyped =
     typeof reporterName === "string" && reporterName.trim().length > 0
-      ? reporterName.trim().slice(0, 200)
+      ? scrubPII(reporterName.trim().slice(0, 200)).redacted
       : undefined;
   const reporterContactTyped =
     typeof reporterContact === "string" && reporterContact.trim().length > 0
@@ -230,6 +254,16 @@ export async function POST(req: Request) {
  * Supports filtering by ?status=&county=&category=. Returns the latest 50
  * by default. De-identification: only the PII-scrubbed description is
  * returned (the raw was never persisted).
+ *
+ * County scoping (issue #13): non-admin roles (chv, cho_supervisor,
+ * subcounty_admin, plus any unlisted role by least-privilege default) are
+ * restricted to reports filed in their OWN session county — the query-string
+ * `county` param is IGNORED for these roles so a CHV in Kilifi cannot ask
+ * for Nairobi data. Admin roles (county_admin, moh_admin, system_admin) see
+ * all counties and may use the query-string `county` filter.
+ *
+ * `reporterContact` is STRIPPED from the list response (issue #11) — it is
+ * only surfaced on the single-fetch endpoint to the assigned CHV/supervisor.
  */
 export async function GET(req: Request) {
   const chv = await getSessionChv();
@@ -237,9 +271,14 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
+  // County scoping (issue #13). Resolve the session's role + county BEFORE
+  // reading the query string so the role decision is authoritative.
+  const isAdmin = ADMIN_ROLES.has(chv.role ?? "chv");
+  const sessionCounty = chv.county ?? undefined;
+
   const url = new URL(req.url);
   const status = url.searchParams.get("status") ?? undefined;
-  const county = url.searchParams.get("county") ?? undefined;
+  const countyParam = url.searchParams.get("county") ?? undefined;
   const category = url.searchParams.get("category") ?? undefined;
   const limitParam = url.searchParams.get("limit") ?? undefined;
   const offsetParam = url.searchParams.get("offset") ?? undefined;
@@ -248,9 +287,15 @@ export async function GET(req: Request) {
   // read endpoint and the supervisor dashboard may send stale filters).
   const statusTyped =
     status && typeof status === "string" ? status.slice(0, 50) : undefined;
-  const countyTyped =
-    county && COUNTIES.includes(county as County)
-      ? (county as County)
+  // For non-admins: FORCE the session county (overrides any query-string
+  // value so cross-county reads are impossible). If the session has no
+  // county set, the user simply sees no reports (least privilege).
+  // For admins: respect the query-string county filter (validated against
+  // COUNTIES); absent / invalid filter = all counties.
+  const countyTyped: string | undefined = !isAdmin
+    ? sessionCounty
+    : countyParam && COUNTIES.includes(countyParam as County)
+      ? (countyParam as County)
       : undefined;
   const categoryTyped =
     category &&
@@ -274,7 +319,15 @@ export async function GET(req: Request) {
       limit,
       offset,
     });
-    return NextResponse.json({ reports, total });
+    // Strip `reporterContact` from LIST responses (issue #11). The contact
+    // is persisted for operational follow-up but is only surfaced on the
+    // single-fetch endpoint to an authenticated CHV/supervisor — never in
+    // a bulk list response (which a CHV of any county could otherwise page
+    // through if the county scoping above were ever bypassed).
+    const reportsWithoutContact = reports.map(
+      ({ reporterContact: _stripped, ...rest }) => rest
+    );
+    return NextResponse.json({ reports: reportsWithoutContact, total });
   } catch (err) {
     console.error("[community-reports] GET unexpected failure:", err);
     return NextResponse.json(

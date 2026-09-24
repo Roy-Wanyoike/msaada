@@ -67,6 +67,18 @@ export async function getReport(id: string): Promise<CommunityReportDTO | null> 
   return toReportDTO(row, caseCount);
 }
 
+/**
+ * List community reports. The `county` filter is the county-RLS-equivalent
+ * scoping lever (issue #13): the caller (the API route) MUST pass the
+ * session CHV's county for non-admin roles so a CHV in Kilifi cannot ask
+ * for Nairobi data. The store does NOT read the session itself — it trusts
+ * whatever the caller passes — so the route is the trust boundary and the
+ * route is responsible for forcing `county = chv.county` for non-admin
+ * roles and ignoring any client-supplied query-string `county` for those
+ * roles. Admin roles may pass any county (or omit it for all-county).
+ *
+ * `limit`/`offset` paginate; `status`/`category` are optional filters.
+ */
 export async function getReports(opts: {
   status?: string;
   county?: string;
