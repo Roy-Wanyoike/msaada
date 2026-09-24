@@ -47,6 +47,7 @@ export async function POST(req: Request) {
         fullName: chv.fullName,
         county: chv.county,
         ward: chv.ward,
+        role: chv.role,
       },
     },
     { status: 200 }

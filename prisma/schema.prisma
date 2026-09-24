@@ -17,6 +17,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// User — a verified member of a health organization operating within an
+/// explicit scope (institution-led, NOT self-signup). Roles:
+/// MOH_ADMIN, MOH_OFFICER, COUNTY_ADMIN, SUBCOUNTY_ADMIN, CHO_SUPERVISOR,
+/// CHV, PROGRAM_ADMIN, AUDITOR, SYSTEM_ADMIN.
+/// Onboarding state machine (§10):
+/// INVITED -> VERIFICATION_PENDING -> VERIFIED -> CREDENTIALS_CREATED ->
+/// DEVICE_REGISTERED -> ACTIVE. Suspension: ACTIVE -> SUSPENDED -> REACTIVATED.
+/// Permanent exit: ACTIVE -> DEACTIVATED. Never delete the identity.
 model ChvUser {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -27,10 +35,100 @@ model ChvUser {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ---- Institution-led identity (§2, §10) ----
+  /// Role: moh_admin | moh_officer | county_admin | subcounty_admin |
+  /// cho_supervisor | chv | program_admin | auditor | system_admin
+  role        String   @default("chv")
+  /// Onboarding state machine: invited | verification_pending | verified |
+  /// credentials_created | device_registered | active | suspended | deactivated
+  authState   String   @default("active")
+  /// Organization this user belongs to (nullable for backward compat).
+  organizationId String?
+  organization     Organization? @relation(fields: [organizationId], references: [id])
+  /// Who invited/created this user (nullable for self-registered demo users).
+  invitedById String?
+
   triageRecords TriageRecord[]
   households    Household[]
   encounters    Encounter[]
   referrals     Referral[]
+  invitations   Invitation[] @relation("InvitedBy")
+  supervisedCHUs CommunityHealthUnit[]
+}
+
+/// Organization — multi-tenant hierarchy (§1, §15).
+/// Ministry of Health -> County Health Department -> Sub-county ->
+/// Community Health Units -> Partner Programs.
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  /// Type: moh | county_department | subcounty | chu | program_partner
+  type      String   @default("county_department")
+  county    String?
+  /// Self-reference for the hierarchy (county -> sub-county -> CHU).
+  parentId  String?
+  parent    Organization? @relation("OrgHierarchy", fields: [parentId], references: [id])
+  children  Organization[] @relation("OrgHierarchy")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         ChvUser[]
+  invitations   Invitation[]
+  healthUnits   CommunityHealthUnit[]
+
+  @@index([parentId])
+  @@index([type])
+}
+
+/// Community Health Unit — the operational unit CHVs are assigned to (§5).
+model CommunityHealthUnit {
+  id              String   @id @default(cuid())
+  name            String
+  county          String
+  subCounty       String?
+  ward            String?
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  /// The supervisor assigned to this CHU.
+  supervisorId    String?
+  supervisor      ChvUser?  @relation(fields: [supervisorId], references: [id])
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([county])
+  @@index([organizationId])
+}
+
+/// Invitation — institution-led onboarding (§3, §10).
+/// A County Admin invites a CHV; the CHV receives an invite, verifies
+/// identity, sets credentials, registers a device, and becomes ACTIVE.
+/// Status: pending | accepted | expired | revoked
+model Invitation {
+  id        String   @id @default(cuid())
+  /// The invitee's email or phone (for the demo, email).
+  email     String
+  fullName  String?
+  /// Role the invitee will have once onboarded.
+  role      String   @default("chv")
+  /// Organization the invitee will belong to.
+  organizationId String?
+  organization     Organization? @relation(fields: [organizationId], references: [id])
+  /// Who sent the invitation.
+  invitedById String
+  invitedBy   ChvUser  @relation("InvitedBy", fields: [invitedById], references: [id])
+  /// Invitation token (for the invite link).
+  token     String   @unique
+  status    String   @default("pending") // pending | accepted | expired | revoked
+  expiresAt DateTime
+  acceptedAt DateTime?
+  /// The CHU the invitee will be assigned to (for CHVs).
+  chuId     String?
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([status])
+  @@index([invitedById])
 }
 
 model TriageRecord {

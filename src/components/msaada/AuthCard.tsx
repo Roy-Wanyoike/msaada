@@ -31,6 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import { COUNTIES, WARDS, type County } from "@/lib/types";
 
 export interface Chv {
+  role?: string;
   id: string;
   email: string;
   fullName: string;

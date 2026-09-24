@@ -12,6 +12,7 @@ import {
   FileText,
   Settings,
   BookOpen,
+  Building2,
   ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,9 +32,11 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/audit", label: "Audit", icon: ScrollText },
-  { href: "/supervisor", label: "Supervisor", icon: Users },
+  { href: "/households", label: "Households", icon: Users },
   { href: "/referrals", label: "Referrals", icon: Stethoscope },
+  { href: "/supervisor", label: "Supervisor", icon: Users },
+  { href: "/audit", label: "Audit", icon: ScrollText },
+  { href: "/admin", label: "Admin", icon: Building2 },
   { href: "/report/mine", label: "My report", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/docs", label: "Docs", icon: BookOpen },
