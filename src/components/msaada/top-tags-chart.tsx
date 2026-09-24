@@ -49,8 +49,8 @@ export function TopTagsChart({ data }: Props) {
           <BarChart
             data={sorted}
             layout="vertical"
-            margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
-            barCategoryGap={8}
+            margin={{ top: 4, right: 16, left: 4, bottom: 4 }}
+            barCategoryGap={10}
           >
             <XAxis
               type="number"
@@ -65,18 +65,20 @@ export function TopTagsChart({ data }: Props) {
               tick={{ fontSize: 11, fill: "currentColor" }}
               tickLine={false}
               axisLine={false}
-              width={120}
-              tickFormatter={(v: string) =>
-                prettyTag(v).length > 18
-                  ? prettyTag(v).slice(0, 17) + "…"
-                  : prettyTag(v)
-              }
+              width={185}
+              // Wider axis (185px) + higher truncation threshold so nearly all
+              // aggregate tags render in full. Only very long tags (>32 chars)
+              // get an ellipsis; the tooltip still shows the full pretty name.
+              tickFormatter={(v: string) => {
+                const pretty = prettyTag(v);
+                return pretty.length > 32 ? pretty.slice(0, 31) + "…" : pretty;
+              }}
             />
             <Tooltip
               content={<TagTooltip />}
               cursor={{ fill: "currentColor", fillOpacity: 0.06 }}
             />
-            <Bar dataKey="count" name="Cases" radius={[0, 3, 3, 0]} maxBarSize={18}>
+            <Bar dataKey="count" name="Cases" radius={[0, 3, 3, 0]} maxBarSize={20}>
               {sorted.map((entry, i) => (
                 <Cell key={`${entry.aggregateTag}-${i}`} fill={COLORS.teal} />
               ))}

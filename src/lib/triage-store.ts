@@ -89,6 +89,24 @@ function toDTO(
   };
 }
 
+/**
+ * Returns a CHV's own recent records (ownership-scoped — the RLS
+ * `auth.uid() = submitted_by` equivalent). The CHV sees their own full
+ * structured output (including observed_indicators, since they already
+ * saw it at submission time). Other CHVs' records are never readable here.
+ */
+export async function getMyRecords(
+  submittedById: string,
+  limit = 20
+): Promise<TriageRecordDTO[]> {
+  const rows = await db.triageRecord.findMany({
+    where: { submittedById },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+  return rows.map((r) => toDTO(r, false));
+}
+
 export interface CountyAggregate {
   county: string;
   routine: number;

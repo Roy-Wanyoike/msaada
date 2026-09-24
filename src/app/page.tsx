@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AuthCard, type Chv } from "@/components/msaada/AuthCard";
 import { CrisisPanel } from "@/components/msaada/CrisisPanel";
 import { SubmissionForm } from "@/components/msaada/SubmissionForm";
+import { MyRecentObservations } from "@/components/msaada/MyRecentObservations";
 import type { TriageRecordDTO } from "@/lib/types";
 
 type BootState = "loading" | "authed" | "unauthed";
@@ -36,6 +37,9 @@ export default function Home() {
   const [postCrisisBanner, setPostCrisisBanner] = useState<string | null>(
     null
   );
+  // Bumped after every successful triage write so the "my recent observations"
+  // panel below the form refetches.
+  const [recordsRefreshKey, setRecordsRefreshKey] = useState(0);
 
   // --- Session hydration on first paint -------------------------------
   useEffect(() => {
@@ -100,6 +104,10 @@ export default function Home() {
     setPostCrisisBanner(null);
   }, []);
 
+  const handleResult = useCallback(() => {
+    setRecordsRefreshKey((k) => k + 1);
+  }, []);
+
   // /dashboard is owned by another agent — relative link, never build
   // the route here.
   const openDashboard = useCallback(() => {
@@ -124,14 +132,18 @@ export default function Home() {
         )}
 
         {boot === "authed" && chv && (
-          <SubmissionForm
-            chv={chv}
-            onLogout={handleLogout}
-            onDashboard={openDashboard}
-            onCrisis={handleCrisis}
-            postCrisisBanner={postCrisisBanner}
-            onClearPostCrisisBanner={handleClearPostCrisisBanner}
-          />
+          <div className="flex w-full max-w-2xl flex-col gap-4">
+            <SubmissionForm
+              chv={chv}
+              onLogout={handleLogout}
+              onDashboard={openDashboard}
+              onCrisis={handleCrisis}
+              onResult={handleResult}
+              postCrisisBanner={postCrisisBanner}
+              onClearPostCrisisBanner={handleClearPostCrisisBanner}
+            />
+            <MyRecentObservations refreshKey={recordsRefreshKey} />
+          </div>
         )}
       </main>
 

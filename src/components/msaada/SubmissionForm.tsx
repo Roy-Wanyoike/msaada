@@ -49,6 +49,8 @@ interface SubmissionFormProps {
   onLogout: () => void;
   onDashboard: () => void;
   onCrisis: (record: TriageRecordDTO) => void;
+  /** Fired after any successful triage write (crisis or normal) so the parent can refresh downstream panels. */
+  onResult: (record: TriageRecordDTO) => void;
   postCrisisBanner: string | null;
   onClearPostCrisisBanner: () => void;
 }
@@ -58,6 +60,7 @@ export function SubmissionForm({
   onLogout,
   onDashboard,
   onCrisis,
+  onResult,
   postCrisisBanner,
   onClearPostCrisisBanner,
 }: SubmissionFormProps) {
@@ -172,12 +175,14 @@ export function SubmissionForm({
         setObservation("");
         setVoiceTranscript("");
         setSampleId("");
+        onResult(record);
         onCrisis(record);
         return;
       }
 
       setStatus("result");
       setResult(record);
+      onResult(record);
       toast.success("Triage complete", {
         description: record.classification.replace(/_/g, " "),
       });

@@ -109,6 +109,7 @@ export function CountyBarChart({ data }: Props) {
               tick={{ fontSize: 12, fill: "currentColor" }}
               tickLine={false}
               axisLine={false}
+              minTickGap={8}
             />
             <YAxis
               tick={{ fontSize: 12, fill: "currentColor" }}
@@ -218,6 +219,7 @@ export function DailyTrendChart({ data }: DailyTrendProps) {
               tickLine={false}
               axisLine={false}
               interval="preserveStartEnd"
+              minTickGap={20}
             />
             <YAxis
               tick={{ fontSize: 12, fill: "currentColor" }}
