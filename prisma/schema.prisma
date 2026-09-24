@@ -52,6 +52,10 @@ model TriageRecord {
   submittedById     String
   submittedBy       ChvUser  @relation(fields: [submittedById], references: [id])
 
+  // Follow-up tracking (one-to-many — a triage can have at most one open
+  // follow-up, but history is retained after resolution).
+  followUps         FollowUp[]
+
   @@index([county, createdAt])
   @@index([classification])
   @@index([aggregateTag])
@@ -85,4 +89,33 @@ model AuditLog {
   @@index([actorId])
   @@index([county])
   @@index([event])
+}
+
+/// Follow-up tracking — when a triage produces needs_followup or
+/// needs_facility_referral, a FollowUp row is created so the CHV can track
+/// whether the recommended next action was completed. Status transitions:
+/// pending -> done | missed. De-identified (no observation text; links to
+/// the TriageRecord for the structured verdict only).
+model FollowUp {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  /// Due date — defaults to createdAt + 48h (the spec's "revisit within 48h").
+  dueAt           DateTime
+  /// Status: pending | done | missed.
+  status          String   @default("pending")
+  /// When the CHV marked it done/missed.
+  resolvedAt      DateTime?
+  /// Optional note the CHV adds when resolving (e.g. "revisited, mother improving").
+  /// De-identified — the CHV is reminded not to include names/addresses.
+  resolutionNote  String?
+
+  triageRecordId  String
+  triageRecord    TriageRecord @relation(fields: [triageRecordId], references: [id], onDelete: Cascade)
+
+  /// The CHV responsible for the follow-up (ownership-scoped — RLS equivalent).
+  chvId           String
+
+  @@index([chvId, status])
+  @@index([dueAt])
+  @@index([status])
 }

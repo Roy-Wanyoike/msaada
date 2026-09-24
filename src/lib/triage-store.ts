@@ -107,6 +107,150 @@ export async function getMyRecords(
   return rows.map((r) => toDTO(r, false));
 }
 
+/* ------------------------------------------------------------------ */
+/* Follow-up tracking — operational workflow layer.                    */
+/* When a triage produces needs_followup or needs_facility_referral,   */
+/* a FollowUp row is created (due in 48h per the spec). The CHV can    */
+/* mark it done/missed. Ownership-scoped — a CHV sees only their own.  */
+/* ------------------------------------------------------------------ */
+
+export type FollowUpStatus = "pending" | "done" | "missed";
+
+export interface FollowUpDTO {
+  id: string;
+  createdAt: string;
+  dueAt: string;
+  status: FollowUpStatus;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+  triageRecordId: string;
+  chvId: string;
+  /** Denormalized from the TriageRecord for the UI (avoids a second fetch). */
+  county: string;
+  ward: string | null;
+  classification: Classification;
+  escalation: boolean;
+  aggregateTag: string | null;
+  chpNextAction: string | null;
+}
+
+function toFollowUpDTO(r: {
+  id: string;
+  createdAt: Date;
+  dueAt: Date;
+  status: string;
+  resolvedAt: Date | null;
+  resolutionNote: string | null;
+  triageRecordId: string;
+  chvId: string;
+  triageRecord: {
+    county: string;
+    ward: string | null;
+    classification: string;
+    escalation: boolean;
+    aggregateTag: string | null;
+    chpNextAction: string | null;
+  } | null;
+}): FollowUpDTO {
+  const t = r.triageRecord;
+  return {
+    id: r.id,
+    createdAt: r.createdAt.toISOString(),
+    dueAt: r.dueAt.toISOString(),
+    status: (["pending", "done", "missed"].includes(r.status) ? r.status : "pending") as FollowUpStatus,
+    resolvedAt: r.resolvedAt ? r.resolvedAt.toISOString() : null,
+    resolutionNote: r.resolutionNote,
+    triageRecordId: r.triageRecordId,
+    chvId: r.chvId,
+    county: t?.county ?? "—",
+    ward: t?.ward ?? null,
+    classification: (t?.classification ?? "needs_followup") as Classification,
+    escalation: t?.escalation ?? false,
+    aggregateTag: t?.aggregateTag ?? null,
+    chpNextAction: t?.chpNextAction ?? null,
+  };
+}
+
+/**
+ * Create a follow-up for a triage record (called by /api/triage when the
+ * classification is needs_followup or needs_facility_referral). Due in 48h.
+ * Idempotent — if an open follow-up already exists for this triage record,
+ * returns the existing one instead of creating a duplicate.
+ */
+export async function createFollowUp(args: {
+  triageRecordId: string;
+  chvId: string;
+  dueInHours?: number;
+}): Promise<FollowUpDTO | null> {
+  const dueInHours = args.dueInHours ?? 48;
+  // Idempotent: check for an existing pending follow-up for this record.
+  const existing = await db.followUp.findFirst({
+    where: { triageRecordId: args.triageRecordId, status: "pending" },
+    include: { triageRecord: { select: { county: true, ward: true, classification: true, escalation: true, aggregateTag: true, chpNextAction: true } } },
+  });
+  if (existing) return toFollowUpDTO(existing);
+
+  const dueAt = new Date();
+  dueAt.setHours(dueAt.getHours() + dueInHours);
+
+  const created = await db.followUp.create({
+    data: {
+      triageRecordId: args.triageRecordId,
+      chvId: args.chvId,
+      dueAt,
+    },
+    include: { triageRecord: { select: { county: true, ward: true, classification: true, escalation: true, aggregateTag: true, chpNextAction: true } } },
+  });
+  return toFollowUpDTO(created);
+}
+
+/** Returns a CHV's follow-ups (ownership-scoped). Default: pending only. */
+export async function getMyFollowUps(
+  chvId: string,
+  opts: { status?: FollowUpStatus | "all"; limit?: number } = {}
+): Promise<FollowUpDTO[]> {
+  const status = opts.status ?? "pending";
+  const rows = await db.followUp.findMany({
+    where: {
+      chvId,
+      ...(status !== "all" ? { status } : {}),
+    },
+    orderBy: [{ status: "asc" }, { dueAt: "asc" }],
+    take: opts.limit ?? 50,
+    include: {
+      triageRecord: { select: { county: true, ward: true, classification: true, escalation: true, aggregateTag: true, chpNextAction: true } },
+    },
+  });
+  return rows.map(toFollowUpDTO);
+}
+
+/** Resolve a follow-up (mark done/missed). Ownership-scoped. */
+export async function resolveFollowUp(args: {
+  followUpId: string;
+  chvId: string;
+  status: "done" | "missed";
+  resolutionNote?: string;
+}): Promise<FollowUpDTO | null> {
+  const { followUpId, chvId, status, resolutionNote } = args;
+  // Ownership check: only the assigned CHV can resolve.
+  const existing = await db.followUp.findUnique({ where: { id: followUpId } });
+  if (!existing || existing.chvId !== chvId) return null;
+  if (existing.status !== "pending") return null; // already resolved
+
+  const updated = await db.followUp.update({
+    where: { id: followUpId },
+    data: {
+      status,
+      resolvedAt: new Date(),
+      resolutionNote: resolutionNote?.trim() || null,
+    },
+    include: {
+      triageRecord: { select: { county: true, ward: true, classification: true, escalation: true, aggregateTag: true, chpNextAction: true } },
+    },
+  });
+  return toFollowUpDTO(updated);
+}
+
 /** De-identified personal stats for a CHV's "my impact" card. */
 export interface ChvStats {
   total: number;

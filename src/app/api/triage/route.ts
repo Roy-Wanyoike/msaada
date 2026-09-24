@@ -3,7 +3,11 @@ import { getSessionChv } from "@/lib/auth";
 import { classifyObservation } from "@/lib/qwen";
 import { scrubPII } from "@/lib/pii-scrub";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { insertTriageRecord, writeAuditEntry } from "@/lib/triage-store";
+import {
+  createFollowUp,
+  insertTriageRecord,
+  writeAuditEntry,
+} from "@/lib/triage-store";
 import {
   COUNTIES,
   WARDS,
@@ -102,6 +106,23 @@ export async function POST(req: Request) {
       output,
       fallbackUsed,
     });
+
+    // Follow-up tracking — when the triage produces needs_followup or
+    // needs_facility_referral (and NOT a crisis, which has its own protocol),
+    // create a FollowUp row due in 48h so the CHV can track the recommended
+    // next action. Idempotent (won't duplicate for the same record).
+    if (
+      !record.escalation &&
+      (record.classification === "needs_followup" ||
+        record.classification === "needs_facility_referral")
+    ) {
+      await createFollowUp({
+        triageRecordId: record.id,
+        chvId: chv.id,
+      }).catch((e) => {
+        console.error("[triage] follow-up create failed:", e);
+      });
+    }
 
     // Compliance audit log — records WHO/WHEN/WHERE + the model's verdict,
     // NEVER the observation text or the redacted text. This is the system
