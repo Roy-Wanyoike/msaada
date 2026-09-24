@@ -59,6 +59,8 @@ export interface TriageRecordDTO {
   crisisLine: string | null;
   confidenceNote: string | null;
   fallbackUsed: boolean;
+  /** Links to the Encounter that generated this observation (section 6, 15). */
+  encounterId: string | null;
 }
 
 /** Payload the client sends to /api/triage. */
@@ -66,4 +68,6 @@ export interface TriageRequest {
   observation_text: string;
   county: string;
   ward?: string;
+  /** Optional encounter ID — links the observation to the identity chain (§6,§15). */
+  encounterId?: string;
 }

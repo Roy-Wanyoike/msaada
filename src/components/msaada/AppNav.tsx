@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   ScrollText,
   Users,
+  Stethoscope,
   FileText,
   Settings,
   ArrowLeft,
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/audit", label: "Audit", icon: ScrollText },
   { href: "/supervisor", label: "Supervisor", icon: Users },
+  { href: "/referrals", label: "Referrals", icon: Stethoscope },
   { href: "/report/mine", label: "My report", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;

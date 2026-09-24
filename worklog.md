@@ -728,3 +728,41 @@ Stage Summary:
 - Security: 6 defense layers now solid (HMAC token, PII scrub 8 types incl. fixed regexes, county-scoped audit, ownership-scoped followups, rate-limit on triage+seed, observation length guard).
 - Presentation-ready: README has 3-min demo script, all routes documented, production-target narrative, follow-up workflow documented.
 - Repo: https://github.com/Roy-Wanyoike/msaada (commit d0564fe)
+
+---
+Task ID: p2c-ref
+Agent: referrals-page
+Task: /referrals lifecycle page + AppNav link
+Work Log:
+- Created src/app/referrals/page.tsx
+- Added Referrals link to AppNav
+Stage Summary:
+- CHVs can track referrals from creation to completion
+
+---
+Task ID: p2d-seed
+Agent: seed-updater
+Task: Seed households+members+encounters+referrals
+Work Log:
+- Updated /api/seed to create households, members, encounters, referrals
+Stage Summary:
+- Seed data now demonstrates the full identity chain
+
+---
+Task ID: p2e-submission
+Agent: submission-refactor
+Task: Identity-gated submission flow
+Work Log:
+- Added household/member/encounter selection before observation
+- Submission now includes encounterId
+Stage Summary:
+- Observations are now linked to the identity chain (§6, §15)
+
+---
+Task ID: p2a-hh
+Agent: households-page
+Task: /households management page
+Work Log:
+- Created src/app/households/page.tsx
+Stage Summary:
+- CHV can create households, add members, start encounters

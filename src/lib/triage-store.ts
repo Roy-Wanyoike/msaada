@@ -19,8 +19,10 @@ export async function insertTriageRecord(args: {
   ward?: string;
   output: TriageModelOutput;
   fallbackUsed: boolean;
+  /** Links to the Encounter that generated this observation (section 6, 15). */
+  encounterId?: string;
 }): Promise<TriageRecordDTO> {
-  const { submittedById, county, ward, output, fallbackUsed } = args;
+  const { submittedById, county, ward, output, fallbackUsed, encounterId } = args;
   const isCrisis = output.escalation === true;
 
   const created = await db.triageRecord.create({
@@ -36,6 +38,7 @@ export async function insertTriageRecord(args: {
       aggregateTag: isCrisis ? "crisis_self_harm" : output.aggregate_tag ?? null,
       chpNextAction: isCrisis ? null : output.chp_next_action,
       fallbackUsed,
+      encounterId: encounterId ?? null,
       chpInstruction: isCrisis ? output.chp_instruction : null,
       crisisLine: isCrisis ? output.crisis_line : null,
       confidenceNote: isCrisis
@@ -64,6 +67,7 @@ function toDTO(
     chpInstruction: string | null;
     crisisLine: string | null;
     confidenceNote: string | null;
+    encounterId: string | null;
   }
 ): TriageRecordDTO {
   let indicators: string[] = [];
@@ -87,6 +91,7 @@ function toDTO(
     crisisLine: row.crisisLine,
     confidenceNote: row.confidenceNote,
     fallbackUsed: row.fallbackUsed,
+    encounterId: row.encounterId,
   };
 }
 
@@ -182,6 +187,8 @@ export async function createFollowUp(args: {
   triageRecordId: string;
   chvId: string;
   dueInHours?: number;
+  /** Links to the Referral that generated this follow-up (section 14). */
+  referralId?: string;
 }): Promise<FollowUpDTO | null> {
   const dueInHours = args.dueInHours ?? 48;
   // Idempotent: check for an existing pending follow-up for this record.
@@ -199,6 +206,7 @@ export async function createFollowUp(args: {
       triageRecordId: args.triageRecordId,
       chvId: args.chvId,
       dueAt,
+      referralId: args.referralId ?? null,
     },
     include: { triageRecord: { select: { county: true, ward: true, classification: true, escalation: true, aggregateTag: true, chpNextAction: true } } },
   });
@@ -563,6 +571,10 @@ export async function writeAuditEntry(args: {
   escalation?: boolean;
   fallbackUsed?: boolean;
   piiRedactions?: Record<string, number> | null;
+  /** Policy engine version + workflow classification (section 12, 21). */
+  policyVersion?: string;
+  workflowClass?: string;
+  referralId?: string | null;
 }): Promise<void> {
   await db.auditLog.create({
     data: {
@@ -577,6 +589,9 @@ export async function writeAuditEntry(args: {
       piiRedactions: args.piiRedactions
         ? JSON.stringify(args.piiRedactions)
         : null,
+      policyVersion: args.policyVersion ?? null,
+      workflowClass: args.workflowClass ?? null,
+      referralId: args.referralId ?? null,
     },
   });
 }

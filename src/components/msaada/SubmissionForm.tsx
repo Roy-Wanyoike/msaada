@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -12,8 +12,12 @@ import {
   LogOut,
   Lock,
   Mic,
+  PencilLine,
+  PlayCircle,
   Send,
   ShieldCheck,
+  UserRound,
+  Users,
 } from "lucide-react";
 import {
   Card,
@@ -40,6 +44,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { COUNTIES, WARDS, type County, type TriageRecordDTO } from "@/lib/types";
+import type {
+  EncounterDTO,
+  HouseholdDTO,
+  HouseholdMemberDTO,
+} from "@/lib/identity-types";
 import { SAMPLE_TRANSCRIPTS } from "./samples";
 import { TriageResultCard } from "./TriageResultCard";
 import type { Chv } from "./AuthCard";
@@ -66,6 +75,21 @@ export function SubmissionForm({
   postCrisisBanner,
   onClearPostCrisisBanner,
 }: SubmissionFormProps) {
+  // --- Identity-chain state (Household → Member → Encounter, §6/§15/§25) ---
+  const [households, setHouseholds] = useState<HouseholdDTO[]>([]);
+  const [householdsLoading, setHouseholdsLoading] = useState(true);
+  const [householdsError, setHouseholdsError] = useState<string | null>(null);
+
+  const [householdId, setHouseholdId] = useState<string>("");
+  const [members, setMembers] = useState<HouseholdMemberDTO[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [memberId, setMemberId] = useState<string>("");
+
+  const [encounter, setEncounter] = useState<EncounterDTO | null>(null);
+  const [startingEncounter, setStartingEncounter] = useState(false);
+  const [identityError, setIdentityError] = useState<string | null>(null);
+
+  // --- Triage form state (existing) -------------------------------------
   const [county, setCounty] = useState<County>(
     (COUNTIES as readonly string[]).includes(chv.county)
       ? (chv.county as County)
@@ -82,6 +106,202 @@ export function SubmissionForm({
   const [inlineError, setInlineError] = useState<string | null>(null);
 
   const wardsForCounty = useMemo(() => WARDS[county] ?? [], [county]);
+
+  // --- Helpers ----------------------------------------------------------
+
+  /**
+   * Fetch a household + its members. Returns the household's county/ward so
+   * the caller can default the demographic-scoping selects (§25 — encounter
+   * gives the identity, county/ward gives the aggregate bucket).
+   */
+  const loadHouseholdDetail = useCallback(
+    async (
+      hid: string
+    ): Promise<{ county: string | null; ward: string | null } | null> => {
+      setMembersLoading(true);
+      setIdentityError(null);
+      try {
+        const res = await fetch(
+          `/api/households/${encodeURIComponent(hid)}`,
+          { cache: "no-store" }
+        );
+        if (res.status === 401) {
+          onLogout();
+          return null;
+        }
+        if (!res.ok) throw new Error("request_failed");
+        const data = (await res.json()) as {
+          household: {
+            id: string;
+            county: string;
+            ward: string | null;
+            label: string;
+            householdCode: string;
+          } | null;
+          members: HouseholdMemberDTO[];
+        };
+        setMembers(data.members ?? []);
+        return {
+          county: data.household?.county ?? null,
+          ward: data.household?.ward ?? null,
+        };
+      } catch {
+        setIdentityError("Could not load household members.");
+        setMembers([]);
+        return null;
+      } finally {
+        setMembersLoading(false);
+      }
+    },
+    [onLogout]
+  );
+
+  // --- Load households list on mount (always — for the selector) --------
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setHouseholdsLoading(true);
+      setHouseholdsError(null);
+      try {
+        const res = await fetch("/api/households", { cache: "no-store" });
+        if (res.status === 401) {
+          onLogout();
+          return;
+        }
+        if (!res.ok) throw new Error("request_failed");
+        const data = (await res.json()) as { households: HouseholdDTO[] };
+        if (cancelled) return;
+        setHouseholds(data.households ?? []);
+      } catch {
+        if (cancelled) return;
+        setHouseholdsError("Could not load households.");
+      } finally {
+        if (!cancelled) setHouseholdsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [onLogout]);
+
+  // --- URL preselect: ?encounter=ENC_ID set by /households -------------
+  // The /households page deep-links here with an encounter already started
+  // (spec §25). We resolve it via GET /api/encounters + GET /api/households/[id]
+  // (for county/ward defaults + members list, so the "Change" path works).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const encParam = params.get("encounter");
+    if (!encParam) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/encounters", { cache: "no-store" });
+        if (res.status === 401) {
+          onLogout();
+          return;
+        }
+        if (!res.ok) throw new Error("request_failed");
+        const data = (await res.json()) as { encounters: EncounterDTO[] };
+        if (cancelled) return;
+        const found = data.encounters.find(
+          (e) => e.id === encParam || e.encounterCode === encParam
+        );
+        if (!found) {
+          setIdentityError(
+            "Encounter from URL not found — pick a household/member below."
+          );
+          return;
+        }
+        setEncounter(found);
+        setHouseholdId(found.householdId);
+        setMemberId(found.memberId);
+        const hh = await loadHouseholdDetail(found.householdId);
+        if (cancelled || !hh) return;
+        if (hh.county && (COUNTIES as readonly string[]).includes(hh.county)) {
+          setCounty(hh.county as County);
+        }
+        if (hh.ward) setWard(hh.ward);
+      } catch {
+        if (cancelled) return;
+        setIdentityError("Could not load encounter details from URL.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadHouseholdDetail, onLogout]);
+
+  // --- Identity chain handlers -----------------------------------------
+
+  async function handleHouseholdChange(hid: string) {
+    setHouseholdId(hid);
+    setMemberId("");
+    setMembers([]);
+    if (!hid) return;
+    const hh = await loadHouseholdDetail(hid);
+    if (hh) {
+      if (
+        hh.county &&
+        (COUNTIES as readonly string[]).includes(hh.county)
+      ) {
+        setCounty(hh.county as County);
+      }
+      if (hh.ward) setWard(hh.ward);
+    }
+  }
+
+  async function handleStartEncounter() {
+    if (!householdId || !memberId) return;
+    setStartingEncounter(true);
+    setIdentityError(null);
+    try {
+      const res = await fetch("/api/encounters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ householdId, memberId }),
+      });
+      if (res.status === 401) {
+        toast.error("Session expired", { description: "Please sign in again." });
+        onLogout();
+        return;
+      }
+      const data = (await res.json()) as EncounterDTO | { error: string };
+      if (!res.ok || "error" in data) {
+        const errMsg =
+          (data as { error?: string }).error ?? "Could not start encounter.";
+        setIdentityError(errMsg);
+        toast.error("Start encounter failed", { description: errMsg });
+        return;
+      }
+      const enc = data as EncounterDTO;
+      setEncounter(enc);
+      toast.success("Encounter started", {
+        description: `${enc.encounterCode} · ${enc.memberDisplayName}`,
+      });
+    } catch {
+      setIdentityError("Network error — could not start encounter.");
+      toast.error("Network error", {
+        description: "Could not start encounter.",
+      });
+    } finally {
+      setStartingEncounter(false);
+    }
+  }
+
+  function handleChangeEncounter() {
+    setEncounter(null);
+    setObservation("");
+    setVoiceTranscript("");
+    setSampleId("");
+    setInlineError(null);
+    // Keep householdId/memberId/members — the user may want to restart with
+    // the same household + a different member, or pick a new household.
+    toast.info("Encounter cleared — pick a household/member to start a new one.");
+  }
+
+  // --- Existing handlers -----------------------------------------------
 
   function handleCountyChange(v: string) {
     setCounty(v as County);
@@ -104,6 +324,9 @@ export function SubmissionForm({
     setObservation("");
     setVoiceTranscript("");
     setSampleId("");
+    // Keep `encounter` so the CHV can log another observation for the same
+    // person — an encounter may have many observations (§6). Use "Change"
+    // to explicitly clear the encounter and start a new identity chain.
     onClearPostCrisisBanner();
   }
 
@@ -123,6 +346,14 @@ export function SubmissionForm({
       toast.error(msg);
       return;
     }
+    // Defense in depth — the submit button is disabled until an encounter
+    // is started, but enforce the §15 invariant server-side too.
+    if (!encounter) {
+      const msg = "Start an encounter before submitting an observation.";
+      setInlineError(msg);
+      toast.error(msg);
+      return;
+    }
 
     // prepend voice transcript to observation text if provided
     const combined = [voiceTranscript.trim(), observation.trim()]
@@ -138,6 +369,7 @@ export function SubmissionForm({
           observation_text: combined,
           county,
           ward: ward || undefined,
+          encounterId: encounter.id,
         }),
       });
       const data = (await res.json()) as TriageRecordDTO | { error: string };
@@ -185,6 +417,8 @@ export function SubmissionForm({
         setObservation("");
         setVoiceTranscript("");
         setSampleId("");
+        // Keep the encounter so the follow-up / referral recorded against
+        // this person is traceable; "Change" remains available afterwards.
         onResult(record);
         onCrisis(record);
         return;
@@ -204,6 +438,11 @@ export function SubmissionForm({
     }
   }
 
+  // --- Derived labels for the confirmation banner ----------------------
+  const encounterCode = encounter?.encounterCode ?? "—";
+  const memberName = encounter?.memberDisplayName ?? "—";
+  const householdLabel = encounter?.householdLabel ?? "—";
+
   return (
     <div className="w-full max-w-2xl">
       {/* ---- Top bar ---- */}
@@ -213,14 +452,22 @@ export function SubmissionForm({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold leading-tight">
-            Msaada <span className="text-muted-foreground font-normal">— CHV visit observation</span>
+            Msaada{" "}
+            <span className="text-muted-foreground font-normal">
+              — CHV visit observation
+            </span>
           </p>
           <p className="truncate text-xs text-muted-foreground">
             {chv.fullName} · {chv.county}
             {chv.ward ? `, ${chv.ward}` : ""}
           </p>
         </div>
-        <Button variant="outline" size="sm" className="h-9" onClick={onDashboard}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9"
+          onClick={onDashboard}
+        >
           View dashboard <ExternalLink className="h-3.5 w-3.5" />
         </Button>
         <Button asChild variant="outline" size="sm" className="h-9">
@@ -309,7 +556,160 @@ export function SubmissionForm({
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-5">
-                {/* County + Ward */}
+                {/* ---- Identity confirmation banner (§25) ----
+                    Shown whenever an encounter is active. The "Change" link
+                    clears the encounter and re-shows the identity selector. */}
+                {encounter && (
+                  <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
+                    <Users className="h-4 w-4" aria-hidden="true" />
+                    <AlertDescription className="flex items-start justify-between gap-3">
+                      <span className="text-sm leading-relaxed">
+                        <span className="font-semibold">Observation for:</span>{" "}
+                        {memberName} · {householdLabel} ·{" "}
+                        <code className="rounded bg-emerald-100 px-1 py-0.5 font-mono text-xs">
+                          {encounterCode}
+                        </code>
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 shrink-0 text-emerald-900 hover:bg-emerald-100"
+                        onClick={handleChangeEncounter}
+                      >
+                        <PencilLine className="h-3.5 w-3.5" /> Change
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* ---- Identity selector (§15 — never create an observation
+                        without knowing which member it concerns) ---- */}
+                {!encounter && (
+                  <div className="space-y-4 rounded-lg border border-dashed border-muted-foreground/30 p-4">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Users className="h-4 w-4" aria-hidden="true" />
+                      Identity chain — pick who this observation is for
+                    </div>
+                    {identityError && (
+                      <p className="text-xs text-amber-700">{identityError}</p>
+                    )}
+                    {householdsError && (
+                      <p className="text-xs text-amber-700">
+                        {householdsError}
+                      </p>
+                    )}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="household">
+                          Household
+                          <span aria-hidden="true" className="text-rose-600">
+                            {" "}
+                            *
+                          </span>
+                        </Label>
+                        <Select
+                          value={householdId}
+                          onValueChange={handleHouseholdChange}
+                          disabled={householdsLoading}
+                        >
+                          <SelectTrigger
+                            id="household"
+                            className="min-h-11 w-full"
+                            aria-required="true"
+                          >
+                            <SelectValue
+                              placeholder={
+                                householdsLoading
+                                  ? "Loading households…"
+                                  : households.length === 0
+                                    ? "No households — create one first"
+                                    : "Select household"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {households.map((h) => (
+                              <SelectItem key={h.id} value={h.id}>
+                                {h.label} · {h.householdCode}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="member">
+                          Member
+                          <span aria-hidden="true" className="text-rose-600">
+                            {" "}
+                            *
+                          </span>
+                        </Label>
+                        <Select
+                          value={memberId}
+                          onValueChange={setMemberId}
+                          disabled={!householdId || membersLoading}
+                        >
+                          <SelectTrigger
+                            id="member"
+                            className="min-h-11 w-full"
+                            aria-required="true"
+                          >
+                            <SelectValue
+                              placeholder={
+                                !householdId
+                                  ? "Pick household first"
+                                  : membersLoading
+                                    ? "Loading members…"
+                                    : members.length === 0
+                                      ? "No members in household"
+                                      : "Select member"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {members.map((m) => (
+                              <SelectItem key={m.id} value={m.id}>
+                                {m.displayName}
+                                {m.role ? ` · ${m.role}` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      className="h-11 w-full bg-emerald-600 hover:bg-emerald-700"
+                      disabled={
+                        !householdId || !memberId || startingEncounter
+                      }
+                      onClick={handleStartEncounter}
+                    >
+                      {startingEncounter ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Starting encounter…
+                        </>
+                      ) : (
+                        <>
+                          <PlayCircle className="h-4 w-4" />
+                          Start encounter
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      <UserRound className="mr-1 inline h-3 w-3" aria-hidden="true" />
+                      An encounter is required before logging an observation
+                      — never create an observation without knowing which
+                      member it concerns (spec §15).
+                    </p>
+                  </div>
+                )}
+
+                {/* County + Ward — kept for aggregate-scoping (spec §25):
+                    the encounter provides the identity; the county/ward
+                    provides the demographic bucket for dashboard aggregates. */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="county">County</Label>
@@ -364,7 +764,8 @@ export function SubmissionForm({
                   </p>
                 </div>
 
-                {/* Observation textarea */}
+                {/* Observation textarea — DISABLED until an encounter is
+                    started (§15 — observations must be linked to a member). */}
                 <div className="space-y-1.5">
                   <Label htmlFor="observation">
                     What did you observe during this visit?
@@ -374,8 +775,14 @@ export function SubmissionForm({
                     value={observation}
                     onChange={(e) => setObservation(e.target.value)}
                     rows={6}
-                    placeholder="Describe behaviours only — sleep, appetite, withdrawal, distress…"
+                    placeholder={
+                      encounter
+                        ? "Describe behaviours only — sleep, appetite, withdrawal, distress…"
+                        : "Start an encounter above to enable this field"
+                    }
                     className="min-h-44"
+                    disabled={!encounter}
+                    aria-required="true"
                   />
                   <p className="text-xs text-muted-foreground">
                     Describe behaviours only — sleep, appetite, withdrawal,
@@ -387,7 +794,10 @@ export function SubmissionForm({
                 <Collapsible open={voiceOpen} onOpenChange={setVoiceOpen}>
                   <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <Mic className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                      <Mic
+                        className="h-4 w-4 text-muted-foreground"
+                        aria-hidden="true"
+                      />
                       <span className="text-sm font-medium">
                         Paste voice transcript
                       </span>
@@ -408,6 +818,7 @@ export function SubmissionForm({
                       rows={3}
                       placeholder="Paste a transcript here if you recorded a voice note…"
                       className="min-h-24"
+                      disabled={!encounter}
                     />
                     <p className="text-xs text-muted-foreground">
                       Voice-to-text is stubbed for the demo; paste a transcript
@@ -417,17 +828,22 @@ export function SubmissionForm({
                   </CollapsibleContent>
                 </Collapsible>
 
-                {/* Submit */}
+                {/* Submit — DISABLED until encounter is started */}
                 <div className="space-y-2">
                   <Button
                     type="submit"
-                    disabled={status === "loading"}
+                    disabled={status === "loading" || !encounter}
                     className="h-12 w-full bg-emerald-600 text-base hover:bg-emerald-700"
                   >
                     {status === "loading" ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Submitting…
+                      </>
+                    ) : !encounter ? (
+                      <>
+                        <Lock className="h-4 w-4" />
+                        Start an encounter to submit
                       </>
                     ) : (
                       <>
@@ -437,11 +853,14 @@ export function SubmissionForm({
                     )}
                   </Button>
                   <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                    <Lock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
+                    <Lock
+                      className="mt-0.5 h-3 w-3 shrink-0"
+                      aria-hidden="true"
+                    />
                     <span>
                       Your raw observation text is sent to the model for
                       classification but is NOT stored. Only the structured
-                      triage result and county/ward are saved.
+                      triage result, county/ward, and encounter link are saved.
                     </span>
                   </p>
                 </div>

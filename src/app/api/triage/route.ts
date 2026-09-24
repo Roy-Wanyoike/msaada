@@ -9,13 +9,20 @@ import {
   writeAuditEntry,
 } from "@/lib/triage-store";
 import {
+  evaluatePolicy,
+  getDestinationForCategory,
+  type ModelInterpretation,
+} from "@/lib/policy-engine";
+import { db } from "@/lib/db";
+import { generateCode } from "@/lib/identity-types";
+import {
   COUNTIES,
   WARDS,
   type County,
   type TriageRequest,
 } from "@/lib/types";
 
-// Always dynamic — auth + per-request classification.
+// Always dynamic -- auth + per-request classification.
 export const dynamic = "force-dynamic";
 
 function bad(error: string, field?: string, status = 400) {
@@ -25,24 +32,29 @@ function bad(error: string, field?: string, status = 400) {
 /**
  * POST /api/triage
  *
- * Body (TriageRequest): { observation_text, county, ward? }
- * Cookie-auth required (msaada_session). The raw observation_text is passed
- * to Qwen in-memory only and is NEVER persisted or echoed in the response.
- * Only the model-derived structured fields + county/ward + submittedById are
- * stored.
+ * The full identity-chain + policy-engine flow (spec sections 6, 9, 10, 12, 13, 15):
  *
- * De-identification note: console logs after classification intentionally
- * carry only county/ward/escalation/classification — never the free text.
+ *  1. Auth + rate-limit (defense layer 6).
+ *  2. PII scrub BEFORE the model call (defense layer 2).
+ *  3. Qwen interprets the observation (section 9) -- structured output.
+ *  4. DETERMINISTIC POLICY ENGINE evaluates the interpretation (section 10, 12).
+ *     The AI can NEVER override or downgrade a safety-critical signal.
+ *  5. Persist the de-identified observation (TriageRecord, linked to Encounter).
+ *  6. Execute the policy decision -- create a Referral if referral_required.
+ *  7. Create a Follow-up if the policy requires it (linked to the Referral).
+ *  8. Audit log -- WHO/WHEN/WHERE + model verdict + POLICY VERSION (section 21).
+ *
+ * Body: { observation_text, county, ward?, encounterId? }
+ * Returns: TriageRecordDTO + policyDecision + referralId
  */
 export async function POST(req: Request) {
-  // Auth first — fail fast on no session.
+  // 1. Auth -- fail fast on no session.
   const chv = await getSessionChv();
   if (!chv) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  // Rate-limit per CHV — production-hardening TODO #4. 10 triage submissions
-  // per 60s per CHV. Returns 429 with Retry-After when exceeded.
+  // Rate-limit per CHV (defense layer 6). 10 triage submissions / 60s.
   const rl = checkRateLimit(`triage:${chv.id}`);
   if (!rl.allowed) {
     return NextResponse.json(
@@ -63,19 +75,15 @@ export async function POST(req: Request) {
   if (!body || typeof body !== "object") {
     return bad("INVALID_BODY");
   }
-  const { observation_text, county, ward } = body as Partial<TriageRequest>;
+  const { observation_text, county, ward, encounterId } = body as Partial<TriageRequest>;
 
-  // Validate observation_text: non-empty string, trimmed min 10 chars.
+  // Validate observation_text.
   if (
     typeof observation_text !== "string" ||
     observation_text.trim().length < 10
   ) {
     return bad("MISSING_OR_TOO_SHORT", "observation_text");
   }
-  // DoS / cost guard — reject oversized observations before the PII scrub
-  // regex (slow on huge input) and the Qwen call (rejected upstream, but
-  // body-parse + scrub cost already paid). 5000 chars is generous for any
-  // reasonable CHV home-visit narrative.
   if (observation_text.length > 5000) {
     return bad("OBSERVATION_TOO_LONG", "observation_text");
   }
@@ -84,7 +92,7 @@ export async function POST(req: Request) {
     return bad("INVALID_COUNTY", "county");
   }
   const countyTyped = county as County;
-  // Validate ward (optional, but if present must belong to county).
+  // Validate ward.
   let wardTyped: string | undefined;
   if (ward !== undefined && ward !== null) {
     if (typeof ward !== "string" || ward.trim().length === 0) {
@@ -97,78 +105,135 @@ export async function POST(req: Request) {
   }
 
   try {
-    // PII scrubber — defense-in-depth BEFORE the model call. The raw text is
-    // never persisted, but it IS sent to Qwen. Redact phones, emails,
-    // national-ID-like digit runs, and "mama/baba/mtoto + proper name" so the
-    // model never sees identifiers. Behavioral context is preserved.
+    // 2. PII scrub BEFORE the model call (defense layer 2).
     const { redacted: scrubbedText, redactionCount } = scrubPII(
       observation_text.trim()
     );
 
+    // 3. AI interprets (section 9).
     const { output, fallbackUsed } = await classifyObservation(scrubbedText);
+
+    // 4. DETERMINISTIC POLICY ENGINE (section 10, 12).
+    const interpretation: ModelInterpretation = {
+      escalation: output.escalation === true,
+      classification: output.escalation === true ? "needs_facility_referral" : output.classification,
+      observedIndicators: output.escalation === true ? [] : output.observed_indicators,
+      aggregateTag: output.escalation === true ? "crisis_self_harm" : (output.aggregate_tag ?? null),
+      chpNextAction: output.escalation === true ? null : output.chp_next_action,
+      chpInstruction: output.escalation === true ? output.chp_instruction : null,
+      crisisLine: output.escalation === true ? output.crisis_line : null,
+      confidenceNote: output.escalation === true ? "Crisis override triggered" : (output.confidence_note ?? null),
+      fallbackUsed,
+    };
+    const policyDecision = evaluatePolicy(interpretation);
+
+    // 5. Persist the de-identified observation (linked to the encounter if provided).
     const record = await insertTriageRecord({
       submittedById: chv.id,
       county: countyTyped,
       ward: wardTyped,
       output,
       fallbackUsed,
+      encounterId: encounterId || undefined,
     });
 
-    // Follow-up tracking — when the triage produces needs_followup or
-    // needs_facility_referral (and NOT a crisis, which has its own protocol),
-    // create a FollowUp row due in 48h so the CHV can track the recommended
-    // next action. Idempotent (won't duplicate for the same record).
+    // 6. Execute the policy decision -- create a Referral if the policy says
+    //    referral_required or crisis_override (section 13). Referrals require
+    //    an encounter (identity chain section 15 -- never create without
+    //    knowing the member).
+    let referralId: string | null = null;
     if (
-      !record.escalation &&
-      (record.classification === "needs_followup" ||
-        record.classification === "needs_facility_referral")
+      policyDecision.referralPriority &&
+      policyDecision.referralCategory &&
+      record.encounterId
     ) {
+      const encounter = await db.encounter
+        .findUnique({
+          where: { id: record.encounterId },
+          select: { householdId: true, memberId: true },
+        })
+        .catch(() => null);
+      if (encounter) {
+        const referral = await db.referral
+          .create({
+            data: {
+              referralCode: generateCode("MSD-REF"),
+              encounterId: record.encounterId,
+              householdId: encounter.householdId,
+              memberId: encounter.memberId,
+              category: policyDecision.referralCategory,
+              priority: policyDecision.referralPriority,
+              destination: getDestinationForCategory(policyDecision.referralCategory),
+              status: "created",
+              createdById: chv.id,
+              createdBy: chv.id,
+              followUpRequired: policyDecision.followUpRequired,
+            },
+          })
+          .catch((e) => {
+            console.error("[triage] referral create failed:", e);
+            return null;
+          });
+        if (referral) referralId = referral.id;
+      }
+    }
+
+    // 7. Create a Follow-up if the policy requires it (linked to the referral
+    //    if one was created -- section 14). Uses the policy's dueInHours
+    //    (24h for crisis, 48h for follow-up/referral).
+    if (policyDecision.followUpRequired) {
       await createFollowUp({
         triageRecordId: record.id,
         chvId: chv.id,
+        dueInHours: policyDecision.followUpDueHours,
+        referralId: referralId || undefined,
       }).catch((e) => {
         console.error("[triage] follow-up create failed:", e);
       });
     }
 
-    // Compliance audit log — records WHO/WHEN/WHERE + the model's verdict,
-    // NEVER the observation text or the redacted text. This is the system
-    // of record for safety incidents and proves the never-persist invariant.
+    // 8. Audit log -- WHO/WHEN/WHERE + model verdict + POLICY VERSION +
+    //    workflow decision (section 21). Never the observation text.
     await writeAuditEntry({
       triageRecordId: record.id,
       actorId: chv.id,
-      event: record.escalation
+      event: policyDecision.isEscalation
         ? "crisis_override"
         : fallbackUsed
           ? "fallback_used"
-          : "triage_classified",
+          : "policy_evaluated",
       county: record.county,
       ward: record.ward,
       classification: record.classification,
       escalation: record.escalation,
       fallbackUsed,
       piiRedactions: redactionCount,
+      policyVersion: policyDecision.policyVersion,
+      workflowClass: policyDecision.workflowClass,
+      referralId,
     }).catch((e) => {
-      // Audit write failure must not fail the triage response.
       console.error("[triage] audit log write failed:", e);
     });
 
-    // De-identified log line — raw observation text never appears here.
-    // Log the scrubber's redaction counts (not the redactions themselves).
+    // De-identified log line -- includes the policy decision (section 12 auditable).
     console.log(
       `[triage] stored id=${record.id} county=${record.county} ward=${
         record.ward ?? "-"
       } escalation=${record.escalation} classification=${
         record.classification
-      } fallback=${fallbackUsed} scrubbed=${JSON.stringify(redactionCount)}`
+      } fallback=${fallbackUsed} policy=${policyDecision.policyVersion}:${
+        policyDecision.workflowClass
+      } referral=${referralId ?? "-"} scrubbed=${JSON.stringify(redactionCount)}`
     );
 
-    return NextResponse.json(record, { status: 200 });
+    // Return the record + the policy decision (the client shows the
+    // deterministic workflow classification, not just the AI's interpretation).
+    return NextResponse.json(
+      { ...record, policyDecision, referralId },
+      { status: 200 }
+    );
   } catch (err) {
-    // Log the full error server-side for debugging — never send to client.
-    // err.message from Prisma (table/column names), the Qwen SDK (upstream API
-    // error bodies), or JSON parsing can leak internals to the client, so we
-    // return only a generic detail and keep the real error on the server.
+    // Log the full error server-side -- never send to client.
     console.error("[triage] unexpected failure:", err);
     return NextResponse.json(
       {

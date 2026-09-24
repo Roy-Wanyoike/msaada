@@ -28,6 +28,9 @@ model ChvUser {
   updatedAt DateTime @updatedAt
 
   triageRecords TriageRecord[]
+  households    Household[]
+  encounters    Encounter[]
+  referrals     Referral[]
 }
 
 model TriageRecord {
@@ -57,6 +60,11 @@ model TriageRecord {
   submittedById     String
   submittedBy       ChvUser  @relation(fields: [submittedById], references: [id])
 
+  // Identity chain (§2,§6,§15): links to the Encounter that generated this
+  // observation. Nullable for backward compat with pre-encounter records.
+  encounterId       String?
+  encounter         Encounter? @relation(fields: [encounterId], references: [id])
+
   // Follow-up tracking (one-to-many — a triage can have at most one open
   // follow-up, but history is retained after resolution).
   followUps         FollowUp[]
@@ -65,6 +73,7 @@ model TriageRecord {
   @@index([classification])
   @@index([aggregateTag])
   @@index([escalation])
+  @@index([encounterId])
 }
 
 // A separate aggregate view table is not needed with Prisma — the dashboard
@@ -89,6 +98,11 @@ model AuditLog {
   escalation     Boolean  @default(false)
   fallbackUsed   Boolean  @default(false)
   piiRedactions  String?  // JSON counts from the scrubber (phone/email/id/name), never the redactions
+  /// Policy engine version + workflow classification (section 12, 21 -- auditable).
+  policyVersion  String?
+  workflowClass  String?  // routine|follow_up_required|referral_required|human_review|crisis_override
+  /// Referral created by this triage (if any).
+  referralId     String?
 
   @@index([createdAt])
   @@index([actorId])
@@ -120,7 +134,153 @@ model FollowUp {
   /// The CHV responsible for the follow-up (ownership-scoped — RLS equivalent).
   chvId           String
 
+  /// Links to the Referral that generated this follow-up (§14). Nullable for
+  /// backward compat + for follow-ups not tied to a referral.
+  referralId      String?
+  referral        Referral?  @relation(fields: [referralId], references: [id])
+
   @@index([chvId, status])
   @@index([dueAt])
   @@index([status])
+  @@index([referralId])
+}
+
+// =====================================================================
+// IDENTITY CHAIN (§2, §3, §6, §13, §15, §28)
+// Household → Member → Encounter → Observation → Policy → Referral → Follow-up
+// Stable internal IDs (MSD-HH-XXXX, MSD-M-XXXX, etc.) — names are attributes,
+// never primary keys. Data minimization: only collect what's needed.
+// =====================================================================
+
+/// Household — a group of people the CHW is authorized to visit. The CHW
+/// only sees households assigned to them (RBAC §5, §18).
+model Household {
+  id            String   @id @default(cuid())
+  /// Stable, human-readable code (MSD-HH-XXXX) — the public identifier.
+  householdCode String   @unique
+  /// The CHV assigned to this household (ownership-scoped).
+  chwId         String
+  chw           ChvUser  @relation(fields: [chwId], references: [id])
+  /// Location context (coarse — no addresses, per §3 data minimization).
+  county        String
+  ward          String?
+  /// A short, de-identified label the CHV uses to recognize the household
+  /// (e.g. "Household 18, Kariobangi"). NOT a name — just a mnemonic.
+  label         String
+  status        String   @default("active") // active | inactive | closed
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  members       HouseholdMember[]
+  encounters    Encounter[]
+
+  @@index([chwId])
+  @@index([county])
+  @@index([status])
+}
+
+/// Household Member — an individual within a household. displayName is an
+/// attribute (NOT a primary key). The member ID (MSD-M-XXXX) is the stable
+/// internal identifier. Data minimization: no phone/address unless authorized.
+model HouseholdMember {
+  id            String   @id @default(cuid())
+  /// Stable code (MSD-M-XXXX).
+  memberCode    String   @unique
+  householdId   String
+  household     Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  /// Display label (e.g. "Mama", "Baba", "Mtoto — age 8"). NOT a real name
+  /// by default — the CHV may use a kinship label to avoid storing names.
+  displayName   String
+  /// Kinship/role context (mother/father/child/grandparent/other).
+  role          String?
+  /// Age band (not exact DOB — data minimization per §3).
+  ageBand       String?  // <5 | 5-14 | 15-24 | 25-49 | 50+
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  encounters    Encounter[]
+
+  @@index([householdId])
+  @@index([status])
+}
+
+/// Encounter — a single visit/interaction. Has a lifecycle (§6):
+/// draft → in_progress → completed → processing → processed → closed.
+/// Links to household + member + CHW (identity chain §15).
+model Encounter {
+  id              String   @id @default(cuid())
+  /// Stable code (MSD-ENC-XXXX).
+  encounterCode   String   @unique
+  householdId     String
+  household       Household @relation(fields: [householdId], references: [id])
+  memberId        String
+  member          HouseholdMember @relation(fields: [memberId], references: [id])
+  chwId           String
+  chw             ChvUser  @relation(fields: [chwId], references: [id])
+  /// Lifecycle state (§6).
+  status          String   @default("draft") // draft|in_progress|completed|sync_pending|synced|processing|processed|requires_review|closed
+  /// How the observation was captured (§7).
+  captureMethod   String   @default("text") // text | voice | mixed
+  /// Connectivity state at creation (§17 offline-first).
+  connectivity    String   @default("online") // online | offline | intermittent
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  triageRecords   TriageRecord[]
+  referrals       Referral[]
+
+  @@index([chwId])
+  @@index([householdId])
+  @@index([memberId])
+  @@index([status])
+}
+
+/// Referral — links to the encounter + member that generated it (§13).
+/// Has a full lifecycle: created → sent → acknowledged → in_progress →
+/// completed | declined | cancelled | expired. "Referral Created" ≠ "Help
+/// Received" (§13) — the workflow is tracked to completion.
+model Referral {
+  id              String   @id @default(cuid())
+  /// Stable code (MSD-REF-XXXX).
+  referralCode    String   @unique
+  encounterId     String
+  encounter       Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  householdId     String
+  memberId        String
+  /// Category from an authorized config (not invented — §12, §27).
+  category        String   // mental_health | maternal | child_health | etc.
+  /// Priority (deterministic — set by the policy engine, NOT the AI).
+  priority        String   @default("routine") // routine | urgent | emergency
+  /// Destination facility/program (from authorized config — §27 no fake integrations).
+  destination     String?
+  /// Lifecycle state (§13).
+  status          String   @default("created") // created|sent|acknowledged|in_progress|completed|declined|cancelled|expired
+  createdBy       String
+  createdById     String
+  createdByRef    ChvUser  @relation(fields: [createdById], references: [id])
+  createdAt       DateTime @default(now())
+  acknowledgedBy  String?
+  acknowledgedAt  DateTime?
+  completedAt     DateTime?
+  followUpRequired Boolean  @default(true)
+
+  followUps       FollowUp[]
+
+  @@index([encounterId])
+  @@index([status])
+  @@index([householdId])
+}
+
+/// Policy Version — the deterministic safety policy is versioned, auditable,
+/// and independently deployable from the model (§12). Each policy evaluation
+/// records which version was used.
+model PolicyVersion {
+  id          String   @id @default(cuid())
+  version     String   @unique // e.g. "1.0.0"
+  description String
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
 }
