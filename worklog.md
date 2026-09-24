@@ -154,3 +154,40 @@ Stage Summary:
 - Confirmation that charts render from `/api/dashboard`: the page calls `fetch('/api/dashboard', { cache: 'no-store' })` on mount and passes the typed `DashboardStats` payload directly to `CountyBarChart`, `DailyTrendChart`, `TopTagsChart`, `ClassificationDonut`, `CountyTable`. Verified the API returns the contract shape `{"byCounty":[],"byDay":[…14 days…],"byTag":[],"totals":{"total":0,"routine":0,"needs_followup":0,"needs_facility_referral":0,"escalation":0,"countiesCovered":0}}` — the empty path triggers `EmptyState` + the auto-seed logic; a non-empty payload renders the full dashboard.
 - Insight callout logic implemented: `computeInsights()` produces 0–3 cards (top signal, escalations-require-CHP-follow-up, follow-up trend with directional arrow, county with highest follow-up burden when ≥3 cases), with divide-by-zero protection (`pct()` guards total≤0, `weeklyDelta().noBaseline` short-circuits to "no prior-week baseline yet" before any ratio division). Page passes `weeklyDeltaNumber` so the followup-trend card shows a TrendingUp/Down arrow that is green when down and red when up.
 - No issues encountered. Auto-seed is wired once-per-mount (ref-guarded) and is silent on the auto path but toasts on the manual path. Refresh button works without navigation (client-side fetch). The /dashboard route is the only route this agent created — `src/app/page.tsx` was untouched (still the original Z.ai scaffold; another agent owns the CHV submission UI).
+
+---
+Task ID: 3-5
+Agent: orchestrator (main)
+Task: Seed demo data, end-to-end agent-browser verification, README (RLS/de-identification design), GitHub repo, 15-min webDevReview cron.
+
+Work Log:
+- Seeded 9 synthetic transcripts via `POST /api/seed`. Qwen correctly classified all 9; the explicit crisis transcript triggered `escalation=true` (stored as needs_facility_referral + escalation flag).
+- End-to-end agent-browser verification of `/`:
+  - Login page renders (Login/Signup tabs, demo-account button, dashboard link).
+  - "Use demo account" auto-logs in (cookie persisted across reload).
+  - Sample-transcript dropdown fills the textarea; crisis sample submit (Qwen ~24s) correctly fires the NON-DISMISSABLE crisis panel (alertdialog role, Kenya Red Cross 1199 + Befrienders Kenya, "Do NOT leave the household unaccompanied", confirm button disabled 5s with countdown, Escape blocked, no X). Panel renders FIRST in JSX (above main).
+  - Found + fixed a state-flow bug: in the crisis branch handleSubmit returned without resetting `status` from "loading", so after confirming the panel the form showed a skeleton forever and the post-crisis banner never appeared. Fix: reset status to "idle" + clear fields in the crisis branch; broadened the post-crisis banner condition to `status !== "loading"` and added a Dismiss button. Re-verified: form returns usable + banner shows.
+  - Routine sample submit → TriageResultCard renders (classification badge, observed indicators list, CHP next action, confidence note, de-identified record id, "Submit another observation").
+- End-to-end verification of `/dashboard`:
+  - KPI cards (Total 12, Routine 5, Follow-up 3, Facility 4, Escalations 3, Counties 4) render with correct percentages.
+  - County breakdown bar chart, daily trend line chart (14d), top aggregate tags horizontal bar, classification donut — all render with real data and full text `aria-label` summaries (a11y).
+  - Insight callouts: "Top signal: Crisis Self Harm", "3 escalations logged", "Follow-up trend: no prior-week baseline yet".
+  - County table: Kilifi 6 (2/1/3/3, +4 Δ), Mombasa 2, Nairobi 2, Turkana 2 — correct weekly deltas.
+  - Sticky footer pattern (`min-h-screen flex flex-col` + `flex-1` main + `mt-auto` footer) verified on both short (login) and long (dashboard) pages.
+- VLM visual QA (`z-ai vision` on dashboard screenshot): palette correct (no indigo/blue), layout clean. Noted sparse-data chart label overlap + a stray floating badge — logged as follow-up for the review cycle, not blocking.
+- `bun run lint` clean (exit 0).
+- Wrote README.md with the mandated RLS/de-identification design section (3 layers: never persist raw text; aggregate-only dashboard reads; ownership-scoped writes = auth.uid()=submitted_by equivalent; VIEW-equivalent in Prisma; what is NOT de-identified and why; production hardening TODOs).
+- Created GitHub repo via REST API (token from upload/ferrix.txt, piped through env var, never echoed): https://github.com/Roy-Wanyoike/msaada — public. Pushed `main` with inline-token push (token NOT persisted to .git/config — verified `git remote get-url origin` is token-free).
+- .gitignore excludes upload/ (token), dev.log, db/, *.png, .next/, node_modules/, .env — verified with `git check-ignore`.
+- Created 15-min `webDevReview` cron job (job_id 405855, tz Africa/Nairobi) with the mandated task description.
+
+Stage Summary:
+- Deliverables complete: (1) CHV submission → Qwen → Supabase-equivalent write, demoed live incl. crisis panel; (2) /dashboard with aggregate charts from seeded + live data; (3) README RLS/de-identification section.
+- Repo: https://github.com/Roy-Wanyoike/msaada
+- Demo: open `/` → "Use demo account" → pick ⚠ CRISIS sample → Submit → crisis panel; then `/dashboard` for charts.
+- Unresolved / next-phase (handed to the 15-min review cycle):
+  1. Recharts chart label overlap on sparse data (tune angle/font, ResponsiveContainer height).
+  2. VLM-noted stray floating "N" badge + truncated tag labels on dashboard — investigate.
+  3. County-level RBAC on /dashboard (currently no auth — documented TODO).
+  4. Production hardening from README: move RLS into Postgres when landing on Supabase; PII scrubber before model call; audit log; rate-limit /api/triage.
+  5. /api/triage latency ~25s (Qwen double-call on parse retry) — consider response_format json + single call, or streaming.
