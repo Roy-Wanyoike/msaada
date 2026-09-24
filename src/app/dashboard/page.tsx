@@ -17,6 +17,7 @@ import {
   Tags,
   PieChart as PieChartIcon,
   Table2,
+  Download,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -66,17 +67,21 @@ export default function DashboardPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [days, setDays] = useState<7 | 14 | 30>(14);
   /** True once we've attempted the auto-seed (so we don't loop on failure). */
   const autoSeedTriedRef = useRef(false);
   /** Monotonic request counter to race-guard stale fetches. */
   const reqIdRef = useRef(0);
 
   const loadStats = useCallback(
-    async (opts?: { silent?: boolean }): Promise<DashboardStats | null> => {
+    async (opts?: { silent?: boolean; days?: number }): Promise<DashboardStats | null> => {
       const reqId = ++reqIdRef.current;
+      const rangeDays = opts?.days ?? days;
       if (!opts?.silent) setState((s) => (s === "ready" ? s : "loading"));
       try {
-        const res = await fetch("/api/dashboard", { cache: "no-store" });
+        const res = await fetch(`/api/dashboard?days=${rangeDays}`, {
+          cache: "no-store",
+        });
         if (!res.ok) {
           throw new Error(`Dashboard endpoint returned HTTP ${res.status}`);
         }
@@ -164,6 +169,58 @@ export default function DashboardPage() {
     setRefreshing(false);
   }, [loadStats]);
 
+  // Re-fetch when the time-range filter changes.
+  useEffect(() => {
+    void loadStats({ silent: true });
+  }, [days, loadStats]);
+
+  const handleDaysChange = useCallback((next: 7 | 14 | 30) => {
+    setDays(next);
+  }, []);
+
+  /** CSV export of the county table — de-identified (counts only). */
+  const handleExportCsv = useCallback(() => {
+    if (!stats) return;
+    const rows = stats.byCounty;
+    const header = [
+      "County",
+      "Total",
+      "Routine",
+      "Needs Follow-up",
+      "Needs Facility Referral",
+      "Escalation",
+    ];
+    const lines = [header.join(",")];
+    for (const r of rows) {
+      lines.push(
+        [
+          r.county,
+          r.total,
+          r.routine,
+          r.needs_followup,
+          r.needs_facility_referral,
+          r.escalation,
+        ].join(",")
+      );
+    }
+    const csv = lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `msaada-county-triage-${days}d-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({
+      title: "CSV exported",
+      description: `${rows.length} counties · last ${days} days`,
+    });
+  }, [stats, days, toast]);
+
   // ----- Derived view state -----
   const isEmpty =
     state === "ready" && stats !== null && stats.totals.total === 0;
@@ -175,6 +232,9 @@ export default function DashboardPage() {
           <DashboardHeader
             onRefresh={handleRefresh}
             refreshing={refreshing}
+            days={days}
+            onDaysChange={handleDaysChange}
+            onExportCsv={handleExportCsv}
           />
 
           {state === "loading" ? (
@@ -217,10 +277,21 @@ export default function DashboardPage() {
 function DashboardHeader({
   onRefresh,
   refreshing,
+  days,
+  onDaysChange,
+  onExportCsv,
 }: {
   onRefresh: () => void;
   refreshing: boolean;
+  days: 7 | 14 | 30;
+  onDaysChange: (next: 7 | 14 | 30) => void;
+  onExportCsv: () => void;
 }) {
+  const ranges: Array<{ value: 7 | 14 | 30; label: string }> = [
+    { value: 7, label: "7d" },
+    { value: 14, label: "14d" },
+    { value: 30, label: "30d" },
+  ];
   return (
     <header className="mb-6 sm:mb-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -236,20 +307,52 @@ function DashboardHeader({
               />
               Aggregate view · De-identified
             </Badge>
-            <span className="text-xs text-muted-foreground">
-              Last 14 days
+            <span className="text-xs font-medium text-muted-foreground">
+              Last {days} days
             </span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             Msaada — County Triage Dashboard
           </h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Aggregate community mental-health triage signals (last 14 days).
-            De-identified — no individual observation text is exposed at any
-            layer of the data pipeline.
+          <p className="max-w-2xl text-sm text-foreground/70">
+            Aggregate community mental-health triage signals (last {days}{" "}
+            days). De-identified — no individual observation text is exposed at
+            any layer of the data pipeline.
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+          {/* Time-range segmented control */}
+          <div
+            role="group"
+            aria-label="Time range"
+            className="inline-flex h-10 items-center rounded-md border border-border bg-muted/40 p-0.5"
+          >
+            {ranges.map((r) => (
+              <button
+                key={r.value}
+                type="button"
+                onClick={() => onDaysChange(r.value)}
+                aria-pressed={days === r.value}
+                className={`min-h-9 min-w-10 rounded px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  days === r.value
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExportCsv}
+            className="h-10 min-h-[44px] px-3"
+            aria-label="Export county data as CSV"
+          >
+            <Download className="size-4" aria-hidden />
+            <span className="hidden sm:inline">CSV</span>
+          </Button>
           <Button
             asChild
             variant="outline"

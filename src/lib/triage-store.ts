@@ -131,12 +131,25 @@ export interface TagAggregate {
 }
 
 /**
- * Aggregate by county. Uses groupBy — never touches observed_indicators text.
+ * Aggregate by county over the last `days` days. Uses groupBy — never touches
+ * observed_indicators text.
  */
-export async function getAggregateByCounty(): Promise<CountyAggregate[]> {
+export async function getAggregateByCounty(
+  days?: number
+): Promise<CountyAggregate[]> {
+  const since =
+    days && days > 0
+      ? (() => {
+          const d = new Date();
+          d.setHours(0, 0, 0, 0);
+          d.setDate(d.getDate() - (days - 1));
+          return d;
+        })()
+      : undefined;
   const groups = await db.triageRecord.groupBy({
     by: ["county", "classification", "escalation"],
     _count: true,
+    where: since ? { createdAt: { gte: since } } : undefined,
   });
 
   const byCounty = new Map<string, CountyAggregate>();
@@ -209,14 +222,28 @@ export async function getAggregateByDay(days = 14): Promise<DailyAggregate[]> {
 }
 
 /**
- * Aggregate by aggregate_tag (top signals). Never exposes indicator text.
+ * Aggregate by aggregate_tag (top signals) over the last `days` days. Never
+ * exposes indicator text.
  */
-export async function getAggregateByTag(limit = 12): Promise<TagAggregate[]> {
+export async function getAggregateByTag(
+  limit = 12,
+  days?: number
+): Promise<TagAggregate[]> {
+  const since =
+    days && days > 0
+      ? (() => {
+          const d = new Date();
+          d.setHours(0, 0, 0, 0);
+          d.setDate(d.getDate() - (days - 1));
+          return d;
+        })()
+      : undefined;
   const groups = await db.triageRecord.groupBy({
     by: ["aggregateTag"],
     _count: true,
     orderBy: { _count: { aggregateTag: "desc" } },
     take: limit,
+    where: since ? { createdAt: { gte: since } } : undefined,
   });
   return groups
     .filter((g) => g.aggregateTag)
@@ -237,14 +264,27 @@ export interface DashboardStats {
   };
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getDashboardStats(days = 14): Promise<DashboardStats> {
   const [byCounty, byDay, byTag, totalsGroups] = await Promise.all([
-    getAggregateByCounty(),
-    getAggregateByDay(14),
-    getAggregateByTag(12),
+    getAggregateByCounty(days),
+    getAggregateByDay(days),
+    getAggregateByTag(12, days),
     db.triageRecord.groupBy({
       by: ["classification", "escalation"],
       _count: true,
+      where:
+        days > 0
+          ? {
+              createdAt: {
+                gte: (() => {
+                  const d = new Date();
+                  d.setHours(0, 0, 0, 0);
+                  d.setDate(d.getDate() - (days - 1));
+                  return d;
+                })(),
+              },
+            }
+          : undefined,
     }),
   ]);
 

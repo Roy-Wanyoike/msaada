@@ -154,17 +154,21 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
       transition={{ duration: 0.25 }}
       className="w-full max-w-md"
     >
-      <Card className="border-emerald-100 shadow-lg">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white">
-            <Sparkles className="h-5 w-5" aria-hidden="true" />
+      <Card className="overflow-hidden border-border/60 shadow-xl shadow-emerald-950/5">
+        {/* Gradient header band */}
+        <div className="relative bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-700 px-6 py-7 text-center text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_55%)]" aria-hidden />
+          <div className="relative">
+            <div className="mx-auto mb-2.5 flex size-12 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 backdrop-blur">
+              <Sparkles className="size-6" aria-hidden="true" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">Msaada</h1>
+            <p className="mt-0.5 text-xs font-medium text-emerald-50/90">
+              Community Health Volunteer · mental-health triage
+            </p>
           </div>
-          <CardTitle className="text-2xl">Msaada</CardTitle>
-          <CardDescription>
-            Community health volunteer mental-health triage
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <CardContent className="pt-5">
           <Tabs value={tab} onValueChange={(v) => setTab(v as "login" | "signup")}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login" className="min-h-11">
@@ -316,22 +320,27 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
             <Button
               type="button"
               variant="outline"
-              className="h-11 w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+              className="h-11 w-full border-emerald-300 bg-emerald-50/40 text-emerald-700 transition-colors hover:bg-emerald-50 hover:border-emerald-400 dark:border-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300"
               onClick={handleDemoAccount}
               disabled={demoLoading}
             >
               {demoLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               {demoLoading ? "Preparing demo…" : "Use demo account"}
             </Button>
-            <div className="rounded-md bg-muted/60 px-3 py-2 text-center text-xs text-muted-foreground">
-              <span className="font-medium">Demo creds:</span>{" "}
-              <span className="font-mono text-foreground">{DEMO_EMAIL}</span>{" "}
-              <span className="font-mono text-foreground">{DEMO_PASSWORD}</span>
+            <div className="rounded-lg border border-dashed border-border/70 bg-muted/30 px-3 py-2.5 text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Demo credentials
+              </p>
+              <p className="mt-1 font-mono text-xs text-foreground">
+                <span className="select-all">{DEMO_EMAIL}</span>
+                <span className="mx-1.5 text-muted-foreground">·</span>
+                <span className="select-all">{DEMO_PASSWORD}</span>
+              </p>
             </div>
             <button
               type="button"
               onClick={onDashboard}
-              className="flex w-full items-center justify-center gap-1.5 text-sm font-medium text-emerald-700 hover:underline"
+              className="flex w-full items-center justify-center gap-1.5 rounded-md py-1.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
             >
               View county dashboard <ExternalLink className="h-3.5 w-3.5" />
             </button>

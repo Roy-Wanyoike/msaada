@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionChv } from "@/lib/auth";
 import { classifyObservation } from "@/lib/qwen";
+import { scrubPII } from "@/lib/pii-scrub";
 import { insertTriageRecord } from "@/lib/triage-store";
 import {
   COUNTIES,
@@ -71,9 +72,15 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { output, fallbackUsed } = await classifyObservation(
+    // PII scrubber — defense-in-depth BEFORE the model call. The raw text is
+    // never persisted, but it IS sent to Qwen. Redact phones, emails,
+    // national-ID-like digit runs, and "mama/baba/mtoto + proper name" so the
+    // model never sees identifiers. Behavioral context is preserved.
+    const { redacted: scrubbedText, redactionCount } = scrubPII(
       observation_text.trim()
     );
+
+    const { output, fallbackUsed } = await classifyObservation(scrubbedText);
     const record = await insertTriageRecord({
       submittedById: chv.id,
       county: countyTyped,
@@ -83,12 +90,13 @@ export async function POST(req: Request) {
     });
 
     // De-identified log line — raw observation text never appears here.
+    // Log the scrubber's redaction counts (not the redactions themselves).
     console.log(
       `[triage] stored id=${record.id} county=${record.county} ward=${
         record.ward ?? "-"
       } escalation=${record.escalation} classification=${
         record.classification
-      } fallback=${fallbackUsed}`
+      } fallback=${fallbackUsed} scrubbed=${JSON.stringify(redactionCount)}`
     );
 
     return NextResponse.json(record, { status: 200 });
