@@ -10,3 +10,13 @@ upload/
 
 # ESLint ignore (use flat config instead)
 .eslintignore
+
+# Agent artifacts + QA scripts (internal, not for public repo)
+agent-ctx/
+reviews/
+tool-results/
+qa-run.sh
+qa-stdout.log
+validation-results.json
+validation-test.cjs
+*.cjs
