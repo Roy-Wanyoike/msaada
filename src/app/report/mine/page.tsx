@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { AppNav } from "@/components/msaada/AppNav";
 import type { TriageRecordDTO, Classification } from "@/lib/types";
 
 interface ChvStats {
@@ -120,6 +121,9 @@ export default function ReportPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      <div className="print:hidden">
+        <AppNav />
+      </div>
       <main className="flex-1">
         <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           {/* Header (hidden in print) */}

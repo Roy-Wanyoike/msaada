@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { COUNTIES } from "@/lib/types";
 import { TONE } from "@/components/msaada/dashboard-helpers";
 import type { AuditEntry } from "@/components/msaada/dashboard-helpers";
+import { AppNav } from "@/components/msaada/AppNav";
 
 interface AuditPage {
   entries: AuditEntry[];
@@ -116,6 +117,7 @@ export default function AuditPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      <AppNav />
       <main className="flex-1">
         <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           {/* Header */}

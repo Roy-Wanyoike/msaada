@@ -33,6 +33,7 @@ import { KpiCard } from "@/components/msaada/kpi-card";
 import { InsightCallouts } from "@/components/msaada/insight-callouts";
 import { CountyTable } from "@/components/msaada/county-table";
 import { AuditStrip } from "@/components/msaada/AuditStrip";
+import { AppNav } from "@/components/msaada/AppNav";
 
 // Code-split the Recharts chart components — the dashboard's heavy bundle
 // (4 charts + table + KPIs in one client component) was OOM-crashing
@@ -90,6 +91,7 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [audit, setAudit] = useState<DashboardPayload["audit"]>([]);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [scope, setScope] = useState<DashboardPayload["scope"]>({
     county: null,
     mode: "all",
@@ -135,6 +137,7 @@ export default function DashboardPage() {
         });
         setAudit(data.audit ?? []);
         setScope(data.scope ?? { county: null, mode: "all" });
+        setLastUpdated(Date.now());
         setState("ready");
         setErrorMsg(null);
         return data;
@@ -299,6 +302,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      <AppNav />
       <main className="flex-1">
         <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           <DashboardHeader
@@ -310,6 +314,7 @@ export default function DashboardPage() {
             chvCounty={chvCounty}
             scopeMode={scopeMode}
             onScopeChange={handleScopeChange}
+            lastUpdated={lastUpdated}
           />
 
           {state === "loading" ? (
@@ -360,6 +365,7 @@ function DashboardHeader({
   chvCounty,
   scopeMode,
   onScopeChange,
+  lastUpdated,
 }: {
   onRefresh: () => void;
   refreshing: boolean;
@@ -369,6 +375,7 @@ function DashboardHeader({
   chvCounty: string | null;
   scopeMode: "mine" | "all";
   onScopeChange: (next: "mine" | "all") => void;
+  lastUpdated: number | null;
 }) {
   const ranges: Array<{ value: 7 | 14 | 30; label: string }> = [
     { value: 7, label: "7d" },
@@ -393,6 +400,7 @@ function DashboardHeader({
             <span className="text-xs font-medium text-muted-foreground">
               Last {days} days
             </span>
+            {lastUpdated && <FreshnessBadge lastUpdated={lastUpdated} />}
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             Msaada — County Triage Dashboard
@@ -773,6 +781,47 @@ function ChartCard({
         <CardContent className="px-0">{children}</CardContent>
       </Card>
     </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Freshness badge — shows "updated Xm ago" + staleness color.         */
+/* ------------------------------------------------------------------ */
+
+function FreshnessBadge({ lastUpdated }: { lastUpdated: number }) {
+  // Tick every 30s so the relative time stays fresh.
+  const [, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  const ageMs = Date.now() - lastUpdated;
+  const ageMin = Math.floor(ageMs / 60000);
+  const label =
+    ageMin < 1 ? "just now" : ageMin < 60 ? `${ageMin}m ago` : `${Math.floor(ageMin / 60)}h ago`;
+  // Stale = >5 min. Fresh = <1 min.
+  const stale = ageMin > 5;
+  const fresh = ageMin < 1;
+  const cls = fresh
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+    : stale
+      ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+      : "border-border bg-muted/40 text-muted-foreground";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${cls}`}
+      title={`Data last refreshed ${label}`}
+    >
+      <span
+        className={`inline-block size-1.5 rounded-full ${
+          fresh ? "bg-emerald-500 animate-pulse" : stale ? "bg-amber-500" : "bg-muted-foreground"
+        }`}
+        aria-hidden
+      />
+      Updated {label}
+    </span>
   );
 }
 
