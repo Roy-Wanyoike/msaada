@@ -439,3 +439,33 @@ Stage Summary:
   4. /api/triage latency ~12-15s — consider streaming.
   5. Cross-page nav: add a unified top-nav bar across /dashboard, /audit, /supervisor, /report/mine for easier judge navigation.
 - Repo: https://github.com/Roy-Wanyoike/msaada (commit e3f8434)
+
+---
+Task ID: review-r8
+Agent: orchestrator (webDevReview cron round 8)
+Task: 15-min scheduled review — unified AppNav top-bar, dashboard freshness badge.
+
+Work Log:
+- Read worklog; server was dead. Restored. Lint clean.
+- New feature: unified AppNav top-bar component (closes follow-up #5).
+  - src/components/msaada/AppNav.tsx: sticky top-nav bar with Msaada brand (gradient icon), 4 nav items (Dashboard, Audit, Supervisor, My report), and a right-aligned "CHV submission" back-link. Active state derived from usePathname() with a framer-motion layoutId underline that animates between routes. Responsive: horizontally scrollable on mobile (scrollbar-none), full on desktop.
+  - Wired into /dashboard, /audit, /supervisor, /report/mine (wrapped in print:hidden on the report page so it doesn't appear on paper output).
+- New feature: dashboard data-freshness badge.
+  - DashboardHeader now accepts lastUpdated (timestamp) and renders a FreshnessBadge: "Updated just now" (emerald + pulse dot) / "Xm ago" (muted) / "Xh ago" (amber staleness >5min). Ticks every 30s via setInterval so the relative time stays fresh.
+  - DashboardPage tracks lastUpdated state, set on every successful loadStats.
+- Verification:
+  - AppNav on /supervisor: VLM 9/10 — "sticky top nav with Dashboard/Audit/Supervisor/My report links, Supervisor underlined as active, Msaada brand present."
+  - Dashboard: sticky nav + "Updated just now" freshness badge confirmed live. VLM 8/10.
+  - lint clean (exit 0).
+- Committed (d0adab7) + pushed to GitHub main.
+
+Stage Summary:
+- Navigation: a judge can now move between all 4 back-office personas (county/compliance/supervisor/CHV-report) from a single sticky top-nav, without scrolling to per-page back buttons. The active route is animated-underlined. Closes the cross-page-nav follow-up.
+- Freshness: the dashboard now shows when its data was last fetched, with a green-pulse "just now" → muted → amber-stale color progression. Gives judges confidence the data is live.
+- Remaining follow-ups for next review cycle:
+  1. Live-verify the dashboard "All" toggle (persistent sandbox dev-server process-death under heavy re-render; API returns 200).
+  2. Compliance-officer + supervisor RBAC roles (currently open for demo).
+  3. Realtime push of new audit entries to /audit.
+  4. /api/triage latency ~12-15s — consider streaming.
+  5. Mobile nav: the AppNav is horizontally scrollable on mobile; could add a hamburger collapse for very small screens.
+- Repo: https://github.com/Roy-Wanyoike/msaada (commit d0adab7)
