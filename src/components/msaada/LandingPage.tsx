@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   HeartPulse,
@@ -24,10 +26,12 @@ import {
   ExternalLink,
   Building2,
   MapPin,
+  BookOpen,
+  LayoutDashboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
+import { cn } from "@/lib/utils";
 interface LandingPageProps {
   onLogin: () => void;
   onSignup: () => void;
@@ -56,8 +60,85 @@ const FEATURES = [
 ];
 
 export function LandingPage({ onLogin, onSignup, onDashboard, onDemo, demoLoading }: LandingPageProps) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 80);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
+      {/* ===== STICKY NAVBAR (transparent on hero, solid on scroll) ===== */}
+      <nav
+        className={cn(
+          "fixed top-0 z-50 w-full transition-all duration-300",
+          scrolled
+            ? "border-b border-border/60 bg-background/90 backdrop-blur-md"
+            : "border-b border-transparent bg-transparent"
+        )}
+        aria-label="Primary"
+      >
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          {/* Brand */}
+          <Link href="/" className="flex items-center gap-2" aria-label="Msaada home">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 text-white">
+              <HeartPulse className="size-4" aria-hidden />
+            </span>
+            <span className={cn("font-bold", scrolled ? "text-foreground" : "text-white")}>
+              Msaada
+            </span>
+          </Link>
+          {/* Nav links */}
+          <div className="hidden items-center gap-1 sm:flex">
+            <Link
+              href="/docs"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+                scrolled ? "text-muted-foreground hover:text-foreground hover:bg-muted/40" : "text-white/80 hover:text-white"
+              )}
+            >
+              <BookOpen className="size-3.5" aria-hidden />
+              Docs
+            </Link>
+            <Link
+              href="/report"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+                scrolled ? "text-muted-foreground hover:text-foreground hover:bg-muted/40" : "text-white/80 hover:text-white"
+              )}
+            >
+              Report
+            </Link>
+            <Link
+              href="/dashboard"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+                scrolled ? "text-muted-foreground hover:text-foreground hover:bg-muted/40" : "text-white/80 hover:text-white"
+              )}
+            >
+              <LayoutDashboard className="size-3.5" aria-hidden />
+              Dashboard
+            </Link>
+          </div>
+          {/* Login button */}
+          <Button
+            onClick={onLogin}
+            size="sm"
+            className={cn(
+              "h-9 transition-all",
+              scrolled
+                ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                : "bg-white/15 text-white backdrop-blur ring-1 ring-white/25 hover:bg-white/25"
+            )}
+          >
+            <LogIn className="mr-1.5 size-3.5" />
+            Login
+          </Button>
+        </div>
+      </nav>
+
       {/* ===== HERO ===== */}
       <section className="relative overflow-hidden">
         {/* Background gradient */}
