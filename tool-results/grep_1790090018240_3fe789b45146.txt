@@ -1,0 +1,252 @@
+/home/z/my-project/prisma/schema.prisma:85:  fallbackUsed   Boolean  @default(false)
+/home/z/my-project/reviews/audit-7-pii-fu.md:74:const { output, fallbackUsed } = await classifyObservation(scrubbedText);
+/home/z/my-project/reviews/audit-1-codebase.md:29:#### C3 — `getMyRecords` loses `fallbackUsed` on retrieval (always returns `false`)
+/home/z/my-project/reviews/audit-1-codebase.md:32:- **Description:** `insertTriageRecord` persists the triage record but the schema has no `fallbackUsed` column. On retrieval, `getMyRecords(chv.id, limit)` does `rows.map((r) => toDTO(r, false))` — passing a hardcoded `false`. So every record the CHV sees in `MyRecentObservations` and the printable `/report/mine` claims `fallbackUsed=false`, even when the original triage actually used the spec fallback (Qwen parse failure → `needs_followup` + confidence_note "model output could not be parsed"). `TriageResultCard` only shows the amber "Caution fallback applied" banner when `record.fallbackUsed === true` (line 80) — so the CHV never sees the caution flag on revisited records. The DTO contract (`src/lib/types.ts:61`) declares `fallbackUsed: boolean` as if it were authoritative.
+/home/z/my-project/reviews/audit-1-codebase.md:33:- **Suggested fix:** add a `fallbackUsed Boolean @default(false)` column to the `TriageRecord` Prisma model; populate it in `insertTriageRecord`; read it back in `toDTO`; run `db:push`. (Documented as production follow-up but it's a real correctness bug for the demo since the caution banner silently never shows on history.)
+/home/z/my-project/reviews/audit-1-codebase.md:431:3. **C3 — `src/lib/triage-store.ts:107`** — `getMyRecords` returns `fallbackUsed: false` for every retrieved record (schema has no column), so the "Caution fallback applied" banner never shows on history.
+/home/z/my-project/reviews/judge-4-eng.md:79:  - The DTO surfaces `fallbackUsed` so the UI (`TriageResultCard.tsx:80-89`) shows an amber "Caution fallback applied" banner, and the audit log records the `fallback_used` event.
+/home/z/my-project/reviews/judge-4-eng.md:125:5. **`/api/triage` end-to-end** with a mocked `z-ai-web-dev-sdk`: crisis transcript → `escalation=true`; routine → `classification: routine`; unparseable model output → `fallbackUsed: true`; rate-limit exceeded → 429 + Retry-After; no session → 401.
+/home/z/my-project/reviews/judge-4-eng.md:190:5. **"The Qwen retry path (`qwen.ts:153-174`) does two attempts before falling back to `needs_followup`. The spec says 'under-triage is the higher-risk error.' What's your evidence that the fallback is rare enough to be acceptable? You have no tests, no metrics on `fallbackUsed` rates, no alerting when it fires. How would you instrument this — what would you log, what would you alert on, and at what threshold does the model get pulled?"**
+/home/z/my-project/reviews/judge-2-security.md:130:- `src/lib/triage-store.ts:555-581` — `writeAuditEntry` records `actorId`, `event`, `county`, `ward`, `classification`, `escalation`, `fallbackUsed`, and `piiRedactions` (the scrubber's count object, never the redactions themselves). Never the observation text. Schema (`prisma/schema.prisma:75-92`) matches.
+/home/z/my-project/worklog.md:274:  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/src/app/api/seed/route.ts:153:    const { output, fallbackUsed } = await classifyObservation(t.text);
+/home/z/my-project/src/app/api/seed/route.ts:159:      fallbackUsed,
+/home/z/my-project/src/app/api/seed/route.ts:187:      } fallback=${fallbackUsed} dayOffset=${t.dayOffset}`
+/home/z/my-project/src/app/api/triage/route.ts:101:    const { output, fallbackUsed } = await classifyObservation(scrubbedText);
+/home/z/my-project/src/app/api/triage/route.ts:107:      fallbackUsed,
+/home/z/my-project/src/app/api/triage/route.ts:135:        : fallbackUsed
+/home/z/my-project/src/app/api/triage/route.ts:142:      fallbackUsed,
+/home/z/my-project/src/app/api/triage/route.ts:156:      } fallback=${fallbackUsed} scrubbed=${JSON.stringify(redactionCount)}`
+/home/z/my-project/src/app/audit/page.tsx:306:                          {e.fallbackUsed && (
+/home/z/my-project/src/components/msaada/AuditStrip.tsx:120:                      {e.fallbackUsed && (
+/home/z/my-project/src/components/msaada/dashboard-helpers.ts:53:  fallbackUsed: boolean;
+/home/z/my-project/src/components/msaada/TriageResultCard.tsx:80:      {record.fallbackUsed && (
+/home/z/my-project/src/lib/qwen.ts:114:  fallbackUsed: boolean;
+/home/z/my-project/src/lib/qwen.ts:164:        return { output: parsed, fallbackUsed: false, attempts };
+/home/z/my-project/src/lib/qwen.ts:187:  return { output: fallback, fallbackUsed: true, attempts };
+/home/z/my-project/src/lib/types.ts:61:  fallbackUsed: boolean;
+/home/z/my-project/src/lib/triage-store.ts:21:  fallbackUsed: boolean;
+/home/z/my-project/src/lib/triage-store.ts:23:  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/src/lib/triage-store.ts:42:        : fallbackUsed
+/home/z/my-project/src/lib/triage-store.ts:48:  return toDTO(created, fallbackUsed);
+/home/z/my-project/src/lib/triage-store.ts:66:  fallbackUsed: boolean
+/home/z/my-project/src/lib/triage-store.ts:88:    fallbackUsed,
+/home/z/my-project/src/lib/triage-store.ts:552:  fallbackUsed: boolean;
+/home/z/my-project/src/lib/triage-store.ts:563:  fallbackUsed?: boolean;
+/home/z/my-project/src/lib/triage-store.ts:575:      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/src/lib/triage-store.ts:598:      fallbackUsed: true,
+/home/z/my-project/src/lib/triage-store.ts:613:    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/src/lib/triage-store.ts:648:        fallbackUsed: true,
+/home/z/my-project/src/lib/triage-store.ts:665:      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/bash_1790090010218_35bfa228a075.txt:274:  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790089230685_2f1d23a728e9.txt:21:    21→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089230685_2f1d23a728e9.txt:23:    23→  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/tool-results/read_1790089230685_2f1d23a728e9.txt:42:    42→        : fallbackUsed
+/home/z/my-project/tool-results/read_1790089230685_2f1d23a728e9.txt:48:    48→  return toDTO(created, fallbackUsed);
+/home/z/my-project/tool-results/read_1790089230685_2f1d23a728e9.txt:66:    66→  fallbackUsed: boolean
+/home/z/my-project/tool-results/read_1790089230685_2f1d23a728e9.txt:88:    88→    fallbackUsed,
+/home/z/my-project/tool-results/read_1790089230685_2f1d23a728e9.txt:552:   552→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089230685_2f1d23a728e9.txt:563:   563→  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/read_1790089230685_2f1d23a728e9.txt:575:   575→      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/read_1790089230685_2f1d23a728e9.txt:598:   598→      fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089230685_2f1d23a728e9.txt:613:   613→    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089230685_2f1d23a728e9.txt:648:   648→        fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089230685_2f1d23a728e9.txt:665:   665→      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/bash_1790089213422_0334c78018ec.txt:21:  fallbackUsed: boolean;
+/home/z/my-project/tool-results/bash_1790089213422_0334c78018ec.txt:23:  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/tool-results/bash_1790089213422_0334c78018ec.txt:42:        : fallbackUsed
+/home/z/my-project/tool-results/bash_1790089213422_0334c78018ec.txt:48:  return toDTO(created, fallbackUsed);
+/home/z/my-project/tool-results/bash_1790089213422_0334c78018ec.txt:66:  fallbackUsed: boolean
+/home/z/my-project/tool-results/bash_1790089213422_0334c78018ec.txt:88:    fallbackUsed,
+/home/z/my-project/tool-results/bash_1790089213422_0334c78018ec.txt:552:  fallbackUsed: boolean;
+/home/z/my-project/tool-results/bash_1790089213422_0334c78018ec.txt:563:  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/bash_1790089213422_0334c78018ec.txt:575:      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/bash_1790089213422_0334c78018ec.txt:598:      fallbackUsed: true,
+/home/z/my-project/tool-results/bash_1790089213422_0334c78018ec.txt:613:    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/bash_1790089213422_0334c78018ec.txt:648:        fallbackUsed: true,
+/home/z/my-project/tool-results/bash_1790089213422_0334c78018ec.txt:665:      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089191495_52707a939e65.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790090001115_a18bf02d9533.txt:29:    29→#### C3 — `getMyRecords` loses `fallbackUsed` on retrieval (always returns `false`)
+/home/z/my-project/tool-results/read_1790090001115_a18bf02d9533.txt:32:    32→- **Description:** `insertTriageRecord` persists the triage record but the schema has no `fallbackUsed` column. On retrieval, `getMyRecords(chv.id, limit)` does `rows.map((r) => toDTO(r, false))` — passing a hardcoded `false`. So every record the CHV sees in `MyRecentObservations` and the printable `/report/mine` claims `fallbackUsed=false`, even when the original triage actually used the spec fallback (Qwen parse failure → `needs_followup` + confidence_note "model output could not be parsed"). `TriageResultCard` only shows the amber "Caution fallback applied" banner when `record.fallbackUsed === true` (line 80) — so the CHV never sees the caution flag on revisited records. The DTO contract (`src/lib/types.ts:61`) declares `fallbackUsed: boolean` as if it were authoritative.
+/home/z/my-project/tool-results/read_1790090001115_a18bf02d9533.txt:33:    33→- **Suggested fix:** add a `fallbackUsed Boolean @default(false)` column to the `TriageRecord` Prisma model; populate it in `insertTriageRecord`; read it back in `toDTO`; run `db:push`. (Documented as production follow-up but it's a real correctness bug for the demo since the caution banner silently never shows on history.)
+/home/z/my-project/tool-results/read_1790090001115_a18bf02d9533.txt:431:   431→3. **C3 — `src/lib/triage-store.ts:107`** — `getMyRecords` returns `fallbackUsed: false` for every retrieved record (schema has no column), so the "Caution fallback applied" banner never shows on history.
+/home/z/my-project/tool-results/read_1790089215314_222d32b4f282.txt:21:    21→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089215314_222d32b4f282.txt:23:    23→  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/tool-results/read_1790089215314_222d32b4f282.txt:42:    42→        : fallbackUsed
+/home/z/my-project/tool-results/read_1790089215314_222d32b4f282.txt:48:    48→  return toDTO(created, fallbackUsed);
+/home/z/my-project/tool-results/read_1790089215314_222d32b4f282.txt:66:    66→  fallbackUsed: boolean
+/home/z/my-project/tool-results/read_1790089215314_222d32b4f282.txt:88:    88→    fallbackUsed,
+/home/z/my-project/tool-results/read_1790089215314_222d32b4f282.txt:552:   552→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089215314_222d32b4f282.txt:563:   563→  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/read_1790089215314_222d32b4f282.txt:575:   575→      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/read_1790089215314_222d32b4f282.txt:598:   598→      fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089215314_222d32b4f282.txt:613:   613→    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089215314_222d32b4f282.txt:648:   648→        fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089215314_222d32b4f282.txt:665:   665→      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790090014691_2f1d23a728e9.txt:21:    21→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790090014691_2f1d23a728e9.txt:23:    23→  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/tool-results/read_1790090014691_2f1d23a728e9.txt:42:    42→        : fallbackUsed
+/home/z/my-project/tool-results/read_1790090014691_2f1d23a728e9.txt:48:    48→  return toDTO(created, fallbackUsed);
+/home/z/my-project/tool-results/read_1790090014691_2f1d23a728e9.txt:66:    66→  fallbackUsed: boolean
+/home/z/my-project/tool-results/read_1790090014691_2f1d23a728e9.txt:88:    88→    fallbackUsed,
+/home/z/my-project/tool-results/read_1790090014691_2f1d23a728e9.txt:552:   552→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790090014691_2f1d23a728e9.txt:563:   563→  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/read_1790090014691_2f1d23a728e9.txt:575:   575→      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/read_1790090014691_2f1d23a728e9.txt:598:   598→      fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790090014691_2f1d23a728e9.txt:613:   613→    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790090014691_2f1d23a728e9.txt:648:   648→        fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790090014691_2f1d23a728e9.txt:665:   665→      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089198000_52707a939e65.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790090003139_2aa96a588d66.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790090001625_47c960142470.txt:130:   130→- `src/lib/triage-store.ts:555-581` — `writeAuditEntry` records `actorId`, `event`, `county`, `ward`, `classification`, `escalation`, `fallbackUsed`, and `piiRedactions` (the scrubber's count object, never the redactions themselves). Never the observation text. Schema (`prisma/schema.prisma:75-92`) matches.
+/home/z/my-project/tool-results/read_1790089198967_2f28cdcbc36a.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790089238689_6fd0b2aeb581.txt:453:   552→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089238689_6fd0b2aeb581.txt:464:   563→  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/read_1790089238689_6fd0b2aeb581.txt:476:   575→      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/read_1790089238689_6fd0b2aeb581.txt:499:   598→      fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089238689_6fd0b2aeb581.txt:514:   613→    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089238689_6fd0b2aeb581.txt:549:   648→        fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089238689_6fd0b2aeb581.txt:566:   665→      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790090015727_8f90cf216ba2.txt:74:    74→    74→    74→const { output, fallbackUsed } = await classifyObservation(scrubbedText);
+/home/z/my-project/tool-results/read_1790089212676_2f1d23a728e9.txt:21:    21→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089212676_2f1d23a728e9.txt:23:    23→  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/tool-results/read_1790089212676_2f1d23a728e9.txt:42:    42→        : fallbackUsed
+/home/z/my-project/tool-results/read_1790089212676_2f1d23a728e9.txt:48:    48→  return toDTO(created, fallbackUsed);
+/home/z/my-project/tool-results/read_1790089212676_2f1d23a728e9.txt:66:    66→  fallbackUsed: boolean
+/home/z/my-project/tool-results/read_1790089212676_2f1d23a728e9.txt:88:    88→    fallbackUsed,
+/home/z/my-project/tool-results/read_1790089212676_2f1d23a728e9.txt:552:   552→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089212676_2f1d23a728e9.txt:563:   563→  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/read_1790089212676_2f1d23a728e9.txt:575:   575→      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/read_1790089212676_2f1d23a728e9.txt:598:   598→      fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089212676_2f1d23a728e9.txt:613:   613→    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089212676_2f1d23a728e9.txt:648:   648→        fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089212676_2f1d23a728e9.txt:665:   665→      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089190303_52707a939e65.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790090003612_a4e1ed913116.txt:74:    74→const { output, fallbackUsed } = await classifyObservation(scrubbedText);
+/home/z/my-project/tool-results/read_1790089193446_f3b499b9fb5d.txt:274:   274→   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790090002140_2aa96a588d66.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790089209708_2f1d23a728e9.txt:21:    21→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089209708_2f1d23a728e9.txt:23:    23→  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/tool-results/read_1790089209708_2f1d23a728e9.txt:42:    42→        : fallbackUsed
+/home/z/my-project/tool-results/read_1790089209708_2f1d23a728e9.txt:48:    48→  return toDTO(created, fallbackUsed);
+/home/z/my-project/tool-results/read_1790089209708_2f1d23a728e9.txt:66:    66→  fallbackUsed: boolean
+/home/z/my-project/tool-results/read_1790089209708_2f1d23a728e9.txt:88:    88→    fallbackUsed,
+/home/z/my-project/tool-results/read_1790089209708_2f1d23a728e9.txt:552:   552→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089209708_2f1d23a728e9.txt:563:   563→  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/read_1790089209708_2f1d23a728e9.txt:575:   575→      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/read_1790089209708_2f1d23a728e9.txt:598:   598→      fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089209708_2f1d23a728e9.txt:613:   613→    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089209708_2f1d23a728e9.txt:648:   648→        fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089209708_2f1d23a728e9.txt:665:   665→      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089191243_52707a939e65.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790089194193_f3b499b9fb5d.txt:274:   274→   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/bash_1790089202706_010642b9a72d.txt:75:  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790089196121_52707a939e65.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790090009246_a18bf02d9533.txt:29:    29→#### C3 — `getMyRecords` loses `fallbackUsed` on retrieval (always returns `false`)
+/home/z/my-project/tool-results/read_1790090009246_a18bf02d9533.txt:32:    32→- **Description:** `insertTriageRecord` persists the triage record but the schema has no `fallbackUsed` column. On retrieval, `getMyRecords(chv.id, limit)` does `rows.map((r) => toDTO(r, false))` — passing a hardcoded `false`. So every record the CHV sees in `MyRecentObservations` and the printable `/report/mine` claims `fallbackUsed=false`, even when the original triage actually used the spec fallback (Qwen parse failure → `needs_followup` + confidence_note "model output could not be parsed"). `TriageResultCard` only shows the amber "Caution fallback applied" banner when `record.fallbackUsed === true` (line 80) — so the CHV never sees the caution flag on revisited records. The DTO contract (`src/lib/types.ts:61`) declares `fallbackUsed: boolean` as if it were authoritative.
+/home/z/my-project/tool-results/read_1790090009246_a18bf02d9533.txt:33:    33→- **Suggested fix:** add a `fallbackUsed Boolean @default(false)` column to the `TriageRecord` Prisma model; populate it in `insertTriageRecord`; read it back in `toDTO`; run `db:push`. (Documented as production follow-up but it's a real correctness bug for the demo since the caution banner silently never shows on history.)
+/home/z/my-project/tool-results/read_1790090009246_a18bf02d9533.txt:431:   431→3. **C3 — `src/lib/triage-store.ts:107`** — `getMyRecords` returns `fallbackUsed: false` for every retrieved record (schema has no column), so the "Caution fallback applied" banner never shows on history.
+/home/z/my-project/tool-results/read_1790089203370_93e64a2d9897.txt:21:    21→    21→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089203370_93e64a2d9897.txt:23:    23→    23→  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/tool-results/read_1790089203370_93e64a2d9897.txt:42:    42→    42→        : fallbackUsed
+/home/z/my-project/tool-results/read_1790089203370_93e64a2d9897.txt:48:    48→    48→  return toDTO(created, fallbackUsed);
+/home/z/my-project/tool-results/read_1790089203370_93e64a2d9897.txt:66:    66→    66→  fallbackUsed: boolean
+/home/z/my-project/tool-results/read_1790089203370_93e64a2d9897.txt:88:    88→    88→    fallbackUsed,
+/home/z/my-project/tool-results/read_1790089203370_93e64a2d9897.txt:552:   552→   552→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089203370_93e64a2d9897.txt:563:   563→   563→  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/read_1790089203370_93e64a2d9897.txt:575:   575→   575→      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/read_1790089203370_93e64a2d9897.txt:598:   598→   598→      fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089203370_93e64a2d9897.txt:613:   613→   613→    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089203370_93e64a2d9897.txt:648:   648→   648→        fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089203370_93e64a2d9897.txt:665:   665→   665→      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790090014008_827d126e1842.txt:74:    74→    74→const { output, fallbackUsed } = await classifyObservation(scrubbedText);
+/home/z/my-project/tool-results/read_1790089194894_f3b499b9fb5d.txt:274:   274→   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790090001881_2aa96a588d66.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790089190559_52707a939e65.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790089235306_93e64a2d9897.txt:21:    21→    21→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089235306_93e64a2d9897.txt:23:    23→    23→  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/tool-results/read_1790089235306_93e64a2d9897.txt:42:    42→    42→        : fallbackUsed
+/home/z/my-project/tool-results/read_1790089235306_93e64a2d9897.txt:48:    48→    48→  return toDTO(created, fallbackUsed);
+/home/z/my-project/tool-results/read_1790089235306_93e64a2d9897.txt:66:    66→    66→  fallbackUsed: boolean
+/home/z/my-project/tool-results/read_1790089235306_93e64a2d9897.txt:88:    88→    88→    fallbackUsed,
+/home/z/my-project/tool-results/read_1790089235306_93e64a2d9897.txt:552:   552→   552→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089235306_93e64a2d9897.txt:563:   563→   563→  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/read_1790089235306_93e64a2d9897.txt:575:   575→   575→      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/read_1790089235306_93e64a2d9897.txt:598:   598→   598→      fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089235306_93e64a2d9897.txt:613:   613→   613→    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089235306_93e64a2d9897.txt:648:   648→   648→        fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089235306_93e64a2d9897.txt:665:   665→   665→      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089202390_2f1d23a728e9.txt:21:    21→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089202390_2f1d23a728e9.txt:23:    23→  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/tool-results/read_1790089202390_2f1d23a728e9.txt:42:    42→        : fallbackUsed
+/home/z/my-project/tool-results/read_1790089202390_2f1d23a728e9.txt:48:    48→  return toDTO(created, fallbackUsed);
+/home/z/my-project/tool-results/read_1790089202390_2f1d23a728e9.txt:66:    66→  fallbackUsed: boolean
+/home/z/my-project/tool-results/read_1790089202390_2f1d23a728e9.txt:88:    88→    fallbackUsed,
+/home/z/my-project/tool-results/read_1790089202390_2f1d23a728e9.txt:552:   552→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089202390_2f1d23a728e9.txt:563:   563→  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/read_1790089202390_2f1d23a728e9.txt:575:   575→      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/read_1790089202390_2f1d23a728e9.txt:598:   598→      fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089202390_2f1d23a728e9.txt:613:   613→    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089202390_2f1d23a728e9.txt:648:   648→        fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089202390_2f1d23a728e9.txt:665:   665→      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089198261_52707a939e65.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790090007188_2aa96a588d66.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790090004098_a4e1ed913116.txt:74:    74→const { output, fallbackUsed } = await classifyObservation(scrubbedText);
+/home/z/my-project/tool-results/read_1790089230189_8ac6e0032c34.txt:21:    21→    21→    21→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089230189_8ac6e0032c34.txt:23:    23→    23→    23→  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/tool-results/read_1790089230189_8ac6e0032c34.txt:42:    42→    42→    42→        : fallbackUsed
+/home/z/my-project/tool-results/read_1790089230189_8ac6e0032c34.txt:48:    48→    48→    48→  return toDTO(created, fallbackUsed);
+/home/z/my-project/tool-results/read_1790089230189_8ac6e0032c34.txt:66:    66→    66→    66→  fallbackUsed: boolean
+/home/z/my-project/tool-results/read_1790089230189_8ac6e0032c34.txt:88:    88→    88→    88→    fallbackUsed,
+/home/z/my-project/tool-results/read_1790089230189_8ac6e0032c34.txt:552:   552→   552→   552→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089230189_8ac6e0032c34.txt:563:   563→   563→   563→  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/read_1790089230189_8ac6e0032c34.txt:575:   575→   575→   575→      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/read_1790089230189_8ac6e0032c34.txt:598:   598→   598→   598→      fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089230189_8ac6e0032c34.txt:613:   613→   613→   613→    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089230189_8ac6e0032c34.txt:648:   648→   648→   648→        fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089230189_8ac6e0032c34.txt:665:   665→   665→   665→      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790090011285_2f1d23a728e9.txt:21:    21→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790090011285_2f1d23a728e9.txt:23:    23→  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/tool-results/read_1790090011285_2f1d23a728e9.txt:42:    42→        : fallbackUsed
+/home/z/my-project/tool-results/read_1790090011285_2f1d23a728e9.txt:48:    48→  return toDTO(created, fallbackUsed);
+/home/z/my-project/tool-results/read_1790090011285_2f1d23a728e9.txt:66:    66→  fallbackUsed: boolean
+/home/z/my-project/tool-results/read_1790090011285_2f1d23a728e9.txt:88:    88→    fallbackUsed,
+/home/z/my-project/tool-results/read_1790090011285_2f1d23a728e9.txt:552:   552→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790090011285_2f1d23a728e9.txt:563:   563→  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/read_1790090011285_2f1d23a728e9.txt:575:   575→      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/read_1790090011285_2f1d23a728e9.txt:598:   598→      fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790090011285_2f1d23a728e9.txt:613:   613→    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790090011285_2f1d23a728e9.txt:648:   648→        fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790090011285_2f1d23a728e9.txt:665:   665→      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790090002624_2aa96a588d66.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790089191753_52707a939e65.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790089192010_52707a939e65.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790089237692_2f1d23a728e9.txt:21:    21→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089237692_2f1d23a728e9.txt:23:    23→  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/tool-results/read_1790089237692_2f1d23a728e9.txt:42:    42→        : fallbackUsed
+/home/z/my-project/tool-results/read_1790089237692_2f1d23a728e9.txt:48:    48→  return toDTO(created, fallbackUsed);
+/home/z/my-project/tool-results/read_1790089237692_2f1d23a728e9.txt:66:    66→  fallbackUsed: boolean
+/home/z/my-project/tool-results/read_1790089237692_2f1d23a728e9.txt:88:    88→    fallbackUsed,
+/home/z/my-project/tool-results/read_1790089237692_2f1d23a728e9.txt:552:   552→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089237692_2f1d23a728e9.txt:563:   563→  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/read_1790089237692_2f1d23a728e9.txt:575:   575→      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/read_1790089237692_2f1d23a728e9.txt:598:   598→      fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089237692_2f1d23a728e9.txt:613:   613→    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089237692_2f1d23a728e9.txt:648:   648→        fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089237692_2f1d23a728e9.txt:665:   665→      fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790090002880_2aa96a588d66.txt:274:   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790089193703_f3b499b9fb5d.txt:274:   274→   274→  - New AuditLog Prisma model: id, createdAt, triageRecordId (nullable), actorId, event, county, ward, classification, escalation, fallbackUsed, piiRedactions (JSON counts). NEVER stores observation text. Indexes on createdAt/actorId/county/event. db:push succeeded; Prisma client regenerated.
+/home/z/my-project/tool-results/read_1790089221043_93e64a2d9897.txt:21:    21→    21→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089221043_93e64a2d9897.txt:23:    23→    23→  const { submittedById, county, ward, output, fallbackUsed } = args;
+/home/z/my-project/tool-results/read_1790089221043_93e64a2d9897.txt:42:    42→    42→        : fallbackUsed
+/home/z/my-project/tool-results/read_1790089221043_93e64a2d9897.txt:48:    48→    48→  return toDTO(created, fallbackUsed);
+/home/z/my-project/tool-results/read_1790089221043_93e64a2d9897.txt:66:    66→    66→  fallbackUsed: boolean
+/home/z/my-project/tool-results/read_1790089221043_93e64a2d9897.txt:88:    88→    88→    fallbackUsed,
+/home/z/my-project/tool-results/read_1790089221043_93e64a2d9897.txt:552:   552→   552→  fallbackUsed: boolean;
+/home/z/my-project/tool-results/read_1790089221043_93e64a2d9897.txt:563:   563→   563→  fallbackUsed?: boolean;
+/home/z/my-project/tool-results/read_1790089221043_93e64a2d9897.txt:575:   575→   575→      fallbackUsed: args.fallbackUsed ?? false,
+/home/z/my-project/tool-results/read_1790089221043_93e64a2d9897.txt:598:   598→   598→      fallbackUsed: true,
+/home/z/my-project/tool-results/read_1790089221043_93e64a2d9897.txt:613:   613→   613→    fallbackUsed: r.fallbackUsed,
+/home/z/my-project/tool-results/read_1790089221043_93e64a2d9897.txt:648:   648→   648→        fallbackUsed: true,
+
+[Showing results with pagination = limit: 250]

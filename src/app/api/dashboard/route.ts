@@ -58,7 +58,10 @@ export async function GET(req: Request) {
     stats = await getDashboardStats(days);
   }
 
-  const audit = await getRecentAudit(8);
+  // County-scope the audit strip too — on the `?scope=mine` RBAC path a
+  // county official should only see audit entries from their own county.
+  // Mirrors the Supabase RLS policy that backs the dashboard view.
+  const audit = await getRecentAudit(8, scopeCounty ?? undefined);
   const followUpStats = await getFollowUpStats({
     county: scopeCounty ?? undefined,
     days,

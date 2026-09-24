@@ -1,0 +1,456 @@
+     1→# Msaada Codebase Audit — `audit-1`
+     2→
+     3→**Scope:** comprehensive read-only audit of every source file under `src/` and `prisma/` for the Msaada MVP (Next.js 16 + Prisma/SQLite + Qwen CHV triage).
+     4→
+     5→**Methodology:** read `worklog.md` (10 review rounds), then read every source file under `src/app/`, `src/components/msaada/`, `src/lib/`, `src/hooks/`, and `prisma/schema.prisma`. Cross-referenced imports and call sites.
+     6→
+     7→**Severity buckets:** `critical` (security/privacy breach or crash on common path) · `high` (broken user-facing functionality / RBAC leak) · `medium` (logic bug, edge-case crash, regression risk) · `low` (cosmetic, type-safety nit, perf, dead code).
+     8→
+     9→**Tally:** 3 critical · 7 high · 13 medium · 18 low.
+    10→
+    11→---
+    12→
+    13→## 1. Bugs
+    14→
+    15→### CRITICAL
+    16→
+    17→#### C1 — Dashboard toasts are silently dropped (two toast systems wired in parallel)
+    18→- **File:line:** `src/app/layout.tsx:4,33` + `src/app/dashboard/page.tsx:92` + `src/hooks/use-toast.ts`
+    19→- **Severity:** critical
+    20→- **Description:** `RootLayout` mounts the **Sonner** `<Toaster />` from `@/components/ui/sonner`. But the dashboard page imports `useToast` from `@/hooks/use-toast` (the Radix shadcn toast system) and calls `toast({ title, description, variant })` in four places: `loadStats` error path (line 154), `seedDemo` success path (line 179), `seedDemo` error path (line 190), `handleExportCsv` success path (line 296). The Radix `Toaster` (defined in `src/components/ui/toaster.tsx`) is **never imported or mounted anywhere** — only Sonner's is. As a result every dashboard toast is dispatched into a global in-memory state that no component reads, and the user sees nothing. The dashboard's error toast ("Couldn't load dashboard"), seed-success toast, and CSV-exported toast are all invisible. Every other page (CHV submission, AuthCard, PendingFollowUps, MyImpactCard, MyRecentObservations) correctly uses Sonner's `toast.success/error/info`.
+    21→- **Suggested fix:** either (a) replace `useToast()` in `dashboard/page.tsx` with `import { toast } from "sonner"` and migrate the 4 call sites to the Sonner API (`toast.error(title, { description })`, `toast.success(title, { description })`); or (b) also mount the Radix `<Toaster />` from `@/components/ui/toaster` in `RootLayout`. Option (a) is the right call — one toast system across the app.
+    22→
+    23→#### C2 — `getRecentAudit` is NOT county-filtered on the RBAC `scope=mine` path
+    24→- **File:line:** `src/app/api/dashboard/route.ts:61`
+    25→- **Severity:** critical (RBAC / privacy leak)
+    26→- **Description:** the dashboard route implements county-scoped RBAC by calling `getDashboardStatsForCounty(chv.county, days)` for `?scope=mine`. `followUpStats` is correctly county-scoped (`getFollowUpStats({ county: scopeCounty, days })`). But `getRecentAudit(8)` is called with **no county filter** — it always returns the 8 most-recent audit entries across ALL counties. A Kilifi county official using `?scope=mine` therefore sees audit-trail activity from Nairobi, Turkana, and Mombasa in the AuditStrip. `getRecentAudit` (in `src/lib/triage-store.ts:584`) doesn't even accept a county parameter — the data-access layer cannot filter at all.
+    27→- **Suggested fix:** extend `getRecentAudit` to accept `opts?: { county?: string; limit?: number }`; in the route pass `county: scopeCounty ?? undefined`; verify the AuditStrip on a county-scoped view only renders that county's entries.
+    28→
+    29→#### C3 — `getMyRecords` loses `fallbackUsed` on retrieval (always returns `false`)
+    30→- **File:line:** `src/lib/triage-store.ts:107`
+    31→- **Severity:** critical (data-contract violation + misleads CHV + judge)
+    32→- **Description:** `insertTriageRecord` persists the triage record but the schema has no `fallbackUsed` column. On retrieval, `getMyRecords(chv.id, limit)` does `rows.map((r) => toDTO(r, false))` — passing a hardcoded `false`. So every record the CHV sees in `MyRecentObservations` and the printable `/report/mine` claims `fallbackUsed=false`, even when the original triage actually used the spec fallback (Qwen parse failure → `needs_followup` + confidence_note "model output could not be parsed"). `TriageResultCard` only shows the amber "Caution fallback applied" banner when `record.fallbackUsed === true` (line 80) — so the CHV never sees the caution flag on revisited records. The DTO contract (`src/lib/types.ts:61`) declares `fallbackUsed: boolean` as if it were authoritative.
+    33→- **Suggested fix:** add a `fallbackUsed Boolean @default(false)` column to the `TriageRecord` Prisma model; populate it in `insertTriageRecord`; read it back in `toDTO`; run `db:push`. (Documented as production follow-up but it's a real correctness bug for the demo since the caution banner silently never shows on history.)
+    34→
+    35→### HIGH
+    36→
+    37→#### H1 — No rate-limit / auth on `/api/auth/login` (brute-force vulnerability)
+    38→- **File:line:** `src/app/api/auth/login/route.ts:13-54`; rate-limit only wired in `src/app/api/triage/route.ts:46`
+    39→- **Severity:** high
+    40→- **Description:** `/api/triage` is the only route guarded by `checkRateLimit()`. `/api/auth/login` returns 401 on any miss (good — no enumeration) but has no rate limit, so an attacker can hammer it indefinitely. Combined with the demo creds being publicly documented (`demo@msaada.health` / `msaada123`) and the weak `password.length >= 6` signup rule, this is a real brute-force surface.
+    41→- **Suggested fix:** call `checkRateLimit(\`login:${emailLower}\`)` (and a global IP bucket) before the DB lookup; return 429 + Retry-After on overflow. Apply the same to `/api/auth/signup` to prevent account-creation floods.
+    42→
+    43→#### H2 — No auth gate on `/api/audit` (compliance audit trail publicly readable)
+    44→- **File:line:** `src/app/api/audit/route.ts:22-39`
+    45→- **Severity:** high
+    46→- **Description:** the route has a documented `TODO (production): require a compliance-officer role`, but for the demo it's wide open — anyone (unauthenticated) can page through the entire audit log including crisis-override entries with truncated CHV labels, counties, wards, and verdicts. Even though observation text is never stored, this is a compliance trail of safety incidents that should require authentication at minimum.
+    47→- **Suggested fix:** require `getSessionChv()` → 401 if absent (minimum bar for demo); add a role check (`chv.role === "compliance_officer"`) once a role column exists. Same for `/api/supervisor/roster`.
+    48→
+    49→#### H3 — No auth gate on `/api/supervisor/roster` (per-CHV aggregates exposed)
+    50→- **File:line:** `src/app/api/supervisor/roster/route.ts:20-33`
+    51→- **Severity:** high
+    52→- **Description:** same pattern as H2. Any unauthenticated caller gets the full per-CHV roster (truncated labels, county/ward, total + per-classification counts + last-7d activity + last submission timestamp). The de-identification (truncated labels) reduces but does not eliminate the privacy impact — a small county with one CHV is re-identifiable.
+    53→- **Suggested fix:** require authenticated session + supervisor role check (TODO documented).
+    54→
+    55→#### H4 — `/api/seed` is unauthenticated + unbounded (DoS / cost vector)
+    56→- **File:line:** `src/app/api/seed/route.ts:141-195`
+    57→- **Severity:** high
+    58→- **Description:** POST `/api/seed` has no auth gate and no rate-limit. Each invocation runs 9 transcripts through `classifyObservation()` (Qwen chat completion) — that's 9 × ~12-15s of LLM time per call. An attacker can trivially generate hundreds of seeded records and rack up Qwen API spend. Idempotency on the demo CHV only prevents user-row duplication, not TriageRecord duplication — every call appends 9 fresh rows. Also: this endpoint can be hit by anyone, including judges accidentally double-clicking the "Seed demo data" button.
+    59→- **Suggested fix:** require an admin role OR a one-time-only flag stored in a config table; rate-limit per IP; at minimum check `triageRecord.count() > N` and refuse to seed again.
+    60→
+    61→#### H5 — `/api/auth/me` returns the user's email to the dashboard page (info-leak across surfaces)
+    62→- **File:line:** `src/app/api/auth/me/route.ts:17-28`; consumer `src/app/dashboard/page.tsx:208`
+    63→- **Severity:** high (consistency / privacy-by-design)
+    64→- **Description:** the entire app is otherwise disciplined about de-identifying CHV references — audit logs use `chv·xxxx`, supervisor roster uses `chv·xxxx`, settings page renders `Account ID: chv·xxxx`. But `/api/auth/me` returns the full email, and the dashboard page reads it via `fetch("/api/auth/me")` (line 207) — typed as `{ chv: { county: string } | null }`, but the actual response body includes the email. Browser devtools / any client-side fetch can see it. The dashboard itself only uses `county`, so the email is sent pointlessly. The mismatch between "we de-identify everywhere" and "/api/auth/me leaks email" is a design inconsistency.
+    65→- **Suggested fix:** either (a) split `/api/auth/me` into a "minimal" variant used by the dashboard (`{ chv: { county } | null }` only) — keep the full version for `/settings` where the email is genuinely needed; or (b) accept the inconsistency but document it explicitly (the CHV is the authenticated user; they know their own email).
+    66→
+    67→#### H6 — `POST /api/triage` returns raw error `detail` to the client
+    68→- **File:line:** `src/app/api/triage/route.ts:160-167`
+    69→- **Severity:** high (info leak)
+    70→- **Description:** the catch-all returns `{ error: "TRIAGE_FAILED", detail }` where `detail = err instanceof Error ? err.message : String(err)`. If Prisma throws ("Foreign key constraint failed on the foreign key: TriageRecord.submittedById"), or Qwen throws ("Cannot read properties of undefined (reading 'chat')"), the message is shipped to the client. The comment says "Never include observation_text in the detail" — but Prisma/SDK errors can still leak schema names, file paths, or stack snippets.
+    71→- **Suggested fix:** log the full error server-side (`console.error`), but return only a generic message like `"Internal error — please retry"` to the client. If a `detail` is needed for debugging, gate it behind `process.env.NODE_ENV !== "production"`.
+    72→
+    73→#### H7 — `getRecentAudit(8)` is called on every `/api/dashboard` GET, including county-scoped requests (see C2)
+    74→- **File:line:** `src/app/api/dashboard/route.ts:61`
+    75→- **Severity:** high (duplicate of C2 from the audit-leak angle; listed separately because the fix is one-line)
+    76→- **Description:** see C2 above. Listed again because the in-place fix is trivial (pass county) whereas C3's fix is a schema migration.
+    77→- **Suggested fix:** same as C2.
+    78→
+    79→### MEDIUM
+    80→
+    81→#### M1 — `PendingFollowUps` shares one `note` state across all expanded follow-ups
+    82→- **File:line:** `src/components/msaada/PendingFollowUps.tsx:85, 119, 326-330
+    83→- **Severity:** medium
+    84→- **Description:** a single `useState("")` for the resolution note. If the CHV expands follow-up A, types "revisited mother, sleep improving", then collapses A and expands B, B's textarea shows A's note (because `value={note}` reads the same state). If they submit B, B inherits A's note. The note is supposed to be per-follow-up and de-identified; cross-contamination could attach a note to the wrong household — a clinical-record integrity bug.
+    85→- **Suggested fix:** store notes in a `Record<string, string>` keyed by follow-up id: `const [notes, setNotes] = useState<Record<string, string>>({})`, value=`{notes[f.id] ?? ""}`, onChange=`setNotes(n => ({...n, [f.id]: e.target.value}))`, submit `notes[f.id]`. Reset on successful resolve.
+    86→
+    87→#### M2 — `?status=foo` query param on `/api/followups` is `as`-cast to `FollowUpStatus | "all"` without validation
+    88→- **File:line:** `src/app/api/followups/route.ts:22, 30`
+    89→- **Severity:** medium
+    90→- **Description:** `url.searchParams.get("status") as FollowUpStatus | "all" | null` is a bare cast. If a client passes `?status=foo`, the cast pretends it's a valid `FollowUpStatus`, then `getMyFollowUps(chv.id, { status: "foo" as ... })` adds `status: "foo"` to the Prisma `where` clause (triage-store.ts:217). Prisma's `where.status` is a string column with no enum constraint, so this either returns 0 rows silently or — depending on Prisma's behavior — throws. Either way the API contract is broken.
+    91→- **Suggested fix:** validate against a Set `["pending","done","missed","all"]` and return 400 `INVALID_STATUS` otherwise.
+    92→
+    93→#### M3 — `getAuditPage` accepts `page` / `pageSize` without NaN-guarding
+    94→- **File:line:** `src/app/api/audit/route.ts:31-32` → `src/lib/triage-store.ts:625-626`
+    95→- **Severity:** medium
+    96→- **Description:** route does `page: page ? Number.parseInt(page, 10) : 1` — if `?page=abc` then `Number.parseInt("abc", 10)` returns `NaN`. `getAuditPage` then runs `Math.max(1, NaN) = NaN` and `skip: (NaN - 1) * pageSize = NaN`. Prisma will likely throw `PrismaClientValidationError` → 500. Same for `pageSize`. Same pattern in `/api/dashboard?days=abc` (route line 41 guards with `!Number.isNaN` — good, but audit doesn't).
+    97→- **Suggested fix:** in the audit route, check `Number.isNaN(parsed)` and fall back to the default; also clamp pageSize to a max.
+    98→
+    99→#### M4 — Dashboard mounts an unkeyed auto-seed `useEffect` that re-fires on every `days`/`scopeMode` change
+   100→- **File:line:** `src/app/dashboard/page.tsx:225-238`
+   101→- **Severity:** medium
+   102→- **Description:** the auto-seed effect's deps are `[loadStats, seedDemo]`, but both are `useCallback`s whose deps include `[days, scopeMode, toast]` (loadStats) and `[loadStats, toast]` (seedDemo). So whenever `days` or `scopeMode` changes, both callback identities change → this effect re-fires → `loadStats({silent: true})` runs again on top of the explicit `[days, scopeMode, loadStats]` effect at line 247-249. The race is guarded by `reqIdRef`, so the latest fetch wins, but you get a duplicate fetch on every filter switch and the auto-seed-then-bail branch (`autoSeedTriedRef.current === true`) runs unnecessarily. Worse: if a future refactor resets the ref, you'd auto-seed twice.
+   103→- **Suggested fix:** extract the auto-seed into its own effect keyed on `[]` (mount-only) using a stable ref for the latest `loadStats` / `seedDemo`, or use `useEffectEvent` (React 19) for the callbacks.
+   104→
+   105→#### M5 — Dashboard hardcodes "Last 14 days" / "last 14 days" / "across all counties" in subtitles even when the user has selected 7d/30d or scope=mine
+   106→- **File:line:** `src/app/dashboard/page.tsx:621` (KPI hint), `:702` (CountyBarChart subtitle), `:707-708` (DailyTrendChart subtitle), `src/components/msaada/dashboard-helpers.ts:218` (insight body "across the network")
+   107→- **Severity:** medium (factual UI inconsistency judges will spot)
+   108→- **Description:** the KPI "Total observations" hint is the string literal `"Last 14 days"` regardless of the actual `days` state. The chart subtitles say "last 14 days" / "across all counties" even when the user picked 7d/30d or is scoped to one county. The dashboard's own header says "Last {days} days" correctly — only the static subtitles are stale.
+   109→- **Suggested fix:** compute `hint={`Last ${days} days`}`; pass `days` into the chart subtitles; gate the "across all counties" wording on `scope.mode === "all"`.
+   110→
+   111→#### M6 — `createFollowUp` and `writeAuditEntry` failures are swallowed via `.catch()` on the triage path
+   112→- **File:line:** `src/app/api/triage/route.ts:119-124, 130-147`
+   113→- **Severity:** medium
+   114→- **Description:** both side-effect calls use the `await promise.catch(log)` pattern. This is intentional ("audit write failure must not fail the triage response"), but it has a subtle cost: a Prisma connection-pool exhaustion or a transient SQLite write lock failure would be silently logged once per request and never surfaced. The CHV sees a successful triage response; the audit trail and follow-up silently don't get created. For the audit trail in particular, a missing entry means the "system of record for safety incidents" is incomplete — the very invariant the audit layer is supposed to guarantee.
+   115→- **Suggested fix:** add a counter (`auditWriteFailures`) and a periodic `/api/health` check that surfaces it; or return a `warning` field in the triage response when audit-write fails so the client can flag it. At minimum, log with structured severity `error` (currently `console.error`, which is fine) and add an alert.
+   116→
+   117→#### M7 — `getDashboardStats(days)` and `getAggregateByCounty(days)` interpret `days` inconsistently
+   118→- **File:line:** `src/lib/triage-store.ts:364, 410, 491`
+   119→- **Severity:** medium (latent)
+   120→- **Description:** `getAggregateByCounty(days?)` uses `days && days > 0` (so `undefined` AND `0` AND negative all mean "all time"). `getAggregateByDay(days = 14)` defaults to 14 if undefined; for `0` or negative, `for (let i = 0; i < days; i++)` doesn't execute → empty `byDay` array. `getDashboardStats(days = 14)` line 500 uses `days > 0` for the totalsGroups filter (so `0` → no filter, but `getAggregateByDay(0)` returns empty). The route layer at `/api/dashboard` clamps `days = Math.min(parsed, 90)` and `parsed > 0` (line 41), so the bad cases never reach the data layer in production — but any future caller of `getDashboardStats(0)` or `getDashboardStats(-1)` gets a mixed all-time + empty-byDay result that looks valid.
+   121→- **Suggested fix:** normalize at the top of `getDashboardStats`: `const safeDays = (!days || days <= 0) ? 14 : Math.min(days, 90);` and pass `safeDays` to all four sub-queries. Add a JSDoc invariant.
+   122→
+   123→#### M8 — `CrisisPanel` has no focus trap (a11y + safety)
+   124→- **File:line:** `src/components/msaada/CrisisPanel.tsx:60-72`
+   125→- **Severity:** medium (a11y on a critical-safety modal)
+   126→- **Description:** the panel sets `role="alertdialog"`, `aria-modal="true"`, blocks Escape, and stops mouse-down propagation. But it does NOT trap keyboard focus — a user pressing Tab can move focus to inputs/buttons beneath the overlay. A screen-reader user navigating by focus could leave the dialog and interact with the submission form underneath. For a crisis-safety modal this is a real a11y gap.
+   127→- **Suggested fix:** on mount, store `document.activeElement`, focus the confirm button, install a `keydown` Tab handler that loops focus within the panel; on unmount, restore the previous focus. (Or pull in `react-focus-lock`.)
+   128→
+   129→#### M9 — PII scrubber misses Nairobi landline-format phones (10+ digits) and the trailing digit of 11-digit mobiles
+   130→- **File:line:** `src/lib/pii-scrub.ts:41`
+   131→- **Severity:** medium (defense-in-depth gap)
+   132→- **Description:** `PHONE_RE = /(?:\+?254|0)[\s-]?([17])\d{2}[\s-]?\d{3}[\s-]?\d{3}/g` requires the 2nd digit to be `1` or `7` (mobile prefix). Nairobi landlines like `0201234567` (10 digits, `02` prefix) are not matched — they fall through to `ID_RE` which only catches 7-9 digit runs, so 10-digit landlines pass through unscrubbed. Also a valid 11-digit Safaricom number `07123456789` matches the first 10 chars `0712345678` and leaves the trailing `9` (and `89` for `+25471234567890`). The ID regex won't catch the leftover 1-2 digits. So a full long-form phone can leak a trailing fragment to Qwen.
+   133→- **Suggested fix:** extend `PHONE_RE` to allow `[17]` OR `2` (landlines) and loosen the digit-run tail; or add a second pass for unmatched 10-11 digit runs that start with `0` / `254`.
+   134→
+   135→#### M10 — `CrisisPanel` Escape-blocker captures all Escape presses globally, including browser/DevTools shortcuts
+   136→- **File:line:** `src/components/msaada/CrisisPanel.tsx:44-53`
+   137→- **Severity:** low (intentional, but worth noting)
+   138→- **Description:** `window.addEventListener("keydown", block, true)` blocks Escape in the capture phase for the entire window. This is by design (non-dismissable), but it also blocks legitimate uses of Escape (closing a Sonner toast, exiting a Radix dropdown, browser fullscreen-exit). Acceptable for a crisis modal, but document the side effect.
+   139→- **Suggested fix:** none needed — but add a code comment noting the side effect so future maintainers don't get surprised.
+   140→
+   141→#### M11 — `/api/followups/[id]` PATCH route doesn't validate that `resolutionNote` is a string
+   142→- **File:line:** `src/app/api/followups/[id]/route.ts:33-36`
+   143→- **Severity:** medium (latent type-coercion)
+   144→- **Description:** `(body ?? {}) as { status?: string; resolutionNote?: string }` is a bare cast. If a client sends `{ "status": "done", "resolutionNote": 123 }`, the cast says it's a string, and `resolveFollowUp({ resolutionNote: 123 as string, ... })` would attempt to `resolutionNote?.trim()` (triage-store.ts:245) — `(123).trim` is `undefined`, so `123?.trim()` is `undefined`, and `undefined || null` → `null`. Actually mostly safe but weird. A `null` would crash on `.trim()`.
+   145→- **Suggested fix:** explicitly check `typeof resolutionNote === "string"` before passing it down; reject `null` / non-string with 400.
+   146→
+   147→#### M12 — `MyRecentObservations` and `AuditStrip` compute `relativeTime(iso)` once at render and never refresh
+   148→- **File:line:** `src/components/msaada/MyRecentObservations.tsx:53-65,234`; `src/components/msaada/AuditStrip.tsx:46-55,135`
+   149→- **Severity:** low (UX nit)
+   150→- **Description:** both components call `relativeTime(r.createdAt)` directly during render — there's no `setInterval` to re-tick the relative string. A record that was "5m ago" on first paint stays "5m ago" forever (until the user hits refresh). The dashboard's `FreshnessBadge` does tick every 30s (line 808) — copy that pattern.
+   151→- **Suggested fix:** add a 30s `setInterval` in both components (or hoist a `useNow()` hook) to re-render.
+   152→
+   153→#### M13 — Dashboard RBAC bypass: any logged-in CHV can `?scope=all` and see every county
+   154→- **File:line:** `src/app/api/dashboard/route.ts:50-59`
+   155→- **Severity:** medium (RBAC design weakness, documented)
+   156→- **Description:** the route checks `scopeParam === "mine" && chv && chv.county` for the county-scoped path. But if a logged-in CHV passes `?scope=all` (or omits `scope`), they get the all-county view. The intent is that "all" is reserved for a national/admin role (per the route's TODO comment), but the demo defaults to `all` and any logged-in CHV can flip the toggle to "All" in the UI (dashboard/page.tsx:439-451). Severity is medium because (a) it's a documented demo trade-off, and (b) the data exposed is aggregate-only, not individual records. But for a real county-official RBAC story this is incomplete.
+   157→- **Suggested fix:** gate `?scope=all` behind a role check; if no role, return 403 OR silently fall back to `?scope=mine`.
+   158→
+   159→### LOW
+   160→
+   161→#### L1 — `insertTriageRecord` has a redundant nested ternary: `chpNextAction: isCrisis ? null : (isCrisis ? null : output.chp_next_action)`
+   162→- **File:line:** `src/lib/triage-store.ts:37`
+   163→- **Severity:** low (dead branch)
+   164→- **Description:** the inner `isCrisis ? null : output.chp_next_action` is reachable only when the outer `isCrisis` is `false`, so the inner check is always `false` and the value is always `output.chp_next_action`. Works but is confusing.
+   165→- **Suggested fix:** simplify to `chpNextAction: isCrisis ? null : output.chp_next_action`.
+   166→
+   167→#### L2 — `chv.ward` is typed as `string` in `Chv` (AuthCard) but the Prisma schema allows `null`
+   168→- **File:line:** `src/components/msaada/AuthCard.tsx:22-28`; `prisma/schema.prisma:25` (`ward String?`)
+   169→- **Severity:** low (type-safety gap)
+   170→- **Description:** the `Chv` interface declares `ward: string` but Prisma's `ChvUser.ward` is `String?` (nullable). The signup route defaults `ward` to `null` if not provided (line 49-55), so a CHV without a ward would have `chv.ward === null` at runtime — the type says string. Consumers like `SubmissionForm.tsx:74` (`useState<string>(chv.ward ?? "")`) defensively coalesce, so it works, but the type lies.
+   171→- **Suggested fix:** change `Chv.ward` to `ward: string | null` and audit call sites.
+   172→
+   173→#### L3 — `coerceNormal` in qwen.ts casts `JSON.parse(candidate)` to `Record<string, unknown>` without validating it's an object
+   174→- **File:line:** `src/lib/qwen.ts:100-105`
+   175→- **Severity:** low
+   176→- **Description:** if Qwen returns `"[]"` or `""123""`, `JSON.parse` succeeds and returns an array/string/number; the `as Record<string, unknown>` cast pretends it's an object; subsequent `obj.escalation` access returns `undefined` (for arrays) or throws (for primitives). For an array `[]`, `obj.escalation` is `undefined` → falls through to `coerceNormal` → `isClassification(undefined)` is false → returns `null` → caller retries. OK in practice but the cast is unsafe.
+   177→- **Suggested fix:** `if (typeof obj !== "object" || obj === null || Array.isArray(obj)) return null;` after `JSON.parse`.
+   178→
+   179→#### L4 — `FollowUpKpiCard` exports a dead `_missedIcon` constant
+   180→- **File:line:** `src/components/msaada/FollowUpKpiCard.tsx:130`
+   181→- **Severity:** low (dead code)
+   182→- **Description:** `export const _missedIcon = X;` is exported but never imported anywhere. The comment claims it's "for tree-shaking consistency" but exporting a value doesn't help tree-shaking — bundlers tree-shake based on actual usage, and `X` is unused in this file.
+   183→- **Suggested fix:** remove the export and remove `X` from the import list (line 4).
+   184→
+   185→#### L5 — `AppNav` matches `/report/mineXYZ` as active when on `/report/mineXYZ`
+   186→- **File:line:** `src/components/msaada/AppNav.tsx:64-66`
+   187→- **Severity:** low
+   188→- **Description:** `pathname.startsWith(item.href)` means a path like `/report/mineXYZ` would match the `/report/mine` nav item as "active". Unlikely in practice (no such route), but technically imprecise.
+   189→- **Suggested fix:** `pathname === item.href || pathname.startsWith(item.href + "/")`.
+   190→
+   191→#### L6 — `AppNav` has a `item.href !== "/"` guard that's dead code (`/` is not in `NAV_ITEMS`)
+   192→- **File:line:** `src/components/msaada/AppNav.tsx:66`
+   193→- **Severity:** low (dead code)
+   194→- **Description:** the guard exists to prevent `/` from prefix-matching every route — but `/` is intentionally not in `NAV_ITEMS`, so the check is defensive against a future addition. Harmless but currently dead.
+   195→- **Suggested fix:** leave as-is (it's a guard) or remove for clarity.
+   196→
+   197→#### L7 — `/api/triage`'s 500 response ships `detail` to the client (already filed as H6; listed separately because the fix differs)
+   198→- **File:line:** `src/app/api/triage/route.ts:160-167`
+   199→- **Severity:** low (duplicate-tracking — see H6 for the high-severity framing)
+   200→
+   201→#### L8 — `qwen.ts` logs `console.error("[qwen] attempt", attempts, "error:", err)` with the full SDK error
+   202→- **File:line:** `src/lib/qwen.ts:172`
+   203→- **Severity:** low
+   204→- **Description:** the SDK error object could (in principle) echo the user's request payload. In practice `z-ai-web-dev-sdk` errors look like HTTP status + message, but if the SDK ever echoes the prompt on validation failure, the user's observation text would land in the server log — defeating the never-persist invariant at the log layer.
+   205→- **Suggested fix:** log only `err.message` and `err.name`, not the full `err` object.
+   206→
+   207→#### L9 — `SubmissionForm`'s `voiceTranscript` UI is labeled "stubbed for the demo" but is wired — misleading copy
+   208→- **File:line:** `src/components/msaada/SubmissionForm.tsx:412-416`
+   209→- **Severity:** low (UX copy)
+   210→- **Description:** the helper text says "Voice-to-text is stubbed for the demo; paste a transcript here if you recorded a voice note." But the field IS used — its content is prepended to the observation text sent to Qwen. Calling it "stubbed" is misleading.
+   211→- **Suggested fix:** rephrase to "Optional: paste a voice-note transcript here. Its content will be prepended to your observation when classifying."
+   212→
+   213→#### L10 — `Samples.ts` and the seed transcripts hardcode `Household A..I` and Swahili/Sheng text — fine for demo but not parameterized
+   214→- **File:line:** `src/components/msaada/samples.ts`, `src/app/api/seed/route.ts:48-110`
+   215→- **Severity:** low (demo-only)
+   216→- **Description:** no parameterization. Fine for the hackathon MVP. Flagging only because a future i18n or per-county sample-set refactor would touch both files.
+   217→- **Suggested fix:** none — demo scope is intentional.
+   218→
+   219→#### L11 — `getSupervisorRoster` calls `db.triageRecord.findMany({ distinct: ["submittedById"] })` to get "last submission per CHV"
+   220→- **File:line:** `src/lib/triage-store.ts:824-829`
+   221→- **Severity:** low (perf, N=1 per page load — fine for demo)
+   222→- **Description:** `distinct` + `orderBy: { createdAt: "desc" }` returns one row per CHV (the latest). For Prisma+SQLite this works, but `groupBy({ by: ["submittedById"], _max: { createdAt: true } })` would be a single round-trip and avoids loading full rows. The current query also fetches the `submittedById` + `createdAt` of just the latest per CHV, then we map to `lastSubMap`. Acceptable for the demo's small dataset but won't scale.
+   223→- **Suggested fix:** none for demo; if scaling, switch to `_max`.
+   224→
+   225→#### L12 — `db.$executeRaw\`UPDATE TriageRecord SET createdAt = ${target} WHERE id = ${id}\`` in `/api/seed` is raw SQL
+   226→- **File:line:** `src/app/api/seed/route.ts:138`
+   227→- **Severity:** low (parameterized — safe)
+   228→- **Description:** Prisma's tagged-template raw SQL auto-parameterizes `${target}` and `${id}`, so there's no SQL injection. But raw SQL bypasses Prisma's type checking — if a future schema rename happens (e.g. `TriageRecord` → `triage_record`), this breaks silently at runtime.
+   229→- **Suggested fix:** use `db.triageRecord.update({ where: { id }, data: { createdAt: target } })` instead — same effect, no raw SQL.
+   230→
+   231→#### L13 — `db.ts` enables `log: ['query']` in ALL environments (not just dev)
+   232→- **File:line:** `src/lib/db.ts:9-11`
+   233→- **Severity:** low (perf + log noise)
+   234→- **Description:** every Prisma query is logged to stdout in production. For a Qwen-backed triage app where the dashboard fires 5+ groupBy queries per request, this floods the log. Should be dev-only.
+   235→- **Suggested fix:** `log: process.env.NODE_ENV === 'production' ? ['error', 'warn'] : ['query', 'error', 'warn']`.
+   236→
+   237→#### L14 — `next.config.ts` sets `typescript.ignoreBuildErrors: true` and `reactStrictMode: false`
+   238→- **File:line:** `next.config.ts:7-9`
+   239→- **Severity:** low (latent type-error suppression)
+   240→- **Description:** `ignoreBuildErrors: true` means `next build` won't fail even if there are TypeScript errors anywhere in the codebase. Combined with `reactStrictMode: false` (which disables React 19's strict-mode double-invoke in dev), this hides whole classes of bugs (effect double-fire, stale-closure, type drift). Fine for the hackathon; dangerous for production.
+   241→- **Suggested fix:** flip both to `false` before production; fix any surfaced type errors.
+   242→
+   243→#### L15 — `DashboardSkeleton` uses `Array.from({length: 6}).map((_, i) => <Card key={i}>...)` with index keys
+   244→- **File:line:** `src/components/msaada/dashboard-states.tsx:15-22, 25-31, 37-40`
+   245→- **Severity:** low
+   246→- **Description:** index-as-key for static skeletons is fine. Flagging only for completeness.
+   247→- **Suggested fix:** none needed.
+   248→
+   249→#### L16 — `TriageResultCard` uses `key={`${ind}-${i}`}` for observed-indicator list items
+   250→- **File:line:** `src/components/msaada/TriageResultCard.tsx:110`
+   251→- **Severity:** low
+   252→- **Description:** composite index key. Fine for a non-reorderable list, but if two indicators have identical text, the second `-1` collides with the first `-1`. Use `r.id + i` or `ind` itself.
+   253→- **Suggested fix:** `key={ind}` if indicators are unique; otherwise `key={r.id + "-" + i}`.
+   254→
+   255→#### L17 — `getMyRecords(chv.id, limit)` `limit` is unbounded above 50 (route clamps at 50, but data-layer doesn't)
+   256→- **File:line:** `src/lib/triage-store.ts:98-108`; `src/app/api/records/mine/route.ts:26-29`
+   257→- **Severity:** low
+   258→- **Description:** the data layer takes any `limit` (could be 100000). The route clamps to 50. A future caller of `getMyRecords` directly (not via the route) could over-fetch. The `/api/records/mine?limit=` consumer at `/report/mine/page.tsx:92` hardcodes `?limit=20`.
+   259→- **Suggested fix:** clamp at the data layer: `const safeLimit = Math.min(Math.max(1, limit), 50)`.
+   260→
+   261→#### L18 — `SettingsPage` calls `window.location.reload()` and `window.location.assign("/")` instead of using `next/router`'s `router.refresh()` / `router.push()`
+   262→- **File:line:** `src/app/settings/page.tsx:66, 191
+   263→- **Severity:** low (UX perf)
+   264→- **Description:** `window.location.reload()` triggers a full page reload (re-fetches all JS, loses client state). `router.refresh()` from `next/navigation` does a soft refresh. `window.location.assign("/")` likewise triggers a hard navigation. The other pages use `<Link>` for navigation correctly.
+   265→- **Suggested fix:** `const router = useRouter(); router.refresh()` for the Refresh button; `<Link href="/">` or `router.push("/")` for sign-out.
+   266→
+   267→---
+   268→
+   269→## 2. Missing features / incomplete implementations
+   270→
+   271→### Stubbed / documented TODOs
+   272→
+   273→| Route / File | Stub | Severity | Note |
+   274→|---|---|---|---|
+   275→| `/api/dashboard` (line 27) | "Production would require an admin/national role for `?scope=all`" | medium | see M13 |
+   276→| `/api/audit` (line 19) | "TODO (production): require a compliance-officer role (RBAC). Currently open for the demo" | high | see H2 |
+   277→| `/api/supervisor/roster` (line 18) | "TODO (production): require a supervisor RBAC role. Currently open for demo." | high | see H3 |
+   278→| `/api/seed` (line 36) | "TODO (production): remove or gate behind admin auth." | high | see H4 |
+   279→| `/api/demo-chv` (line 17) | "TODO (production): remove this route or gate behind a feature flag." | medium | exposed demo creds |
+   280→| `src/lib/auth.ts:30-36` | "Simple signed-ish token for demo. NOT cryptographically secure — Supabase would issue a JWT." | medium | session token is base64-encoded JSON `{uid, exp}` — no signature, no secret. Anyone can forge a session for any CHV id by base64-encoding `{"uid":"<cuid>","exp":<future-ts>}`. **This is more severe than the comment implies** — for a hackathon demo it's fine, but it's a one-line token-forgery auth bypass. Flagging here because the worklog frames it as "sufficient for the demo's auth.uid() = submitting user equivalent" without noting that the cookie has no integrity protection. |
+   281→| `src/lib/rate-limit.ts:11` | "In-memory — fine for a single-instance demo. Production would use Redis." | low | in-memory bucket; not shared across instances |
+   282→| `src/lib/qwen.ts:118-130` | retry path kept "only as a safety net" — no streaming, no `response_format: json` | low | latency follow-up |
+   283→| `src/lib/pii-scrub.ts` | scrubber is best-effort — see M9 for gaps; also no M-Pesa pin (4-digit) catch, no school-class-name catch | low | defense-in-depth; the never-persist invariant still holds |
+   284→| `src/components/msaada/SubmissionForm.tsx:412-416` | voice transcript UI labeled "stubbed" (see L9) | low | misleading copy |
+   285→| `src/app/settings/page.tsx` | page is "Settings" in name but has no actual editable settings — just a profile display + crisis-line reference | low | consider renaming to "Profile" |
+   286→| `src/components/msaada/AuditStrip.tsx` | no realtime push of new audit entries | low | documented follow-up |
+   287→| `src/lib/triage-store.ts` `proxyCountyWeeklyDelta` | per-county weekly delta is a proxy (regional delta × county share) — not a real per-county per-day aggregate | low | data-contract limitation; the `‡` footnote in `county-table.tsx` explains this honestly |
+   288→| Worklog round-9 follow-up | "Live-verify mark-done → 'All caught up' state transition" | low | the worklog notes the server died mid-response in round 9; the API logic was verified but the UI transition wasn't live-demoed |
+   289→| Worklog round-10 follow-up | "Supervisor roster: add a per-CHV follow-up completion column" | low | next-review follow-up |
+   290→
+   291→### Spec-demanded but not built
+   292→
+   293→- **Realtime push of new audit entries to `/audit`** — worklog mentions this 4 times as a remaining follow-up; the spec calls for Supabase Realtime. The sandbox has no Realtime equivalent (no WebSocket server, no SSE endpoint). The audit page is a manual-refresh client-poll.
+   294→- **Streaming triage response** — worklog mentions 5 times; `/api/triage` is still a single blocking POST that takes ~12-15s.
+   295→- **Compliance-officer RBAC role on `/audit`** — worklog mentions 4 times.
+   296→- **Supervisor RBAC role on `/supervisor`** — worklog mentions 3 times.
+   297→- **CHV weekly report email/print** — the `/report/mine` page exists (print via `window.print()`), but there's no email/subscription delivery.
+   298→
+   299→### Demo-credential exposure
+   300→
+   301→- `DEMO_CHV_EMAIL` and `DEMO_CHV_PASSWORD` are hardcoded constants in `src/lib/auth.ts:83-84`, re-exported by `/api/demo-chv` (which returns the password in the response body), and shown in the UI on the AuthCard (`src/components/msaada/AuthCard.tsx:35-36, 333-337`). Fine for a hackathon demo; flagged here because the worklog claims the credential is "demo" but it's also the **only seeded user** with audit-follow-up history, so a judge (or attacker) using it can see and mutate real demo state.
+   302→
+   303→---
+   304→
+   305→## 3. Code inconsistencies
+   306→
+   307→### Dead code
+   308→
+   309→- `src/components/msaada/FollowUpKpiCard.tsx:130` — `export const _missedIcon = X;` is exported and unused.
+   310→- `src/components/msaada/AppNav.tsx:66` — `item.href !== "/"` guard is unreachable (`/` not in `NAV_ITEMS`).
+   311→- `src/lib/triage-store.ts:37` — inner `isCrisis ? null : ...` is unreachable (always `false` at that point). See L1.
+   312→- `src/components/ui/toaster.tsx` — the radix `Toaster` is defined but never mounted anywhere (see C1).
+   313→
+   314→### Inconsistent patterns
+   315→
+   316→- **Toast system split** — `dashboard/page.tsx` uses Radix `useToast`; every other page uses Sonner `toast`. See C1.
+   317→- **Date format helpers** — every component reinvents its own `relativeTime` / `fmtRelative` / `fmtSince` / `fmtDate` / `formatTimestamp` (in `MyRecentObservations.tsx:53-65`, `AuditStrip.tsx:46-55`, `MyImpactCard.tsx:38-46`, `supervisor/page.tsx:53-61`, `report/mine/page.tsx:67-73`, `TriageResultCard.tsx:35-48`, `audit/page.tsx:73-80`). They differ in thresholds (24h vs 7d, "just now" vs "today"). Should be one shared `src/lib/format-time.ts`.
+   318→- **`CLASS_LABEL` map** — defined in `dashboard-helpers.ts:128-136`, `TriageResultCard.tsx:17-21`, `MyRecentObservations.tsx:35-39`, `report/mine/page.tsx:47-51`, `PendingFollowUps.tsx:52-56`. Five copies with slightly different key sets (some include `escalation`, some don't).
+   319→- **`toneKey` / `classIcon`** — duplicated in `audit/page.tsx:56-71`, `AuditStrip.tsx:29-44`, `MyRecentObservations.tsx:41-51`, `report/mine/page.tsx:60-65`. Same logic, four copies.
+   320→- **`ChvInfo` / `Chv` / `ChvStats` interfaces** — defined inline in `report/mine/page.tsx:27-43`, `settings/page.tsx:24-30`, `MyImpactCard.tsx:19-29`, `AuthCard.tsx:22-28`. The `Chv` from AuthCard is exported and imported by `SubmissionForm`, but the others are local redefinitions with subtly different shapes (`ward: string` vs `ward: string | null`).
+   321→- **`supervisor/page.tsx:79` swallows the error in `catch {}` without logging** — the user sees "Couldn't load the roster" but the server-side error is lost. Other pages (`audit/page.tsx:106`, `report/mine/page.tsx:106`) at least set the message into state.
+   322→
+   323→### Naming
+   324→
+   325→- `src/app/api/route.ts` is a leftover "Hello, world!" handler at the API root — never referenced; harmless but should be removed or replaced with a metadata endpoint.
+   326→- `src/components/msaada/county-bar-chart.tsx` exports both `CountyBarChart` and `DailyTrendChart` from the same file — the filename only mentions one. Confusing.
+   327→
+   328→---
+   329→
+   330→## 4. Type-safety issues
+   331→
+   332→| File:line | Issue | Severity |
+   333→|---|---|---|
+   334→| `src/lib/triage-store.ts:80` | `classification: row.classification as Classification` — unsafe cast from DB string to enum without validation | medium |
+   335→| `src/lib/triage-store.ts:160` | `(["pending","done","missed"].includes(r.status) ? r.status : "pending") as FollowUpStatus` — runtime check then cast, OK but could use a Set | low |
+   336→| `src/lib/triage-store.ts:167` | `classification: (t?.classification ?? "needs_followup") as Classification` — defaults to `needs_followup` if the join missed, then casts | medium |
+   337→| `src/lib/triage-store.ts:474, 974` | `aggregateTag: g.aggregateTag as string` — `aggregateTag` is `string | null` from Prisma groupBy; the prior `.filter((g) => g.aggregateTag)` narrows it but TS doesn't propagate the narrowing through `map` | low |
+   338→| `src/lib/qwen.ts:42` | `CLASSIFICATIONS.includes(v as Classification)` — `Array.includes` requires the arg to be of the element type; `v` is `unknown`. The cast is the standard workaround, but a type predicate helper `isStringIn(v, CLASSIFICATIONS)` would be cleaner | low |
+   339→| `src/lib/qwen.ts:100` | `let obj: Record<string, unknown>; obj = JSON.parse(candidate)` — `JSON.parse` returns `any`; assigning to `Record<string, unknown>` doesn't validate. Arrays / primitives sneak through (see L3) | medium |
+   340→| `src/lib/auth.ts:42` | `JSON.parse(...) as { uid?: string; exp?: number }` — bare cast on untrusted input (the cookie). The `parseSessionToken` does check `!decoded.uid || !decoded.exp` after, so it's defensively handled — but the cast is unsafe in principle | low |
+   341→| `src/lib/db.ts:3` | `globalThis as unknown as { prisma: ... }` — standard Prisma singleton pattern; safe | low |
+   342→| `src/app/api/triage/route.ts:66` | `body as Partial<TriageRequest>` — body is `unknown`; the cast pretends it has the right shape, then the field-level `typeof` checks do the real validation. Acceptable pattern. | low |
+   343→| `src/app/api/triage/route.ts:76,79` | `county as County` after a `COUNTIES.includes(county as County)` check — the prior cast is required for `Array.includes` typing; the second cast is redundant | low |
+   344→| `src/app/api/followups/route.ts:22` | `url.searchParams.get("status") as FollowUpStatus | "all" | null` — bare cast without validation (see M2) | medium |
+   345→| `src/app/api/dashboard/route.ts:45` | `scopeParam as "mine" | "all" | null` — bare cast, but the `=== "mine"` check makes it safe | low |
+   346→| `src/components/msaada/SubmissionForm.tsx:87, 71` | `v as County` / `chv.county as County` — Select always returns one of the COUNTIES values, but the cast skips a runtime check | low |
+   347→| `src/components/msaada/SubmissionForm.tsx:143, 168` | `(await res.json()) as TriageRecordDTO | { error: string }` then `data as TriageRecordDTO` after `"error" in data` check — fine | low |
+   348→| `src/components/msaada/AuthCard.tsx:75, 118, 142` | `data.chv as Chv` after `data.error` check — fine but the cast skips a full-shape validation | low |
+   349→| `src/components/msaada/dashboard-helpers.ts` `(p.payload as { total?: number })?.total ?? 0` | `classification-donut.tsx:47` — `payload` type at line 30 is `{ color?: string } | undefined`; the cast adds `total` | low |
+   350→| `src/app/dashboard/page.tsx:208` | `(await res.json()) as { chv: { county: string } | null }` — actual response has more fields; `chv.county` could be `null` per the schema (though signup forces a county) | low |
+   351→| `src/lib/rate-limit.ts:75` | `Math.ceil((needed / refillRate) / 1000) * 1000` — fine | — |
+   352→
+   353→---
+   354→
+   355→## 5. Error-handling gaps
+   356→
+   357→| File:line | Issue | Severity |
+   358→|---|---|---|
+   359→| `src/app/api/triage/route.ts:119-124` | `createFollowUp(...).catch(e => console.error(...))` — promise rejection from the data layer is logged but never retried; if Prisma is transiently locked, the follow-up is lost silently | medium (M6) |
+   360→| `src/app/api/triage/route.ts:130-147` | `writeAuditEntry(...).catch(...)` — same pattern; the audit trail is the system of record for safety incidents — silent loss is a real concern | medium (M6) |
+   361→| `src/app/api/triage/route.ts:160-167` | catch-all returns raw `err.message` to the client (see H6) | high (H6) |
+   362→| `src/lib/qwen.ts:170-173` | catch swallows the SDK error and retries once; if the SDK throws on both attempts, the fallback is returned. Correct, but the error object is logged in full (could include prompt — see L8) | low |
+   363→| `src/app/supervisor/page.tsx:79-81` | `catch {}` swallows the error without even logging — the user sees "Couldn't load" but the server-side error is untraceable | low |
+   364→| `src/app/dashboard/page.tsx:147-161` | `loadStats` error sets `errorMsg` and shows a toast — but the toast is invisible (see C1) | critical (C1) |
+   365→| `src/components/msaada/SubmissionForm.tsx:145-148` | 401 path calls `onLogout()` which calls `fetch("/api/auth/logout")` — if the network is down, the catch in `handleLogout` (page.tsx:80-90) ignores the failure and clears state locally. Fine. | — |
+   366→| `src/components/msaada/SubmissionForm.tsx:199-204` | network-error catch sets `inlineError` AND toasts via Sonner — correct, the user sees the error | — |
+   367→| `src/components/msaada/PendingFollowUps.tsx:122` | `await res.json().catch(() => ({}))` — defensive JSON parse on error response; good pattern | — |
+   368→| `src/components/msaada/PendingFollowUps.tsx:134-136` | `catch { toast.error("Network error...") }` — Sonner toast, correct | — |
+   369→| `src/app/api/seed/route.ts:163-172` | backdate failure is logged but the record still exists with today's `createdAt` — graceful degradation, fine | — |
+   370→| `src/app/api/followups/[id]/route.ts:27-32` | `try { body = await req.json() } catch { return 400 }` — correct | — |
+   371→| `src/lib/auth.ts:46-48` | `parseSessionToken` try/catch returns null on JSON parse failure — defensive | — |
+   372→
+   373→### Unhandled promise rejection risks
+   374→
+   375→- `src/app/page.tsx:80-90` `handleLogout` calls `await fetch("/api/auth/logout", { method: "POST" })` inside a try/catch — safe.
+   376→- `src/components/msaada/AuthCard.tsx:130` `await fetch("/api/demo-chv", { method: "POST" })` — result is awaited but the response is not checked; if the call fails, the subsequent login call will fail and the outer catch handles it. Safe.
+   377→- `src/app/dashboard/page.tsx:170-186` `seedDemo` — wrapped in try/catch with a finally. Safe.
+   378→
+   379→---
+   380→
+   381→## 6. Performance issues
+   382→
+   383→### N+1 / query patterns
+   384→
+   385→- **`getDashboardStats(days)`** fires 4 `Promise.all` queries (`byCounty` groupBy, `byDay` findMany, `byTag` groupBy, totalsGroups groupBy). Plus `getRecentAudit(8)` and `getFollowUpStats({ county, days })` (3 more queries). **7 DB round-trips per `/api/dashboard` GET.** SQLite is local so latency is low, but it's still 7 queries per page-load and per-refresh.
+   386→- **`getDashboardStatsForCounty`** also fires 4 queries (countyGroups, dayRows findMany, tagGroups, totalsGroups). Plus audit + followUpStats = 7 queries per `?scope=mine` request.
+   387→- **`getSupervisorRoster`** fires 4 parallel queries (groups, chvs, last7Counts, lastSubs). Reasonable.
+   388→- **`getMyStats`** fires 5 parallel queries. Reasonable.
+   389→- **`getAuditPage`** fires 2 parallel queries (rows + count). Good.
+   390→- **`getMyRecords(chv.id, limit)`** fires 1 query. Good.
+   391→- **`getMyFollowUps`** fires 1 query with a join include. Good.
+   392→- **`getFollowUpStats`** fires 3 parallel queries (statusGroups, overdueCount, total). Good.
+   393→
+   394→### Missing indexes
+   395→
+   396→- **`FollowUp.triageRecordId`** has no index, but is used as the join key in every `getMyFollowUps` / `createFollowUp` / `resolveFollowUp` query (via the `include: { triageRecord: ... }`). Add `@@index([triageRecordId])` for O(log n) joins.
+   397→- **`AuditLog.triageRecordId`** has no index — `getAuditPage` and `getRecentAudit` don't filter on it currently, but if a future "show audit entries for this triage record" feature lands, it'll be a table scan.
+   398→- **`TriageRecord.submittedById`** has no index — but it's a foreign key, so SQLite auto-creates an index for FK enforcement. Prisma may or may not surface this; explicit `@@index([submittedById])` is safer. Used in `getMyRecords`, `getMyStats`, `getSupervisorRoster`.
+   399→- All other indexes are present (`county, createdAt`, `classification`, `aggregateTag`, `escalation`, `chvId, status`, `dueAt`, `status`, `createdAt`, `actorId`, `county`, `event`).
+   400→
+   401→### Heavy bundles
+   402→
+   403→- **`/dashboard`** is the heaviest client bundle: 4 Recharts charts + KPI grid + table + audit strip + freshness badge + 6 KpiCard motion wrappers. The worklog mentions it crashed Turbopack under browser load in rounds 3-5 — fixed in round 6 by `next/dynamic` code-splitting each chart into its own chunk (`src/app/dashboard/page.tsx:49-64`). Good.
+   404→- **`framer-motion`** is used in nearly every component — even small ones like `KpiCard` (motion.div + whileHover) and `motion.li`. For static lists, this is overkill. The bundle cost is ~50KB gzipped.
+   405→- **`recharts`** is ~100KB+ and only used on the dashboard — already code-split.
+   406→- **`lucide-react`** imports — most components import by name (`import { ShieldCheck, Activity, ... } from "lucide-react"`), which is tree-shakeable. Good.
+   407→- **`@radix-ui/*`** — many UI primitives are installed (51 packages), but only a subset are used by Msaada components (`button`, `card`, `badge`, `separator`, `select`, `tabs`, `textarea`, `label`, `collapsible`, `skeleton`, `alert`, `table`, `tooltip` (only via Toaster)). The unused ones (accordion, context-menu, dialog (only via Alert), dropdown-menu, hover-card, etc.) are pulled in by shadcn's CLI but not imported anywhere — they should be tree-shaken out, but if anything is accidentally imported, the bundle grows.
+   408→- **`next-auth`, `next-intl`, `next-themes`, `react-markdown`, `react-syntax-highlighter`, `@mdxeditor/editor`, `embla-carousel-react`, `react-resizable-panels`, `cmdk`, `vaul`, `react-day-picker`, `@dnd-kit/*`, `@tanstack/react-query`, `@tanstack/react-table`, `zustand`** — all installed but unused by Msaada (they came from the scaffold). `next-themes` is used by `sonner.tsx`'s `useTheme()` call though.
+   409→
+   410→### Missing lazy-load
+   411→
+   412→- `recharts` is already code-split on the dashboard via `next/dynamic`.
+   413→- The `motion` import from `framer-motion` is static everywhere — could be replaced with CSS transitions for non-orchestrated animations (most of them).
+   414→- `MyRecentObservations`, `MyImpactCard`, `PendingFollowUps` are all eagerly imported on `/` (`src/app/page.tsx:7-9`). They make non-trivial fetches on mount. Could lazy-load the lower-priority ones (`MyRecentObservations` is below the fold) with `next/dynamic` to shrink the initial bundle of `/`.
+   415→
+   416→### Prisma `log: ['query']` in production (see L13)
+   417→
+   418→- Every query is logged to stdout. For the dashboard's 7-query-per-load pattern with auto-refresh on filter changes, this floods logs.
+   419→
+   420→### Auto-seed on dashboard mount calls Qwen 9 times
+   421→
+   422→- `src/app/dashboard/page.tsx:225-238` auto-calls `seedDemo({ silent: true })` if `totals.total === 0` on first mount. `seedDemo` runs `classifyObservation()` 9 times sequentially (~108-135s of LLM time). The user sees the dashboard hang on `DashboardSkeleton` for 2+ minutes the first time. The `autoSeedTriedRef` prevents repeats, but the first impression is bad.
+   423→- Suggested fix: show a progress toast ("Seeding demo data — this takes ~2 min…") OR pre-seed at deploy time.
+   424→
+   425→---
+   426→
+   427→## Top 5 critical/high issues (for the fix agents' priority queue)
+   428→
+   429→1. **C1 — `src/app/layout.tsx:4,33` + `src/app/dashboard/page.tsx:92`** — Dashboard mounts Sonner `<Toaster>` but uses Radix `useToast()`; all dashboard toasts (load error, seed success, CSV exported) are silently invisible.
+   430→2. **C2/H7 — `src/app/api/dashboard/route.ts:61`** — `getRecentAudit(8)` is NOT county-filtered on `?scope=mine`, leaking other counties' audit activity into a county-scoped dashboard.
+   431→3. **C3 — `src/lib/triage-store.ts:107`** — `getMyRecords` returns `fallbackUsed: false` for every retrieved record (schema has no column), so the "Caution fallback applied" banner never shows on history.
+   432→4. **H1 — `src/app/api/auth/login/route.ts:13-54`** — no rate-limit on `/api/auth/login` (or `/signup`), brute-force vulnerability; only `/api/triage` is rate-limited.
+   433→5. **H6 — `src/app/api/triage/route.ts:160-167`** — catch-all returns raw `err.message` as `detail` in the 500 response, leaking Prisma/SDK internals.
+   434→
+   435→---
+   436→
+   437→## Appendix — files audited
+   438→
+   439→- `prisma/schema.prisma`
+   440→- `src/lib/types.ts`, `qwen.ts`, `auth.ts`, `triage-store.ts`, `pii-scrub.ts`, `rate-limit.ts`, `db.ts`, `utils.ts`
+   441→- `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/route.ts`
+   442→- `src/app/dashboard/{page,layout}.tsx`
+   443→- `src/app/audit/page.tsx`, `src/app/supervisor/page.tsx`, `src/app/report/mine/page.tsx`, `src/app/settings/page.tsx`
+   444→- `src/app/api/{route,dashboard,seed,triage}.ts`
+   445→- `src/app/api/auth/{login,signup,logout,me}/route.ts`
+   446→- `src/app/api/demo-chv/route.ts`
+   447→- `src/app/api/audit/route.ts`
+   448→- `src/app/api/records/mine/route.ts`
+   449→- `src/app/api/stats/mine/route.ts`
+   450→- `src/app/api/supervisor/roster/route.ts`
+   451→- `src/app/api/followups/route.ts` and `src/app/api/followups/[id]/route.ts`
+   452→- `src/components/msaada/{AuthCard,SubmissionForm,CrisisPanel,TriageResultCard,MyRecentObservations,MyImpactCard,PendingFollowUps,AuditStrip,FollowUpKpiCard,AppNav,kpi-card,county-bar-chart,top-tags-chart,classification-donut,insight-callouts,county-table,dashboard-states,dashboard-helpers,samples}.tsx`
+   453→- `src/hooks/use-toast.ts`
+   454→- `src/components/ui/{sonner,toaster}.tsx`
+   455→- `next.config.ts`, `package.json`
+   456→

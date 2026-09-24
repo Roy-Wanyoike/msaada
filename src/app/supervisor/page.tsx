@@ -88,7 +88,7 @@ export default function SupervisorPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <AppNav />
-      <main className="flex-1">
+      <main id="main" className="flex-1">
         <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           {/* Header */}
           <header className="mb-6 sm:mb-8">
@@ -245,6 +245,7 @@ export default function SupervisorPage() {
                     <div className="grid items-center gap-3 rounded-lg border border-border/50 bg-card px-3 py-2.5 transition-colors hover:bg-muted/30 md:grid-cols-[1fr_1.2fr_0.8fr_0.7fr_0.7fr_0.7fr_0.7fr_0.9fr]">
                       {/* CHV label + 7d activity dot */}
                       <div className="flex items-center gap-2">
+                        <span className="inline md:hidden text-muted-foreground mr-1">CHV:</span>
                         <span
                           className={cn(
                             "inline-block size-2 shrink-0 rounded-full",
@@ -256,26 +257,35 @@ export default function SupervisorPage() {
                         <span className="font-mono text-xs text-foreground">{r.chvLabel}</span>
                       </div>
                       <span className="text-xs text-muted-foreground">
+                        <span className="inline md:hidden text-muted-foreground mr-1">County · Ward:</span>
                         {r.county}{r.ward ? ` · ${r.ward}` : ""}
                       </span>
-                      <span className="text-sm font-bold tabular-nums text-foreground">{r.total}</span>
+                      <span className="text-sm font-bold tabular-nums text-foreground">
+                        <span className="inline md:hidden text-muted-foreground mr-1 font-normal text-xs">Total:</span>
+                        {r.total}
+                      </span>
                       <span className="inline-flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-300">
+                        <span className="inline md:hidden text-muted-foreground mr-1">Routine:</span>
                         <ShieldCheck className="size-3" aria-hidden />
                         {r.routine}
                       </span>
                       <span className="inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
+                        <span className="inline md:hidden text-muted-foreground mr-1">Follow-up:</span>
                         <Activity className="size-3" aria-hidden />
                         {r.needs_followup}
                       </span>
                       <span className="inline-flex items-center gap-1 text-xs text-orange-700 dark:text-orange-300">
+                        <span className="inline md:hidden text-muted-foreground mr-1">Referral:</span>
                         <Stethoscope className="size-3" aria-hidden />
                         {r.needs_facility_referral}
                       </span>
                       <span className={cn("inline-flex items-center gap-1 text-xs font-semibold", r.escalation > 0 ? "text-red-700 dark:text-red-300" : "text-muted-foreground")}>
+                        <span className="inline md:hidden text-muted-foreground mr-1 font-normal">Escalation:</span>
                         <AlertTriangle className="size-3" aria-hidden />
                         {r.escalation}
                       </span>
-                      <span className="text-right text-[11px] text-muted-foreground">
+                      <span className="text-left text-[11px] text-muted-foreground md:text-right">
+                        <span className="inline md:hidden text-muted-foreground mr-1">Last active:</span>
                         {fmtRelative(r.lastSubmission)}
                       </span>
                     </div>

@@ -118,7 +118,7 @@ export default function AuditPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <AppNav />
-      <main className="flex-1">
+      <main id="main" className="flex-1">
         <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           {/* Header */}
           <header className="mb-6 sm:mb-8">
@@ -269,19 +269,24 @@ export default function AuditPage() {
                     >
                       <div className="grid items-center gap-3 rounded-lg border border-border/50 bg-card px-3 py-2.5 transition-colors hover:bg-muted/30 md:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_0.8fr]">
                         <span className="font-mono text-xs text-muted-foreground">
+                          <span className="inline md:hidden text-muted-foreground mr-1">When:</span>
                           {fmtTime(e.createdAt)}
                         </span>
                         <span className="font-mono text-xs text-muted-foreground">
+                          <span className="inline md:hidden text-muted-foreground mr-1">Actor:</span>
                           {e.actorLabel}
                         </span>
                         <span className="text-xs font-medium text-foreground">
+                          <span className="inline md:hidden text-muted-foreground mr-1 font-normal">Event:</span>
                           {EVENT_LABEL[e.event] ?? e.event}
                         </span>
                         <span className="text-xs text-muted-foreground">
+                          <span className="inline md:hidden text-muted-foreground mr-1">County · Ward:</span>
                           {e.county}
                           {e.ward ? ` · ${e.ward}` : ""}
                         </span>
                         <span className="flex items-center gap-1.5">
+                          <span className="inline md:hidden text-muted-foreground mr-1">Verdict:</span>
                           <span
                             className={`inline-flex size-5 shrink-0 items-center justify-center rounded ${tone.soft} ${tone.text}`}
                           >
@@ -296,7 +301,8 @@ export default function AuditPage() {
                               : (e.classification ?? "—").replace(/_/g, " ")}
                           </Badge>
                         </span>
-                        <span className="flex justify-start gap-1 md:justify-end">
+                        <span className="flex items-center justify-start gap-1 md:justify-end">
+                          <span className="inline md:hidden text-muted-foreground mr-1">Flags:</span>
                           {e.escalation && (
                             <Badge variant="outline" className="h-5 border-red-300 bg-red-50 px-1.5 py-0 text-[9px] font-semibold uppercase text-red-700">
                               <AlertTriangle className="mr-0.5 size-2.5" aria-hidden />

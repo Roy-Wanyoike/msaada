@@ -263,7 +263,7 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label>County</Label>
+                    <Label htmlFor="su-county">County</Label>
                     <Select
                       value={suCounty}
                       onValueChange={(v) => {
@@ -271,7 +271,7 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
                         setSuWard("");
                       }}
                     >
-                      <SelectTrigger className="min-h-11 w-full">
+                      <SelectTrigger id="su-county" className="min-h-11 w-full">
                         <SelectValue placeholder="Select county" />
                       </SelectTrigger>
                       <SelectContent>
@@ -284,13 +284,13 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Ward</Label>
+                    <Label htmlFor="su-ward">Ward</Label>
                     <Select
                       value={suWard}
                       onValueChange={setSuWard}
                       disabled={!suCounty}
                     >
-                      <SelectTrigger className="min-h-11 w-full">
+                      <SelectTrigger id="su-ward" className="min-h-11 w-full">
                         <SelectValue placeholder="Select ward" />
                       </SelectTrigger>
                       <SelectContent>

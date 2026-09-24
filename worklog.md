@@ -532,3 +532,181 @@ Stage Summary:
   4. /api/triage latency ~12-15s — consider streaming.
   5. Supervisor roster: add a per-CHV follow-up completion column.
 - Repo: https://github.com/Roy-Wanyoike/msaada (commit 2dde103)
+
+---
+Task ID: judge-security
+Agent: security-judge
+Task: Security & compliance judge review
+Work Log:
+- Audited security claims vs implementation
+- Produced /home/z/my-project/reviews/judge-2-security.md
+Stage Summary:
+- Overall security score: 5/10
+- Top risks: (1) Forgeable session token — plain base64 JSON, no HMAC (src/lib/auth.ts:30-49); (2) Unauthenticated /api/seed endpoint calling Qwen 9× per request — cost DoS, no auth/idempotency (src/app/api/seed/route.ts); (3) Follow-up resolutionNote persisted un-scrubbed with no length cap — direct PII leak vector bypassing the "Defense Layer 2" scrubber claim (src/lib/triage-store.ts:245); (4) /api/audit and /api/supervisor/roster fully unauthenticated — compliance + supervisor data scrapable, truncated chv·xxxx labels re-identifying in low-population wards; (5) Audit write wrapped in .catch() so crisis_override events can be silently dropped from the audit log (src/app/api/triage/route.ts:144-147).
+
+---
+Task ID: audit-docs
+Agent: docs-auditor
+Task: README + presentation readiness audit
+Work Log:
+- Audited README accuracy + completeness
+- Produced /home/z/my-project/reviews/audit-8-docs.md
+Stage Summary:
+- README score 7/10, 11 accuracy issues (missing files/stale claims), demo script drafted
+
+---
+Task ID: audit-api
+Agent: api-auditor
+Task: API contract & validation audit
+Work Log:
+- Audited all 15 API routes
+- Produced /home/z/my-project/reviews/audit-5-api.md
+Stage Summary:
+- 12 validation gaps, 5 RBAC gaps, 0 client↔API shape mismatches (but 4 internal shape conventions across routes)
+
+---
+Task ID: judge-ux
+Agent: ux-judge
+Task: Product & UX judge review
+Work Log:
+- Reviewed all 6 routes' UI code
+- Produced /home/z/my-project/reviews/judge-3-ux.md
+Stage Summary:
+- Overall UX score: 7.5/10
+- Top issues: (1) Crisis panel missing focus trap + non-clickable tel: links on the most important screen (src/components/msaada/CrisisPanel.tsx:111-118, 70); (2) Demo-account CTA visually subordinate to manual login button — judges will fumble the demo entry point (src/components/msaada/AuthCard.tsx:211-218 vs 320-329); (3) Audit + Supervisor mobile tables lose column labels — `hidden md:grid` header pattern leaves mobile judges with unlabelled text blobs (src/app/audit/page.tsx:250, src/app/supervisor/page.tsx:226).
+
+---
+Task ID: audit-a11y
+Agent: a11y-auditor
+Task: Accessibility & mobile audit
+Work Log:
+- Audited all 6 pages + 19 components
+- Produced /home/z/my-project/reviews/audit-6-a11y.md
+Stage Summary:
+- Avg a11y score 7.5/10, avg mobile score 8.0/10
+- Top issues: (1) CrisisPanel has role=alertdialog but no focus-trap / no initialFocus move into dialog (WCAG 2.4.3 + 4.1.2); (2) CrisisPanel confirm button uses HTML `disabled` during 5s countdown — not keyboard-focusable, traps SR users (2.1.2 + 4.1.2); (3) no skip-to-main-content link on any page (2.4.1); (4) AuthCard County/Ward <Label> elements have no htmlFor association with their Selects (1.3.1 + 3.3.2 + 4.1.2); (5) /audit + /supervisor mobile table rows collapse to a vertical stack with no per-cell aria-label / visible label — header row is `hidden` (not sr-only) so SR loses column meaning (1.3.1 + 2.4.4); (6) touch targets <44px across several primary actions (supervisor segmented control min-h-8=32px worst case; audit/settings/report/submissionform buttons h-9=36px); (7) SubmissionForm County/Ward/Sample Selects + textarea have no required/aria-required (3.3.2 + 3.3.4); (8) AppNav "CHV submission" back-link hidden on mobile (sm:inline-flex); (9) only CountyBarChart has a tabular SR fallback — TopTagsChart and DailyTrendChart rely only on aria-label summaries; (10) borderline contrast: text-foreground/70 ≈ 4.5:1, translucent dark-mode badge backgrounds (dark:bg-*-950/40) may drop below AA at the rendered pixel. Report at /home/z/my-project/reviews/audit-6-a11y.md includes per-page a11y + mobile scores, top-10 issues with file:line + WCAG criterion, and a consolidated fix checklist.
+
+---
+Task ID: audit-pii-fu
+Agent: pii-followup-auditor
+Task: PII scrubber + follow-up workflow audit
+Work Log:
+- Audited pii-scrub.ts, qwen.ts, triage workflow, crisis panel
+- Produced /home/z/my-project/reviews/audit-7-pii-fu.md
+Stage Summary:
+- PII gaps: M-Pesa regex broken against spec examples (QGR4H9X7ZP not matched); `gi` flag on KINSHIP_NAME_RE + SCHOOL_RE makes proper-name class case-insensitive so Swahili verbs get redacted as [NAME]/[SCHOOL] while real proper nouns in "Acacia Academy alisema" survive; SCHOOL_RE replacement drops whitespace ("Shuleya [SCHOOL]"); plate regex misses new-format "KDA 1234A"; KCPE index (11 digits), M-Pesa till/paybill (5-7 digits), village/estate names, hospital names not covered
+- follow-up gaps: no proactive reminder/notification when overdue (only reactive red UI on PendingFollowUps + aggregate count on dashboard); no auto-escalation; supervisor roster (getSupervisorRoster / /api/supervisor/roster) does not expose per-CHV pending/overdue follow-up counts; completionRate denominator excludes pending (misleading headline when backlog high)
+- crisis issues: CrisisPanel blocks Escape + clicks but NOT browser refresh / URL navigation (no beforeunload handler, no focus trap) — F5 closes the panel without confirmation, breaking the "only explicit confirm" guarantee
+
+---
+Task ID: judge-eng
+Agent: engineering-judge
+Task: Engineering & architecture judge review
+Work Log:
+- Audited architecture, types, DB design, error handling
+- Produced /home/z/my-project/reviews/judge-4-eng.md
+Stage Summary:
+- Overall engineering score: 7.0/10
+- Top risks: (1) next.config typescript.ignoreBuildErrors:true + eslint rule disables + tsconfig noImplicitAny:false — no compile-time safety net; (2) DTO contract duplication (DashboardStats/AuditEntry/FollowUpDTO/ChvStats declared twice across lib/triage-store.ts and components/msaada/dashboard-helpers.ts, FollowUpDTO already drifts in PendingFollowUps.tsx); (3) no tests + no test runner (vitest/jest absent); (4) triage+followup+audit triple-write is non-transactional — audit misses silent and drifts from triage records; (5) unauthenticated /api/seed + /api/audit + /api/supervisor/roster AND /api/seed is non-idempotent at transcript level (every call duplicates 9 records).
+
+---
+Task ID: audit-1
+Agent: codebase-auditor
+Task: Comprehensive codebase audit
+Work Log:
+- Read all source files
+- Produced /home/z/my-project/reviews/audit-1-codebase.md
+Stage Summary:
+- 3 critical, 7 high, 13 medium, 18 low issues found
+
+---
+Task ID: fix-triage-api
+Agent: triage-api-fixer
+Task: Sanitize 500 detail + add observation length guard
+Work Log:
+- Replaced err.message leak with generic detail
+- Added 5000-char observation_text length guard
+Stage Summary:
+- /api/triage no longer leaks internals; DoS guard on input length
+
+---
+Task ID: fix-store
+Agent: store-fixer
+Task: fallbackUsed column + dead ternary + county-scoped audit strip
+Work Log:
+- Added fallbackUsed column to TriageRecord + db:push'd
+- Fixed dead nested ternary in insertTriageRecord
+- Added county param to getRecentAudit + wired into /api/dashboard
+Stage Summary:
+- fallbackUsed now persists + reads correctly; audit strip is RBAC-scoped
+
+---
+Task ID: fix-a11y
+Agent: a11y-fixer
+Task: Radix Toaster mount + skip-to-main + htmlFor + mobile labels
+Work Log:
+- Mounted Radix Toaster in layout (dashboard toasts now visible)
+- Added skip-to-main link
+- Added htmlFor to AuthCard County/Ward labels
+- Added mobile column labels to audit + supervisor tables
+Stage Summary:
+- Dashboard toasts work; mobile tables are readable; keyboard bypass works
+
+---
+Task ID: fix-auth
+Agent: auth-fixer
+Task: HMAC session token + auth rate-limit helper
+Work Log:
+- Added HMAC signature to createSessionToken/parseSessionToken
+- Added rate-limit key helper for auth endpoints
+Stage Summary:
+- Session tokens are now unforgeable without the server secret
+
+---
+Task ID: fix-api-misc
+Agent: api-misc-fixer
+Task: Followup validation + audit NaN guard + seed rate-limit
+Work Log:
+- Added try/catch + note validation + scrub to followups PATCH
+- Split 404/403/409 on followup resolve
+- Guarded audit page/pageSize NaN
+- Rate-limited /api/seed (3/10min per IP)
+Stage Summary:
+- API validation hardened, seed DoS vector closed
+
+---
+Task ID: fix-crisis
+Agent: crisis-fixer
+Task: Focus trap + tel: links + beforeunload + aria-disabled
+Work Log:
+- Added focus trap + initial focus move + restore-on-unmount
+- Made phone numbers tel: links
+- Added beforeunload guard
+- Replaced disabled with aria-disabled for keyboard access during countdown
+Stage Summary:
+- Crisis panel is now non-bypassable via refresh, keyboard-trapped, and phone numbers are clickable
+
+---
+Task ID: fix-readme
+Agent: readme-fixer
+Task: README presentation-readiness update
+Work Log:
+- Added follow-up workflow section
+- Added 3-minute demo script
+- Updated routes/API/structure/defense-layers sections
+- Added production-target section
+Stage Summary:
+- README now documents all features through round 10; presentation-ready
+
+---
+Task ID: fix-pii
+Agent: pii-fixer
+Task: Fix M-Pesa/kinship/school/plate regexes + add scrubNote
+Work Log:
+- Fixed M-Pesa regex (interleaved codes now match)
+- Split kinship/school regex to avoid Swahili verb over-redaction
+- Fixed school replacement whitespace
+- Fixed plate regex for new-format plates
+- Added scrubNote() for follow-up resolution notes
+Stage Summary:
+- PII scrubber now correctly handles all 8 identifier types without breaking triage context

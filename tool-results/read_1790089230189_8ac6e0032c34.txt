@@ -1,0 +1,995 @@
+     1→     1→     1→import { db } from "@/lib/db";
+     2→     2→     2→import type { Classification, TriageRecordDTO } from "@/lib/types";
+     3→     3→     3→import type { TriageModelOutput } from "@/lib/types";
+     4→     4→     4→
+     5→     5→     5→/**
+     6→     6→     6→ * Data-access layer. Mirrors the Supabase RLS design:
+     7→     7→     7→ *  - insertTriageRecord enforces submittedById ownership (the RLS
+     8→     8→     8→ *    auth.uid() = submitting user equivalent).
+     9→     9→     9→ *  - The dashboard aggregate functions NEVER select observed_indicators /
+    10→    10→    10→ *    chpNextAction / confidenceNote text — only counts. This is the
+    11→    11→    11→ *    "Postgres VIEW exposing only aggregated counts" equivalent, enforced
+    12→    12→    12→ *    at the data-access layer because SQLite has no native RLS.
+    13→    13→    13→ *  - The raw free-text observation is never persisted anywhere.
+    14→    14→    14→ */
+    15→    15→    15→
+    16→    16→    16→export async function insertTriageRecord(args: {
+    17→    17→    17→  submittedById: string;
+    18→    18→    18→  county: string;
+    19→    19→    19→  ward?: string;
+    20→    20→    20→  output: TriageModelOutput;
+    21→    21→    21→  fallbackUsed: boolean;
+    22→    22→    22→}): Promise<TriageRecordDTO> {
+    23→    23→    23→  const { submittedById, county, ward, output, fallbackUsed } = args;
+    24→    24→    24→  const isCrisis = output.escalation === true;
+    25→    25→    25→
+    26→    26→    26→  const created = await db.triageRecord.create({
+    27→    27→    27→    data: {
+    28→    28→    28→      submittedById,
+    29→    29→    29→      county,
+    30→    30→    30→      ward: ward ?? null,
+    31→    31→    31→      classification: isCrisis ? "needs_facility_referral" : output.classification,
+    32→    32→    32→      escalation: isCrisis,
+    33→    33→    33→      observedIndicators: JSON.stringify(
+    34→    34→    34→        isCrisis ? [] : output.observed_indicators
+    35→    35→    35→      ),
+    36→    36→    36→      aggregateTag: isCrisis ? "crisis_self_harm" : output.aggregate_tag ?? null,
+    37→    37→    37→      chpNextAction: isCrisis ? null : (isCrisis ? null : output.chp_next_action),
+    38→    38→    38→      chpInstruction: isCrisis ? output.chp_instruction : null,
+    39→    39→    39→      crisisLine: isCrisis ? output.crisis_line : null,
+    40→    40→    40→      confidenceNote: isCrisis
+    41→    41→    41→        ? "Crisis override triggered"
+    42→    42→    42→        : fallbackUsed
+    43→    43→    43→          ? output.confidence_note
+    44→    44→    44→          : (output.confidence_note ?? null),
+    45→    45→    45→    },
+    46→    46→    46→  });
+    47→    47→    47→
+    48→    48→    48→  return toDTO(created, fallbackUsed);
+    49→    49→    49→}
+    50→    50→    50→
+    51→    51→    51→function toDTO(
+    52→    52→    52→  row: {
+    53→    53→    53→    id: string;
+    54→    54→    54→    createdAt: Date;
+    55→    55→    55→    county: string;
+    56→    56→    56→    ward: string | null;
+    57→    57→    57→    classification: string;
+    58→    58→    58→    escalation: boolean;
+    59→    59→    59→    observedIndicators: string;
+    60→    60→    60→    aggregateTag: string | null;
+    61→    61→    61→    chpNextAction: string | null;
+    62→    62→    62→    chpInstruction: string | null;
+    63→    63→    63→    crisisLine: string | null;
+    64→    64→    64→    confidenceNote: string | null;
+    65→    65→    65→  },
+    66→    66→    66→  fallbackUsed: boolean
+    67→    67→    67→): TriageRecordDTO {
+    68→    68→    68→  let indicators: string[] = [];
+    69→    69→    69→  try {
+    70→    70→    70→    const parsed = JSON.parse(row.observedIndicators);
+    71→    71→    71→    if (Array.isArray(parsed)) indicators = parsed.filter((x) => typeof x === "string");
+    72→    72→    72→  } catch {
+    73→    73→    73→    indicators = [];
+    74→    74→    74→  }
+    75→    75→    75→  return {
+    76→    76→    76→    id: row.id,
+    77→    77→    77→    createdAt: row.createdAt.toISOString(),
+    78→    78→    78→    county: row.county,
+    79→    79→    79→    ward: row.ward,
+    80→    80→    80→    classification: row.classification as Classification,
+    81→    81→    81→    escalation: row.escalation,
+    82→    82→    82→    observedIndicators: indicators,
+    83→    83→    83→    aggregateTag: row.aggregateTag,
+    84→    84→    84→    chpNextAction: row.chpNextAction,
+    85→    85→    85→    chpInstruction: row.chpInstruction,
+    86→    86→    86→    crisisLine: row.crisisLine,
+    87→    87→    87→    confidenceNote: row.confidenceNote,
+    88→    88→    88→    fallbackUsed,
+    89→    89→    89→  };
+    90→    90→    90→}
+    91→    91→    91→
+    92→    92→    92→/**
+    93→    93→    93→ * Returns a CHV's own recent records (ownership-scoped — the RLS
+    94→    94→    94→ * `auth.uid() = submitted_by` equivalent). The CHV sees their own full
+    95→    95→    95→ * structured output (including observed_indicators, since they already
+    96→    96→    96→ * saw it at submission time). Other CHVs' records are never readable here.
+    97→    97→    97→ */
+    98→    98→    98→export async function getMyRecords(
+    99→    99→    99→  submittedById: string,
+   100→   100→   100→  limit = 20
+   101→   101→   101→): Promise<TriageRecordDTO[]> {
+   102→   102→   102→  const rows = await db.triageRecord.findMany({
+   103→   103→   103→    where: { submittedById },
+   104→   104→   104→    orderBy: { createdAt: "desc" },
+   105→   105→   105→    take: limit,
+   106→   106→   106→  });
+   107→   107→   107→  return rows.map((r) => toDTO(r, false));
+   108→   108→   108→}
+   109→   109→   109→
+   110→   110→   110→/* ------------------------------------------------------------------ */
+   111→   111→   111→/* Follow-up tracking — operational workflow layer.                    */
+   112→   112→   112→/* When a triage produces needs_followup or needs_facility_referral,   */
+   113→   113→   113→/* a FollowUp row is created (due in 48h per the spec). The CHV can    */
+   114→   114→   114→/* mark it done/missed. Ownership-scoped — a CHV sees only their own.  */
+   115→   115→   115→/* ------------------------------------------------------------------ */
+   116→   116→   116→
+   117→   117→   117→export type FollowUpStatus = "pending" | "done" | "missed";
+   118→   118→   118→
+   119→   119→   119→export interface FollowUpDTO {
+   120→   120→   120→  id: string;
+   121→   121→   121→  createdAt: string;
+   122→   122→   122→  dueAt: string;
+   123→   123→   123→  status: FollowUpStatus;
+   124→   124→   124→  resolvedAt: string | null;
+   125→   125→   125→  resolutionNote: string | null;
+   126→   126→   126→  triageRecordId: string;
+   127→   127→   127→  chvId: string;
+   128→   128→   128→  /** Denormalized from the TriageRecord for the UI (avoids a second fetch). */
+   129→   129→   129→  county: string;
+   130→   130→   130→  ward: string | null;
+   131→   131→   131→  classification: Classification;
+   132→   132→   132→  escalation: boolean;
+   133→   133→   133→  aggregateTag: string | null;
+   134→   134→   134→  chpNextAction: string | null;
+   135→   135→   135→}
+   136→   136→   136→
+   137→   137→   137→function toFollowUpDTO(r: {
+   138→   138→   138→  id: string;
+   139→   139→   139→  createdAt: Date;
+   140→   140→   140→  dueAt: Date;
+   141→   141→   141→  status: string;
+   142→   142→   142→  resolvedAt: Date | null;
+   143→   143→   143→  resolutionNote: string | null;
+   144→   144→   144→  triageRecordId: string;
+   145→   145→   145→  chvId: string;
+   146→   146→   146→  triageRecord: {
+   147→   147→   147→    county: string;
+   148→   148→   148→    ward: string | null;
+   149→   149→   149→    classification: string;
+   150→   150→   150→    escalation: boolean;
+   151→   151→   151→    aggregateTag: string | null;
+   152→   152→   152→    chpNextAction: string | null;
+   153→   153→   153→  } | null;
+   154→   154→   154→}): FollowUpDTO {
+   155→   155→   155→  const t = r.triageRecord;
+   156→   156→   156→  return {
+   157→   157→   157→    id: r.id,
+   158→   158→   158→    createdAt: r.createdAt.toISOString(),
+   159→   159→   159→    dueAt: r.dueAt.toISOString(),
+   160→   160→   160→    status: (["pending", "done", "missed"].includes(r.status) ? r.status : "pending") as FollowUpStatus,
+   161→   161→   161→    resolvedAt: r.resolvedAt ? r.resolvedAt.toISOString() : null,
+   162→   162→   162→    resolutionNote: r.resolutionNote,
+   163→   163→   163→    triageRecordId: r.triageRecordId,
+   164→   164→   164→    chvId: r.chvId,
+   165→   165→   165→    county: t?.county ?? "—",
+   166→   166→   166→    ward: t?.ward ?? null,
+   167→   167→   167→    classification: (t?.classification ?? "needs_followup") as Classification,
+   168→   168→   168→    escalation: t?.escalation ?? false,
+   169→   169→   169→    aggregateTag: t?.aggregateTag ?? null,
+   170→   170→   170→    chpNextAction: t?.chpNextAction ?? null,
+   171→   171→   171→  };
+   172→   172→   172→}
+   173→   173→   173→
+   174→   174→   174→/**
+   175→   175→   175→ * Create a follow-up for a triage record (called by /api/triage when the
+   176→   176→   176→ * classification is needs_followup or needs_facility_referral). Due in 48h.
+   177→   177→   177→ * Idempotent — if an open follow-up already exists for this triage record,
+   178→   178→   178→ * returns the existing one instead of creating a duplicate.
+   179→   179→   179→ */
+   180→   180→   180→export async function createFollowUp(args: {
+   181→   181→   181→  triageRecordId: string;
+   182→   182→   182→  chvId: string;
+   183→   183→   183→  dueInHours?: number;
+   184→   184→   184→}): Promise<FollowUpDTO | null> {
+   185→   185→   185→  const dueInHours = args.dueInHours ?? 48;
+   186→   186→   186→  // Idempotent: check for an existing pending follow-up for this record.
+   187→   187→   187→  const existing = await db.followUp.findFirst({
+   188→   188→   188→    where: { triageRecordId: args.triageRecordId, status: "pending" },
+   189→   189→   189→    include: { triageRecord: { select: { county: true, ward: true, classification: true, escalation: true, aggregateTag: true, chpNextAction: true } } },
+   190→   190→   190→  });
+   191→   191→   191→  if (existing) return toFollowUpDTO(existing);
+   192→   192→   192→
+   193→   193→   193→  const dueAt = new Date();
+   194→   194→   194→  dueAt.setHours(dueAt.getHours() + dueInHours);
+   195→   195→   195→
+   196→   196→   196→  const created = await db.followUp.create({
+   197→   197→   197→    data: {
+   198→   198→   198→      triageRecordId: args.triageRecordId,
+   199→   199→   199→      chvId: args.chvId,
+   200→   200→   200→      dueAt,
+   201→   201→   201→    },
+   202→   202→   202→    include: { triageRecord: { select: { county: true, ward: true, classification: true, escalation: true, aggregateTag: true, chpNextAction: true } } },
+   203→   203→   203→  });
+   204→   204→   204→  return toFollowUpDTO(created);
+   205→   205→   205→}
+   206→   206→   206→
+   207→   207→   207→/** Returns a CHV's follow-ups (ownership-scoped). Default: pending only. */
+   208→   208→   208→export async function getMyFollowUps(
+   209→   209→   209→  chvId: string,
+   210→   210→   210→  opts: { status?: FollowUpStatus | "all"; limit?: number } = {}
+   211→   211→   211→): Promise<FollowUpDTO[]> {
+   212→   212→   212→  const status = opts.status ?? "pending";
+   213→   213→   213→  const rows = await db.followUp.findMany({
+   214→   214→   214→    where: {
+   215→   215→   215→      chvId,
+   216→   216→   216→      ...(status !== "all" ? { status } : {}),
+   217→   217→   217→    },
+   218→   218→   218→    orderBy: [{ status: "asc" }, { dueAt: "asc" }],
+   219→   219→   219→    take: opts.limit ?? 50,
+   220→   220→   220→    include: {
+   221→   221→   221→      triageRecord: { select: { county: true, ward: true, classification: true, escalation: true, aggregateTag: true, chpNextAction: true } },
+   222→   222→   222→    },
+   223→   223→   223→  });
+   224→   224→   224→  return rows.map(toFollowUpDTO);
+   225→   225→   225→}
+   226→   226→   226→
+   227→   227→   227→/** Resolve a follow-up (mark done/missed). Ownership-scoped. */
+   228→   228→   228→export async function resolveFollowUp(args: {
+   229→   229→   229→  followUpId: string;
+   230→   230→   230→  chvId: string;
+   231→   231→   231→  status: "done" | "missed";
+   232→   232→   232→  resolutionNote?: string;
+   233→   233→   233→}): Promise<FollowUpDTO | null> {
+   234→   234→   234→  const { followUpId, chvId, status, resolutionNote } = args;
+   235→   235→   235→  // Ownership check: only the assigned CHV can resolve.
+   236→   236→   236→  const existing = await db.followUp.findUnique({ where: { id: followUpId } });
+   237→   237→   237→  if (!existing || existing.chvId !== chvId) return null;
+   238→   238→   238→  if (existing.status !== "pending") return null; // already resolved
+   239→   239→   239→
+   240→   240→   240→  const updated = await db.followUp.update({
+   241→   241→   241→    where: { id: followUpId },
+   242→   242→   242→    data: {
+   243→   243→   243→      status,
+   244→   244→   244→      resolvedAt: new Date(),
+   245→   245→   245→      resolutionNote: resolutionNote?.trim() || null,
+   246→   246→   246→    },
+   247→   247→   247→    include: {
+   248→   248→   248→      triageRecord: { select: { county: true, ward: true, classification: true, escalation: true, aggregateTag: true, chpNextAction: true } },
+   249→   249→   249→    },
+   250→   250→   250→  });
+   251→   251→   251→  return toFollowUpDTO(updated);
+   252→   252→   252→}
+   253→   253→   253→
+   254→   254→   254→/** De-identified personal stats for a CHV's "my impact" card. */
+   255→   255→   255→export interface ChvStats {
+   256→   256→   256→  total: number;
+   257→   257→   257→  routine: number;
+   258→   258→   258→  needs_followup: number;
+   259→   259→   259→  needs_facility_referral: number;
+   260→   260→   260→  escalation: number;
+   261→   261→   261→  /** Last 7 days count (for a trend hint). */
+   262→   262→   262→  last7d: number;
+   263→   263→   263→  /** Previous 7 days count (for a delta). */
+   264→   264→   264→  prev7d: number;
+   265→   265→   265→  /** First submission date (ISO) — "since you joined". */
+   266→   266→   266→  firstSubmission: string | null;
+   267→   267→   267→  /** Distinct counties the CHV has submitted for (usually 1). */
+   268→   268→   268→  countiesCovered: number;
+   269→   269→   269→}
+   270→   270→   270→
+   271→   271→   271→/**
+   272→   272→   272→ * Returns a CHV's personal aggregate stats (ownership-scoped). Computed from
+   273→   273→   273→ * their own records only — the RLS `auth.uid() = submitted_by` equivalent.
+   274→   274→   274→ */
+   275→   275→   275→export async function getMyStats(submittedById: string): Promise<ChvStats> {
+   276→   276→   276→  const now = new Date();
+   277→   277→   277→  const last7Start = new Date(now);
+   278→   278→   278→  last7Start.setDate(last7Start.getDate() - 7);
+   279→   279→   279→  last7Start.setHours(0, 0, 0, 0);
+   280→   280→   280→  const prev7Start = new Date(last7Start);
+   281→   281→   281→  prev7Start.setDate(prev7Start.getDate() - 7);
+   282→   282→   282→
+   283→   283→   283→  const [groups, last7Rows, prev7Rows, firstRow, counties] = await Promise.all([
+   284→   284→   284→    db.triageRecord.groupBy({
+   285→   285→   285→      by: ["classification", "escalation"],
+   286→   286→   286→      _count: true,
+   287→   287→   287→      where: { submittedById },
+   288→   288→   288→    }),
+   289→   289→   289→    db.triageRecord.count({
+   290→   290→   290→      where: { submittedById, createdAt: { gte: last7Start } },
+   291→   291→   291→    }),
+   292→   292→   292→    db.triageRecord.count({
+   293→   293→   293→      where: {
+   294→   294→   294→        submittedById,
+   295→   295→   295→        createdAt: { gte: prev7Start, lt: last7Start },
+   296→   296→   296→      },
+   297→   297→   297→    }),
+   298→   298→   298→    db.triageRecord.findFirst({
+   299→   299→   299→      where: { submittedById },
+   300→   300→   300→      orderBy: { createdAt: "asc" },
+   301→   301→   301→      select: { createdAt: true },
+   302→   302→   302→    }),
+   303→   303→   303→    db.triageRecord.groupBy({
+   304→   304→   304→      by: ["county"],
+   305→   305→   305→      _count: true,
+   306→   306→   306→      where: { submittedById },
+   307→   307→   307→    }),
+   308→   308→   308→  ]);
+   309→   309→   309→
+   310→   310→   310→  const stats: ChvStats = {
+   311→   311→   311→    total: 0,
+   312→   312→   312→    routine: 0,
+   313→   313→   313→    needs_followup: 0,
+   314→   314→   314→    needs_facility_referral: 0,
+   315→   315→   315→    escalation: 0,
+   316→   316→   316→    last7d: last7Rows,
+   317→   317→   317→    prev7d: prev7Rows,
+   318→   318→   318→    firstSubmission: firstRow ? firstRow.createdAt.toISOString() : null,
+   319→   319→   319→    countiesCovered: counties.length,
+   320→   320→   320→  };
+   321→   321→   321→
+   322→   322→   322→  for (const g of groups) {
+   323→   323→   323→    stats.total += g._count;
+   324→   324→   324→    if (g.classification === "routine") stats.routine += g._count;
+   325→   325→   325→    if (g.classification === "needs_followup") stats.needs_followup += g._count;
+   326→   326→   326→    if (g.classification === "needs_facility_referral")
+   327→   327→   327→      stats.needs_facility_referral += g._count;
+   328→   328→   328→    if (g.escalation) stats.escalation += g._count;
+   329→   329→   329→  }
+   330→   330→   330→
+   331→   331→   331→  return stats;
+   332→   332→   332→}
+   333→   333→   333→
+   334→   334→   334→export interface CountyAggregate {
+   335→   335→   335→  county: string;
+   336→   336→   336→  routine: number;
+   337→   337→   337→  needs_followup: number;
+   338→   338→   338→  needs_facility_referral: number;
+   339→   339→   339→  escalation: number;
+   340→   340→   340→  total: number;
+   341→   341→   341→}
+   342→   342→   342→
+   343→   343→   343→export interface DailyAggregate {
+   344→   344→   344→  day: string; // YYYY-MM-DD
+   345→   345→   345→  routine: number;
+   346→   346→   346→  needs_followup: number;
+   347→   347→   347→  needs_facility_referral: number;
+   348→   348→   348→  escalation: number;
+   349→   349→   349→  total: number;
+   350→   350→   350→}
+   351→   351→   351→
+   352→   352→   352→export interface TagAggregate {
+   353→   353→   353→  aggregateTag: string;
+   354→   354→   354→  count: number;
+   355→   355→   355→}
+   356→   356→   356→
+   357→   357→   357→/**
+   358→   358→   358→ * Aggregate by county over the last `days` days. Uses groupBy — never touches
+   359→   359→   359→ * observed_indicators text.
+   360→   360→   360→ */
+   361→   361→   361→export async function getAggregateByCounty(
+   362→   362→   362→  days?: number
+   363→   363→   363→): Promise<CountyAggregate[]> {
+   364→   364→   364→  const since =
+   365→   365→   365→    days && days > 0
+   366→   366→   366→      ? (() => {
+   367→   367→   367→          const d = new Date();
+   368→   368→   368→          d.setHours(0, 0, 0, 0);
+   369→   369→   369→          d.setDate(d.getDate() - (days - 1));
+   370→   370→   370→          return d;
+   371→   371→   371→        })()
+   372→   372→   372→      : undefined;
+   373→   373→   373→  const groups = await db.triageRecord.groupBy({
+   374→   374→   374→    by: ["county", "classification", "escalation"],
+   375→   375→   375→    _count: true,
+   376→   376→   376→    where: since ? { createdAt: { gte: since } } : undefined,
+   377→   377→   377→  });
+   378→   378→   378→
+   379→   379→   379→  const byCounty = new Map<string, CountyAggregate>();
+   380→   380→   380→  const ensure = (county: string): CountyAggregate => {
+   381→   381→   381→    let a = byCounty.get(county);
+   382→   382→   382→    if (!a) {
+   383→   383→   383→      a = {
+   384→   384→   384→        county,
+   385→   385→   385→        routine: 0,
+   386→   386→   386→        needs_followup: 0,
+   387→   387→   387→        needs_facility_referral: 0,
+   388→   388→   388→        escalation: 0,
+   389→   389→   389→        total: 0,
+   390→   390→   390→      };
+   391→   391→   391→      byCounty.set(county, a);
+   392→   392→   392→    }
+   393→   393→   393→    return a;
+   394→   394→   394→  };
+   395→   395→   395→
+   396→   396→   396→  for (const g of groups) {
+   397→   397→   397→    const a = ensure(g.county);
+   398→   398→   398→    a.total += g._count;
+   399→   399→   399→    if (g.classification === "routine") a.routine += g._count;
+   400→   400→   400→    if (g.classification === "needs_followup") a.needs_followup += g._count;
+   401→   401→   401→    if (g.classification === "needs_facility_referral") a.needs_facility_referral += g._count;
+   402→   402→   402→    if (g.escalation) a.escalation += g._count;
+   403→   403→   403→  }
+   404→   404→   404→  return Array.from(byCounty.values()).sort((a, b) => b.total - a.total);
+   405→   405→   405→}
+   406→   406→   406→
+   407→   407→   407→/**
+   408→   408→   408→ * Aggregate by day (last N days). Group by date string.
+   409→   409→   409→ */
+   410→   410→   410→export async function getAggregateByDay(days = 14): Promise<DailyAggregate[]> {
+   411→   411→   411→  const since = new Date();
+   412→   412→   412→  since.setHours(0, 0, 0, 0);
+   413→   413→   413→  since.setDate(since.getDate() - (days - 1));
+   414→   414→   414→
+   415→   415→   415→  const rows = await db.triageRecord.findMany({
+   416→   416→   416→    where: { createdAt: { gte: since } },
+   417→   417→   417→    select: { createdAt: true, classification: true, escalation: true },
+   418→   418→   418→  });
+   419→   419→   419→
+   420→   420→   420→  const byDay = new Map<string, DailyAggregate>();
+   421→   421→   421→  for (let i = 0; i < days; i++) {
+   422→   422→   422→    const d = new Date(since);
+   423→   423→   423→    d.setDate(d.getDate() + i);
+   424→   424→   424→    const key = d.toISOString().slice(0, 10);
+   425→   425→   425→    byDay.set(key, {
+   426→   426→   426→      day: key,
+   427→   427→   427→      routine: 0,
+   428→   428→   428→      needs_followup: 0,
+   429→   429→   429→      needs_facility_referral: 0,
+   430→   430→   430→      escalation: 0,
+   431→   431→   431→      total: 0,
+   432→   432→   432→    });
+   433→   433→   433→  }
+   434→   434→   434→
+   435→   435→   435→  for (const r of rows) {
+   436→   436→   436→    const key = r.createdAt.toISOString().slice(0, 10);
+   437→   437→   437→    const a = byDay.get(key);
+   438→   438→   438→    if (!a) continue;
+   439→   439→   439→    a.total++;
+   440→   440→   440→    if (r.classification === "routine") a.routine++;
+   441→   441→   441→    if (r.classification === "needs_followup") a.needs_followup++;
+   442→   442→   442→    if (r.classification === "needs_facility_referral") a.needs_facility_referral++;
+   443→   443→   443→    if (r.escalation) a.escalation++;
+   444→   444→   444→  }
+   445→   445→   445→  return Array.from(byDay.values()).sort((a, b) => a.day.localeCompare(b.day));
+   446→   446→   446→}
+   447→   447→   447→
+   448→   448→   448→/**
+   449→   449→   449→ * Aggregate by aggregate_tag (top signals) over the last `days` days. Never
+   450→   450→   450→ * exposes indicator text.
+   451→   451→   451→ */
+   452→   452→   452→export async function getAggregateByTag(
+   453→   453→   453→  limit = 12,
+   454→   454→   454→  days?: number
+   455→   455→   455→): Promise<TagAggregate[]> {
+   456→   456→   456→  const since =
+   457→   457→   457→    days && days > 0
+   458→   458→   458→      ? (() => {
+   459→   459→   459→          const d = new Date();
+   460→   460→   460→          d.setHours(0, 0, 0, 0);
+   461→   461→   461→          d.setDate(d.getDate() - (days - 1));
+   462→   462→   462→          return d;
+   463→   463→   463→        })()
+   464→   464→   464→      : undefined;
+   465→   465→   465→  const groups = await db.triageRecord.groupBy({
+   466→   466→   466→    by: ["aggregateTag"],
+   467→   467→   467→    _count: true,
+   468→   468→   468→    orderBy: { _count: { aggregateTag: "desc" } },
+   469→   469→   469→    take: limit,
+   470→   470→   470→    where: since ? { createdAt: { gte: since } } : undefined,
+   471→   471→   471→  });
+   472→   472→   472→  return groups
+   473→   473→   473→    .filter((g) => g.aggregateTag)
+   474→   474→   474→    .map((g) => ({ aggregateTag: g.aggregateTag as string, count: g._count }));
+   475→   475→   475→}
+   476→   476→   476→
+   477→   477→   477→export interface DashboardStats {
+   478→   478→   478→  byCounty: CountyAggregate[];
+   479→   479→   479→  byDay: DailyAggregate[];
+   480→   480→   480→  byTag: TagAggregate[];
+   481→   481→   481→  totals: {
+   482→   482→   482→    total: number;
+   483→   483→   483→    routine: number;
+   484→   484→   484→    needs_followup: number;
+   485→   485→   485→    needs_facility_referral: number;
+   486→   486→   486→    escalation: number;
+   487→   487→   487→    countiesCovered: number;
+   488→   488→   488→  };
+   489→   489→   489→}
+   490→   490→   490→
+   491→   491→   491→export async function getDashboardStats(days = 14): Promise<DashboardStats> {
+   492→   492→   492→  const [byCounty, byDay, byTag, totalsGroups] = await Promise.all([
+   493→   493→   493→    getAggregateByCounty(days),
+   494→   494→   494→    getAggregateByDay(days),
+   495→   495→   495→    getAggregateByTag(12, days),
+   496→   496→   496→    db.triageRecord.groupBy({
+   497→   497→   497→      by: ["classification", "escalation"],
+   498→   498→   498→      _count: true,
+   499→   499→   499→      where:
+   500→   500→   500→        days > 0
+   501→   501→   501→          ? {
+   502→   502→   502→              createdAt: {
+   503→   503→   503→                gte: (() => {
+   504→   504→   504→                  const d = new Date();
+   505→   505→   505→                  d.setHours(0, 0, 0, 0);
+   506→   506→   506→                  d.setDate(d.getDate() - (days - 1));
+   507→   507→   507→                  return d;
+   508→   508→   508→                })(),
+   509→   509→   509→              },
+   510→   510→   510→            }
+   511→   511→   511→          : undefined,
+   512→   512→   512→    }),
+   513→   513→   513→  ]);
+   514→   514→   514→
+   515→   515→   515→  const totals = {
+   516→   516→   516→    total: 0,
+   517→   517→   517→    routine: 0,
+   518→   518→   518→    needs_followup: 0,
+   519→   519→   519→    needs_facility_referral: 0,
+   520→   520→   520→    escalation: 0,
+   521→   521→   521→    countiesCovered: byCounty.length,
+   522→   522→   522→  };
+   523→   523→   523→  for (const g of totalsGroups) {
+   524→   524→   524→    totals.total += g._count;
+   525→   525→   525→    if (g.classification === "routine") totals.routine += g._count;
+   526→   526→   526→    if (g.classification === "needs_followup") totals.needs_followup += g._count;
+   527→   527→   527→    if (g.classification === "needs_facility_referral") totals.needs_facility_referral += g._count;
+   528→   528→   528→    if (g.escalation) totals.escalation += g._count;
+   529→   529→   529→  }
+   530→   530→   530→
+   531→   531→   531→  return { byCounty, byDay, byTag, totals };
+   532→   532→   532→}
+   533→   533→   533→
+   534→   534→   534→/* ------------------------------------------------------------------ */
+   535→   535→   535→/* Audit log — compliance layer.                                       */
+   536→   536→   536→/* Records WHO (actorId), WHEN, WHERE (county/ward), and the model's   */
+   537→   537→   537→/* verdict (classification/escalation/fallback) for every triage      */
+   538→   538→   538→/* event. NEVER stores the observation text or the redacted text.      */
+   539→   539→   539→/* ------------------------------------------------------------------ */
+   540→   540→   540→
+   541→   541→   541→export interface AuditEntry {
+   542→   542→   542→  id: string;
+   543→   543→   543→  createdAt: string;
+   544→   544→   544→  triageRecordId: string | null;
+   545→   545→   545→  /** Truncated actor id (never the email) — enough for an activity feed. */
+   546→   546→   546→  actorLabel: string;
+   547→   547→   547→  event: string;
+   548→   548→   548→  county: string;
+   549→   549→   549→  ward: string | null;
+   550→   550→   550→  classification: string | null;
+   551→   551→   551→  escalation: boolean;
+   552→   552→   552→  fallbackUsed: boolean;
+   553→   553→   553→}
+   554→   554→   554→
+   555→   555→   555→export async function writeAuditEntry(args: {
+   556→   556→   556→  triageRecordId?: string;
+   557→   557→   557→  actorId: string;
+   558→   558→   558→  event: string;
+   559→   559→   559→  county: string;
+   560→   560→   560→  ward?: string | null;
+   561→   561→   561→  classification?: string | null;
+   562→   562→   562→  escalation?: boolean;
+   563→   563→   563→  fallbackUsed?: boolean;
+   564→   564→   564→  piiRedactions?: Record<string, number> | null;
+   565→   565→   565→}): Promise<void> {
+   566→   566→   566→  await db.auditLog.create({
+   567→   567→   567→    data: {
+   568→   568→   568→      triageRecordId: args.triageRecordId ?? null,
+   569→   569→   569→      actorId: args.actorId,
+   570→   570→   570→      event: args.event,
+   571→   571→   571→      county: args.county,
+   572→   572→   572→      ward: args.ward ?? null,
+   573→   573→   573→      classification: args.classification ?? null,
+   574→   574→   574→      escalation: args.escalation ?? false,
+   575→   575→   575→      fallbackUsed: args.fallbackUsed ?? false,
+   576→   576→   576→      piiRedactions: args.piiRedactions
+   577→   577→   577→        ? JSON.stringify(args.piiRedactions)
+   578→   578→   578→        : null,
+   579→   579→   579→    },
+   580→   580→   580→  });
+   581→   581→   581→}
+   582→   582→   582→
+   583→   583→   583→/** Recent audit entries for the dashboard activity strip (de-identified). */
+   584→   584→   584→export async function getRecentAudit(limit = 8): Promise<AuditEntry[]> {
+   585→   585→   585→  const rows = await db.auditLog.findMany({
+   586→   586→   586→    orderBy: { createdAt: "desc" },
+   587→   587→   587→    take: limit,
+   588→   588→   588→    select: {
+   589→   589→   589→      id: true,
+   590→   590→   590→      createdAt: true,
+   591→   591→   591→      triageRecordId: true,
+   592→   592→   592→      actorId: true,
+   593→   593→   593→      event: true,
+   594→   594→   594→      county: true,
+   595→   595→   595→      ward: true,
+   596→   596→   596→      classification: true,
+   597→   597→   597→      escalation: true,
+   598→   598→   598→      fallbackUsed: true,
+   599→   599→   599→    },
+   600→   600→   600→  });
+   601→   601→   601→  return rows.map((r) => ({
+   602→   602→   602→    id: r.id,
+   603→   603→   603→    createdAt: r.createdAt.toISOString(),
+   604→   604→   604→    triageRecordId: r.triageRecordId,
+   605→   605→   605→    // Truncated actor id — never the email. For the demo activity feed this
+   606→   606→   606→    // is enough to distinguish "chv A" vs "chv B" without identifying them.
+   607→   607→   607→    actorLabel: `chv·${r.actorId.slice(-4)}`,
+   608→   608→   608→    event: r.event,
+   609→   609→   609→    county: r.county,
+   610→   610→   610→    ward: r.ward,
+   611→   611→   611→    classification: r.classification,
+   612→   612→   612→    escalation: r.escalation,
+   613→   613→   613→    fallbackUsed: r.fallbackUsed,
+   614→   614→   614→  }));
+   615→   615→   615→}
+   616→   616→   616→
+   617→   617→   617→/** Paginated audit entries for the compliance viewer page (de-identified). */
+   618→   618→   618→export async function getAuditPage(opts: {
+   619→   619→   619→  page?: number;
+   620→   620→   620→  pageSize?: number;
+   621→   621→   621→  county?: string;
+   622→   622→   622→  event?: string;
+   623→   623→   623→  escalationOnly?: boolean;
+   624→   624→   624→} = {}): Promise<{ entries: AuditEntry[]; total: number; page: number; pageSize: number }> {
+   625→   625→   625→  const page = Math.max(1, opts.page ?? 1);
+   626→   626→   626→  const pageSize = Math.min(100, Math.max(1, opts.pageSize ?? 25));
+   627→   627→   627→  const where: { county?: string; event?: string; escalation?: boolean } = {};
+   628→   628→   628→  if (opts.county) where.county = opts.county;
+   629→   629→   629→  if (opts.event) where.event = opts.event;
+   630→   630→   630→  if (opts.escalationOnly) where.escalation = true;
+   631→   631→   631→
+   632→   632→   632→  const [rows, total] = await Promise.all([
+   633→   633→   633→    db.auditLog.findMany({
+   634→   634→   634→      where,
+   635→   635→   635→      orderBy: { createdAt: "desc" },
+   636→   636→   636→      skip: (page - 1) * pageSize,
+   637→   637→   637→      take: pageSize,
+   638→   638→   638→      select: {
+   639→   639→   639→        id: true,
+   640→   640→   640→        createdAt: true,
+   641→   641→   641→        triageRecordId: true,
+   642→   642→   642→        actorId: true,
+   643→   643→   643→        event: true,
+   644→   644→   644→        county: true,
+   645→   645→   645→        ward: true,
+   646→   646→   646→        classification: true,
+   647→   647→   647→        escalation: true,
+   648→   648→   648→        fallbackUsed: true,
+   649→   649→   649→      },
+   650→   650→   650→    }),
+   651→   651→   651→    db.auditLog.count({ where }),
+   652→   652→   652→  ]);
+   653→   653→   653→
+   654→   654→   654→  return {
+   655→   655→   655→    entries: rows.map((r) => ({
+   656→   656→   656→      id: r.id,
+   657→   657→   657→      createdAt: r.createdAt.toISOString(),
+   658→   658→   658→      triageRecordId: r.triageRecordId,
+   659→   659→   659→      actorLabel: `chv·${r.actorId.slice(-4)}`,
+   660→   660→   660→      event: r.event,
+   661→   661→   661→      county: r.county,
+   662→   662→   662→      ward: r.ward,
+   663→   663→   663→      classification: r.classification,
+   664→   664→   664→      escalation: r.escalation,
+   665→   665→   665→      fallbackUsed: r.fallbackUsed,
+   666→   666→   666→    })),
+   667→   667→   667→    total,
+   668→   668→   668→    page,
+   669→   669→   669→    pageSize,
+   670→   670→   670→  };
+   671→   671→   671→}
+   672→   672→   672→
+   673→   673→   673→/* ------------------------------------------------------------------ */
+   674→   674→   674→/* Follow-up completion stats — for dashboard/supervisor metrics.      */
+   675→   675→   675→/* ------------------------------------------------------------------ */
+   676→   676→   676→
+   677→   677→   677→export interface FollowUpStats {
+   678→   678→   678→  pending: number;
+   679→   679→   679→  done: number;
+   680→   680→   680→  missed: number;
+   681→   681→   681→  /** Overdue = pending AND past dueAt. */
+   682→   682→   682→  overdue: number;
+   683→   683→   683→  /** Completion rate = done / (done + missed). 0 if none resolved. */
+   684→   684→   684→  completionRate: number;
+   685→   685→   685→  total: number;
+   686→   686→   686→}
+   687→   687→   687→
+   688→   688→   688→/**
+   689→   689→   689→ * Returns aggregate follow-up stats (de-identified — counts only). Optionally
+   690→   690→   690→ * filtered by county and/or a date window. Used by the dashboard's follow-up
+   691→   691→   691→ * KPI card and the supervisor roster.
+   692→   692→   692→ */
+   693→   693→   693→export async function getFollowUpStats(
+   694→   694→   694→  opts: { county?: string; days?: number } = {}
+   695→   695→   695→): Promise<FollowUpStats> {
+   696→   696→   696→  const since = opts.days
+   697→   697→   697→    ? (() => {
+   698→   698→   698→        const d = new Date();
+   699→   699→   699→        d.setHours(0, 0, 0, 0);
+   700→   700→   700→        d.setDate(d.getDate() - (opts.days! - 1));
+   701→   701→   701→        return d;
+   702→   702→   702→      })()
+   703→   703→   703→    : undefined;
+   704→   704→   704→
+   705→   705→   705→  // County filter requires joining through TriageRecord — use the relation.
+   706→   706→   706→  const where = {
+   707→   707→   707→    ...(since ? { createdAt: { gte: since } } : {}),
+   708→   708→   708→    ...(opts.county ? { triageRecord: { county: opts.county } } : {}),
+   709→   709→   709→  };
+   710→   710→   710→
+   711→   711→   711→  const [statusGroups, overdueCount, total] = await Promise.all([
+   712→   712→   712→    db.followUp.groupBy({
+   713→   713→   713→      by: ["status"],
+   714→   714→   714→      _count: true,
+   715→   715→   715→      where,
+   716→   716→   716→    }),
+   717→   717→   717→    db.followUp.count({
+   718→   718→   718→      where: {
+   719→   719→   719→        ...where,
+   720→   720→   720→        status: "pending",
+   721→   721→   721→        dueAt: { lt: new Date() },
+   722→   722→   722→      },
+   723→   723→   723→    }),
+   724→   724→   724→    db.followUp.count({ where }),
+   725→   725→   725→  ]);
+   726→   726→   726→
+   727→   727→   727→  const stats: FollowUpStats = {
+   728→   728→   728→    pending: 0,
+   729→   729→   729→    done: 0,
+   730→   730→   730→    missed: 0,
+   731→   731→   731→    overdue: overdueCount,
+   732→   732→   732→    total,
+   733→   733→   733→    completionRate: 0,
+   734→   734→   734→  };
+   735→   735→   735→  for (const g of statusGroups) {
+   736→   736→   736→    if (g.status === "pending") stats.pending = g._count;
+   737→   737→   737→    if (g.status === "done") stats.done = g._count;
+   738→   738→   738→    if (g.status === "missed") stats.missed = g._count;
+   739→   739→   739→  }
+   740→   740→   740→  const resolved = stats.done + stats.missed;
+   741→   741→   741→  stats.completionRate = resolved > 0 ? Math.round((stats.done / resolved) * 100) : 0;
+   742→   742→   742→  return stats;
+   743→   743→   743→}
+   744→   744→   744→
+   745→   745→   745→/* ------------------------------------------------------------------ */
+   746→   746→   746→/* Supervisor roster — de-identified per-CHV aggregate for supervisors. */
+   747→   747→   747→/* Groups triage records by submitting CHV, returning per-CHV counts    */
+   748→   748→   748→/* (never the CHV email, never observation text). A supervisor sees     */
+   749→   749→   749→/* activity + load + escalation burden per volunteer.                   */
+   750→   750→   750→/* ------------------------------------------------------------------ */
+   751→   751→   751→
+   752→   752→   752→export interface SupervisorChvRow {
+   753→   753→   753→  /** Truncated CHV id — never the email. */
+   754→   754→   754→  chvLabel: string;
+   755→   755→   755→  county: string;
+   756→   756→   756→  ward: string | null;
+   757→   757→   757→  total: number;
+   758→   758→   758→  routine: number;
+   759→   759→   759→  needs_followup: number;
+   760→   760→   760→  needs_facility_referral: number;
+   761→   761→   761→  escalation: number;
+   762→   762→   762→  /** Last 7 days count (for activity recency). */
+   763→   763→   763→  last7d: number;
+   764→   764→   764→  /** Most recent submission (ISO) — null if none. */
+   765→   765→   765→  lastSubmission: string | null;
+   766→   766→   766→}
+   767→   767→   767→
+   768→   768→   768→export interface SupervisorRoster {
+   769→   769→   769→  rows: SupervisorChvRow[];
+   770→   770→   770→  totals: {
+   771→   771→   771→    chvs: number;
+   772→   772→   772→    total: number;
+   773→   773→   773→    escalations: number;
+   774→   774→   774→  };
+   775→   775→   775→}
+   776→   776→   776→
+   777→   777→   777→/**
+   778→   778→   778→ * Returns a de-identified per-CHV roster for the supervisor view. Groups
+   779→   779→   779→ * triage records by submittedById, computes per-CHV aggregates, and labels
+   780→   780→   780→ * each row with a truncated id (chv·xxxx) — never the email. Optionally
+   781→   781→   781→ * filter by county. Ownership is NOT bypassed at the row level (the
+   782→   782→   782→ * supervisor sees aggregates only, never individual observation text).
+   783→   783→   783→ *
+   784→   784→   784→ * TODO (production): require a supervisor RBAC role. Currently open for demo.
+   785→   785→   785→ */
+   786→   786→   786→export async function getSupervisorRoster(
+   787→   787→   787→  county?: string,
+   788→   788→   788→  days = 14
+   789→   789→   789→): Promise<SupervisorRoster> {
+   790→   790→   790→  const since = (() => {
+   791→   791→   791→    const d = new Date();
+   792→   792→   792→    d.setHours(0, 0, 0, 0);
+   793→   793→   793→    d.setDate(d.getDate() - (days - 1));
+   794→   794→   794→    return d;
+   795→   795→   795→  })();
+   796→   796→   796→  const last7Start = (() => {
+   797→   797→   797→    const d = new Date();
+   798→   798→   798→    d.setHours(0, 0, 0, 0);
+   799→   799→   799→    d.setDate(d.getDate() - 7);
+   800→   800→   800→    return d;
+   801→   801→   801→  })();
+   802→   802→   802→
+   803→   803→   803→  const where = {
+   804→   804→   804→    createdAt: { gte: since },
+   805→   805→   805→    ...(county ? { county } : {}),
+   806→   806→   806→  };
+   807→   807→   807→
+   808→   808→   808→  // Group by submittedById + classification + escalation for per-CHV breakdowns.
+   809→   809→   809→  const [groups, chvs, last7Counts, lastSubs] = await Promise.all([
+   810→   810→   810→    db.triageRecord.groupBy({
+   811→   811→   811→      by: ["submittedById", "classification", "escalation"],
+   812→   812→   812→      _count: true,
+   813→   813→   813→      where,
+   814→   814→   814→    }),
+   815→   815→   815→    db.chvUser.findMany({
+   816→   816→   816→      where: county ? { county } : undefined,
+   817→   817→   817→      select: { id: true, county: true, ward: true },
+   818→   818→   818→    }),
+   819→   819→   819→    db.triageRecord.groupBy({
+   820→   820→   820→      by: ["submittedById"],
+   821→   821→   821→      _count: true,
+   822→   822→   822→      where: { ...where, createdAt: { gte: last7Start } },
+   823→   823→   823→    }),
+   824→   824→   824→    db.triageRecord.findMany({
+   825→   825→   825→      where,
+   826→   826→   826→      distinct: ["submittedById"],
+   827→   827→   827→      orderBy: { createdAt: "desc" },
+   828→   828→   828→      select: { submittedById: true, createdAt: true },
+   829→   829→   829→    }),
+   830→   830→   830→  ]);
+   831→   831→   831→
+   832→   832→   832→  const chvMeta = new Map(chvs.map((c) => [c.id, c]));
+   833→   833→   833→  const last7Map = new Map(last7Counts.map((g) => [g.submittedById, g._count]));
+   834→   834→   834→  const lastSubMap = new Map(lastSubs.map((r) => [r.submittedById, r.createdAt.toISOString()]));
+   835→   835→   835→
+   836→   836→   836→  const byChv = new Map<string, SupervisorChvRow>();
+   837→   837→   837→  const ensure = (id: string): SupervisorChvRow => {
+   838→   838→   838→    let r = byChv.get(id);
+   839→   839→   839→    if (!r) {
+   840→   840→   840→      const meta = chvMeta.get(id);
+   841→   841→   841→      r = {
+   842→   842→   842→        chvLabel: `chv·${id.slice(-4)}`,
+   843→   843→   843→        county: meta?.county ?? "—",
+   844→   844→   844→        ward: meta?.ward ?? null,
+   845→   845→   845→        total: 0,
+   846→   846→   846→        routine: 0,
+   847→   847→   847→        needs_followup: 0,
+   848→   848→   848→        needs_facility_referral: 0,
+   849→   849→   849→        escalation: 0,
+   850→   850→   850→        last7d: last7Map.get(id) ?? 0,
+   851→   851→   851→        lastSubmission: lastSubMap.get(id) ?? null,
+   852→   852→   852→      };
+   853→   853→   853→      byChv.set(id, r);
+   854→   854→   854→    }
+   855→   855→   855→    return r;
+   856→   856→   856→  };
+   857→   857→   857→
+   858→   858→   858→  let totalAll = 0;
+   859→   859→   859→  let totalEsc = 0;
+   860→   860→   860→  for (const g of groups) {
+   861→   861→   861→    const r = ensure(g.submittedById);
+   862→   862→   862→    r.total += g._count;
+   863→   863→   863→    totalAll += g._count;
+   864→   864→   864→    if (g.classification === "routine") r.routine += g._count;
+   865→   865→   865→    if (g.classification === "needs_followup") r.needs_followup += g._count;
+   866→   866→   866→    if (g.classification === "needs_facility_referral") r.needs_facility_referral += g._count;
+   867→   867→   867→    if (g.escalation) {
+   868→   868→   868→      r.escalation += g._count;
+   869→   869→   869→      totalEsc += g._count;
+   870→   870→   870→    }
+   871→   871→   871→  }
+   872→   872→   872→
+   873→   873→   873→  const rows = Array.from(byChv.values()).sort((a, b) => b.total - a.total);
+   874→   874→   874→
+   875→   875→   875→  return {
+   876→   876→   876→    rows,
+   877→   877→   877→    totals: { chvs: rows.length, total: totalAll, escalations: totalEsc },
+   878→   878→   878→  };
+   879→   879→   879→}
+   880→   880→   880→
+   881→   881→   881→/**
+   882→   882→   882→ * County-scoped dashboard stats — the RBAC path. When a county official is
+   883→   883→   883→ * logged in (or a CHV views their own county), we filter every aggregate to
+   884→   884→   884→ * a single county. The byCounty array then has at most one row; the daily
+   885→   885→   885→ * trend + tags are scoped to that county only.
+   886→   886→   886→ */
+   887→   887→   887→export async function getDashboardStatsForCounty(
+   888→   888→   888→  county: string,
+   889→   889→   889→  days = 14
+   890→   890→   890→): Promise<DashboardStats & { county: string }> {
+   891→   891→   891→  const since = (() => {
+   892→   892→   892→    const d = new Date();
+   893→   893→   893→    d.setHours(0, 0, 0, 0);
+   894→   894→   894→    d.setDate(d.getDate() - (days - 1));
+   895→   895→   895→    return d;
+   896→   896→   896→  })();
+   897→   897→   897→
+   898→   898→   898→  const where = {
+   899→   899→   899→    county,
+   900→   900→   900→    createdAt: { gte: since },
+   901→   901→   901→  };
+   902→   902→   902→
+   903→   903→   903→  const [countyGroups, dayRows, tagGroups, totalsGroups] = await Promise.all([
+   904→   904→   904→    db.triageRecord.groupBy({
+   905→   905→   905→      by: ["county", "classification", "escalation"],
+   906→   906→   906→      _count: true,
+   907→   907→   907→      where,
+   908→   908→   908→    }),
+   909→   909→   909→    db.triageRecord.findMany({
+   910→   910→   910→      where,
+   911→   911→   911→      select: { createdAt: true, classification: true, escalation: true },
+   912→   912→   912→    }),
+   913→   913→   913→    db.triageRecord.groupBy({
+   914→   914→   914→      by: ["aggregateTag"],
+   915→   915→   915→      _count: true,
+   916→   916→   916→      orderBy: { _count: { aggregateTag: "desc" } },
+   917→   917→   917→      take: 12,
+   918→   918→   918→      where,
+   919→   919→   919→    }),
+   920→   920→   920→    db.triageRecord.groupBy({
+   921→   921→   921→      by: ["classification", "escalation"],
+   922→   922→   922→      _count: true,
+   923→   923→   923→      where,
+   924→   924→   924→    }),
+   925→   925→   925→  ]);
+   926→   926→   926→
+   927→   927→   927→  // byCounty — single row for the scoped county
+   928→   928→   928→  const countyAgg: CountyAggregate = {
+   929→   929→   929→    county,
+   930→   930→   930→    routine: 0,
+   931→   931→   931→    needs_followup: 0,
+   932→   932→   932→    needs_facility_referral: 0,
+   933→   933→   933→    escalation: 0,
+   934→   934→   934→    total: 0,
+   935→   935→   935→  };
+   936→   936→   936→  for (const g of countyGroups) {
+   937→   937→   937→    countyAgg.total += g._count;
+   938→   938→   938→    if (g.classification === "routine") countyAgg.routine += g._count;
+   939→   939→   939→    if (g.classification === "needs_followup") countyAgg.needs_followup += g._count;
+   940→   940→   940→    if (g.classification === "needs_facility_referral")
+   941→   941→   941→      countyAgg.needs_facility_referral += g._count;
+   942→   942→   942→    if (g.escalation) countyAgg.escalation += g._count;
+   943→   943→   943→  }
+   944→   944→   944→  const byCounty = countyAgg.total > 0 ? [countyAgg] : [];
+   945→   945→   945→
+   946→   946→   946→  // byDay — full N-day ladder, populated from dayRows
+   947→   947→   947→  const byDay = new Map<string, DailyAggregate>();
+   948→   948→   948→  for (let i = 0; i < days; i++) {
+   949→   949→   949→    const d = new Date(since);
+   950→   950→   950→    d.setDate(d.getDate() + i);
+   951→   951→   951→    const key = d.toISOString().slice(0, 10);
+   952→   952→   952→    byDay.set(key, {
+   953→   953→   953→      day: key,
+   954→   954→   954→      routine: 0,
+   955→   955→   955→      needs_followup: 0,
+   956→   956→   956→      needs_facility_referral: 0,
+   957→   957→   957→      escalation: 0,
+   958→   958→   958→      total: 0,
+   959→   959→   959→    });
+   960→   960→   960→  }
+   961→   961→   961→  for (const r of dayRows) {
+   962→   962→   962→    const key = r.createdAt.toISOString().slice(0, 10);
+   963→   963→   963→    const a = byDay.get(key);
+   964→   964→   964→    if (!a) continue;
+   965→   965→   965→    a.total++;
+   966→   966→   966→    if (r.classification === "routine") a.routine++;
+   967→   967→   967→    if (r.classification === "needs_followup") a.needs_followup++;
+   968→   968→   968→    if (r.classification === "needs_facility_referral") a.needs_facility_referral++;
+   969→   969→   969→    if (r.escalation) a.escalation++;
+   970→   970→   970→  }
+   971→   971→   971→
+   972→   972→   972→  const byTag: TagAggregate[] = tagGroups
+   973→   973→   973→    .filter((g) => g.aggregateTag)
+   974→   974→   974→    .map((g) => ({ aggregateTag: g.aggregateTag as string, count: g._count }));
+   975→   975→   975→
+   976→   976→   976→  const totals = {
+   977→   977→   977→    total: 0,
+   978→   978→   978→    routine: 0,
+   979→   979→   979→    needs_followup: 0,
+   980→   980→   980→    needs_facility_referral: 0,
+   981→   981→   981→    escalation: 0,
+   982→   982→   982→    countiesCovered: byCounty.length,
+   983→   983→   983→  };
+   984→   984→   984→  for (const g of totalsGroups) {
+   985→   985→   985→    totals.total += g._count;
+   986→   986→   986→    if (g.classification === "routine") totals.routine += g._count;
+   987→   987→   987→    if (g.classification === "needs_followup") totals.needs_followup += g._count;
+   988→   988→   988→    if (g.classification === "needs_facility_referral")
+   989→   989→   989→      totals.needs_facility_referral += g._count;
+   990→   990→   990→    if (g.escalation) totals.escalation += g._count;
+   991→   991→   991→  }
+   992→   992→   992→
+   993→   993→   993→  return { byCounty, byDay, byTag, totals, county };
+   994→   994→   994→}
+   995→   995→   995→

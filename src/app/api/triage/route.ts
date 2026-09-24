@@ -72,6 +72,13 @@ export async function POST(req: Request) {
   ) {
     return bad("MISSING_OR_TOO_SHORT", "observation_text");
   }
+  // DoS / cost guard — reject oversized observations before the PII scrub
+  // regex (slow on huge input) and the Qwen call (rejected upstream, but
+  // body-parse + scrub cost already paid). 5000 chars is generous for any
+  // reasonable CHV home-visit narrative.
+  if (observation_text.length > 5000) {
+    return bad("OBSERVATION_TOO_LONG", "observation_text");
+  }
   // Validate county.
   if (typeof county !== "string" || !COUNTIES.includes(county as County)) {
     return bad("INVALID_COUNTY", "county");
@@ -158,11 +165,17 @@ export async function POST(req: Request) {
 
     return NextResponse.json(record, { status: 200 });
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    // Never include observation_text in the detail.
-    console.error("[triage] unexpected failure:", detail);
+    // Log the full error server-side for debugging — never send to client.
+    // err.message from Prisma (table/column names), the Qwen SDK (upstream API
+    // error bodies), or JSON parsing can leak internals to the client, so we
+    // return only a generic detail and keep the real error on the server.
+    console.error("[triage] unexpected failure:", err);
     return NextResponse.json(
-      { error: "TRIAGE_FAILED", detail },
+      {
+        error: "TRIAGE_FAILED",
+        detail:
+          "An unexpected error occurred during triage. The observation was not stored.",
+      },
       { status: 500 }
     );
   }

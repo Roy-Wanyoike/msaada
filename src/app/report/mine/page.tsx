@@ -124,7 +124,7 @@ export default function ReportPage() {
       <div className="print:hidden">
         <AppNav />
       </div>
-      <main className="flex-1">
+      <main id="main" className="flex-1">
         <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           {/* Header (hidden in print) */}
           <header className="mb-6 print:hidden sm:mb-8">

@@ -41,6 +41,11 @@ model TriageRecord {
   // Triage output (model-derived, never raw observation text)
   classification    String   // routine | needs_followup | needs_facility_referral
   escalation        Boolean  @default(false)
+  // Whether the spec fallback was used (Qwen parse failure → needs_followup
+  // + confidence_note "model output could not be parsed"). Persisted so the
+  // DTO contract is authoritative on retrieval (TriageResultCard's amber
+  // "Caution fallback applied" banner shows on revisited records).
+  fallbackUsed      Boolean  @default(false)
   observedIndicators String   // JSON-encoded string[] (SQLite has no arrays)
   aggregateTag      String?
   chpNextAction     String?

@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth";
 import { classifyObservation } from "@/lib/qwen";
 import { insertTriageRecord } from "@/lib/triage-store";
+import { checkRateLimit } from "@/lib/rate-limit";
 import type { County } from "@/lib/types";
 
 // Mutates DB → never static.
@@ -138,7 +139,30 @@ async function backdateRecord(id: string, dayOffset: number) {
   await db.$executeRaw`UPDATE TriageRecord SET createdAt = ${target} WHERE id = ${id}`;
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  // Rate-limit per request IP. Each seed call spawns 9 Qwen LLM calls (~12-15s
+  // each = ~2+ minutes of LLM compute) + 9 DB writes + 9 raw-SQL backdates.
+  // Without a limit a single caller can DoS the LLM budget and bloat the DB.
+  // 3 calls per 10 minutes is generous for demo/judge flows but blocks spam.
+  const forwardedFor = req.headers.get("x-forwarded-for") ?? "unknown";
+  // The header may be a comma-separated list of IPs when proxied through
+  // multiple hops — take the leftmost (the originating client IP).
+  const ip = forwardedFor.split(",")[0].trim() || "unknown";
+  const rl = checkRateLimit(`seed:${ip}`, {
+    capacity: 3,
+    windowMs: 10 * 60_000,
+  });
+  if (!rl.allowed) {
+    const retryAfter = Math.ceil(rl.retryAfterMs / 1000);
+    return NextResponse.json(
+      { error: "RATE_LIMITED", retryAfter },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfter) },
+      }
+    );
+  }
+
   const demoChv = await ensureDemoChv();
 
   const records: Array<{

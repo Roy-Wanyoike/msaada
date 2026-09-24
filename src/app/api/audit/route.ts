@@ -27,9 +27,18 @@ export async function GET(req: Request) {
   const event = url.searchParams.get("event") ?? undefined;
   const escalation = url.searchParams.get("escalation");
 
+  // NaN guard: parseInt("abc") === NaN, then Math.max(1, NaN) === NaN, then
+  // Prisma's `skip: NaN` throws → unhandled 500. Fall back to the default
+  // for any non-finite parse result (empty string, non-numeric, ±Infinity).
+  const parsedPage = page ? Number.parseInt(page, 10) : 1;
+  const parsedPageSize = pageSize ? Number.parseInt(pageSize, 10) : 25;
+  const safePage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const safePageSize =
+    Number.isFinite(parsedPageSize) && parsedPageSize > 0 ? parsedPageSize : 25;
+
   const result = await getAuditPage({
-    page: page ? Number.parseInt(page, 10) : 1,
-    pageSize: pageSize ? Number.parseInt(pageSize, 10) : 25,
+    page: safePage,
+    pageSize: safePageSize,
     county: county || undefined,
     event: event || undefined,
     escalationOnly: escalation === "true",

@@ -34,7 +34,8 @@ export async function insertTriageRecord(args: {
         isCrisis ? [] : output.observed_indicators
       ),
       aggregateTag: isCrisis ? "crisis_self_harm" : output.aggregate_tag ?? null,
-      chpNextAction: isCrisis ? null : (isCrisis ? null : output.chp_next_action),
+      chpNextAction: isCrisis ? null : output.chp_next_action,
+      fallbackUsed,
       chpInstruction: isCrisis ? output.chp_instruction : null,
       crisisLine: isCrisis ? output.crisis_line : null,
       confidenceNote: isCrisis
@@ -45,7 +46,7 @@ export async function insertTriageRecord(args: {
     },
   });
 
-  return toDTO(created, fallbackUsed);
+  return toDTO(created);
 }
 
 function toDTO(
@@ -56,14 +57,14 @@ function toDTO(
     ward: string | null;
     classification: string;
     escalation: boolean;
+    fallbackUsed: boolean;
     observedIndicators: string;
     aggregateTag: string | null;
     chpNextAction: string | null;
     chpInstruction: string | null;
     crisisLine: string | null;
     confidenceNote: string | null;
-  },
-  fallbackUsed: boolean
+  }
 ): TriageRecordDTO {
   let indicators: string[] = [];
   try {
@@ -85,7 +86,7 @@ function toDTO(
     chpInstruction: row.chpInstruction,
     crisisLine: row.crisisLine,
     confidenceNote: row.confidenceNote,
-    fallbackUsed,
+    fallbackUsed: row.fallbackUsed,
   };
 }
 
@@ -104,7 +105,7 @@ export async function getMyRecords(
     orderBy: { createdAt: "desc" },
     take: limit,
   });
-  return rows.map((r) => toDTO(r, false));
+  return rows.map((r) => toDTO(r));
 }
 
 /* ------------------------------------------------------------------ */
@@ -580,9 +581,17 @@ export async function writeAuditEntry(args: {
   });
 }
 
-/** Recent audit entries for the dashboard activity strip (de-identified). */
-export async function getRecentAudit(limit = 8): Promise<AuditEntry[]> {
+/**
+ * Recent audit entries for the dashboard activity strip (de-identified).
+ * Optional `county` filters by county — used on the `?scope=mine` RBAC
+ * path so a county official doesn't see audit entries from other counties.
+ */
+export async function getRecentAudit(
+  limit = 8,
+  county?: string
+): Promise<AuditEntry[]> {
   const rows = await db.auditLog.findMany({
+    where: county ? { county } : undefined,
     orderBy: { createdAt: "desc" },
     take: limit,
     select: {
