@@ -191,3 +191,35 @@ Stage Summary:
   3. County-level RBAC on /dashboard (currently no auth — documented TODO).
   4. Production hardening from README: move RLS into Postgres when landing on Supabase; PII scrubber before model call; audit log; rate-limit /api/triage.
   5. /api/triage latency ~25s (Qwen double-call on parse retry) — consider response_format json + single call, or streaming.
+
+---
+Task ID: review-r1
+Agent: orchestrator (webDevReview cron round 1)
+Task: 15-min scheduled review — assess status, QA via agent-browser, fix bugs + add feature, push to GitHub.
+
+Work Log:
+- Read worklog (193 lines); server healthy (/, /dashboard, /api/* all 200); lint clean.
+- agent-browser QA on /dashboard: captured 3 screenshots, ran VLM (`z-ai vision`) for detailed visual review.
+- VLM identified: (1) stray floating dark "N" badge on far-left margin — diagnosed as Next.js dev-tools indicator; (2) top-aggregate-tags chart Y-axis labels truncated to fragments ("Crisis Self Harm"→"Crisis", "Fatigue And Appet..." etc.); (3) low-contrast subtitle text; (4) stray "‡" double-dagger in county table header (intentional footnote marker — left as-is).
+- Bug fix 1: disabled Next.js dev indicator via `devIndicators: false` in next.config.ts — stray "N" badge gone (verified via DOM eval: "NO STRAY DEV BADGE - clean").
+- Bug fix 2: top-tags-chart YAxis width 120→168→185px, truncation threshold 18→26→32 chars — all tag labels now fully readable (VLM confirmed "fully readable without ellipses").
+- Bug fix 3: added `minTickGap={8}` to county-bar XAxis + `minTickGap={20}` to daily-trend XAxis to prevent label overlap on sparse data.
+- New feature: CHV "My recent observations" panel.
+  - Backend: `getMyRecords(submittedById, limit)` in triage-store.ts (ownership-scoped — RLS auth.uid()=submitted_by equivalent); `GET /api/records/mine` route (auth-required, 401 if no session; supports ?limit, max 50).
+  - Frontend: `src/components/msaada/MyRecentObservations.tsx` — collapsible Card, scrollable list (max-h-80), each row expandable to show CHP next action / observed indicators / confidence note / crisis instruction; classification badge + aggregate tag + county·ward + relative time ("just now"/"5d ago"); refresh button; framer-motion expand/collapse animations. Tone-coded per classification (emerald/amber/orange/red) reusing the shared TONE palette.
+  - Wiring: page.tsx adds `recordsRefreshKey` state + `handleResult` callback; SubmissionForm gained `onResult` prop fired after any successful triage write (crisis + normal); panel refetches on key bump.
+- End-to-end verified via agent-browser: login → submit routine sample (Qwen ~28s) → record count 12→13 → newest row "ROUTINE · normal child development · Kilifi · Malindi Town · just now" at top of panel.
+- Final VLM QA on full dashboard: polish **9/10** — "No stray floating letter/badge... all labels fully readable... clean layout, clear data hierarchy, consistent styling."
+- `bun run lint`: clean (exit 0).
+- Committed (517f9b2) + pushed to GitHub main (token inline, remote URL token-free).
+
+Stage Summary:
+- Bugs fixed: stray dev badge (disabled), tag-label truncation (widened axis), chart label overlap (minTickGap).
+- New feature: CHV "my recent observations" panel with ownership-scoped /api/records/mine — strengthens the CHV-facing flow and demonstrates the RLS ownership invariant from the CHV's own perspective (they see only their own records, never other CHVs').
+- Remaining follow-ups for next review cycle:
+  1. Dashboard time-range filter (7d/14d/30d) — requires extending getDashboardStats to accept a `days` param + a client toggle.
+  2. CSV export of the county table for reporting.
+  3. County-level RBAC on /dashboard (documented TODO).
+  4. PII scrubber pass before the model call (production hardening).
+  5. /api/triage latency ~25s — consider response_format json or streaming.
+- Repo: https://github.com/Roy-Wanyoike/msaada (commit 517f9b2)
