@@ -13,7 +13,7 @@ export async function register() {
     const result = await ensureDatabaseReady();
     if (result.status === "ok") {
       console.log(
-        `[db-bootstrap] ready — url=${result.databaseUrl ?? "?"}, ddl=${result.appliedStatements ?? 0}, demoChv=${result.createdDemoChv ? "created" : "present"}, seedReports=${result.createdSeedReports ?? 0}`
+        `[db-bootstrap] ready — url=${result.databaseUrl ?? "?"}, ddl=${result.appliedStatements ?? 0}, demoChv=${result.createdDemoChv ? "created" : "present"}, demoAdmin=${result.createdDemoAdmin ? "created" : "present"}, seedReports=${result.createdSeedReports ?? 0}`
       );
     }
   } catch (err) {

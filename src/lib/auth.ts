@@ -196,3 +196,10 @@ export function rateLimitIdentifier(
 
 export const DEMO_CHV_EMAIL = "demo@msaada.health";
 export const DEMO_CHV_PASSWORD = "msaada123";
+
+// Second demo identity — powers the /admin onboarding demo. The UI hardcodes
+// the same credentials on the sign-in hint (src/app/admin/page.tsx); the
+// db-bootstrap seeds this account alongside the demo CHV so fresh
+// deployments (Vercel /tmp) match what the UI advertises.
+export const DEMO_ADMIN_EMAIL = "county.admin@msaada.health";
+export const DEMO_ADMIN_PASSWORD = "msaada123";

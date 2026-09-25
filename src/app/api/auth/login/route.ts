@@ -16,6 +16,8 @@ export const dynamic = "force-dynamic";
  *  - 403 ACCOUNT_SUSPENDED if creds are valid but authState !== "active"
  *    (covers suspended / deactivated / not-yet-onboarded states)
  *  - 429 RATE_LIMITED after 5 attempts / 60s per (ip, email) pair
+ *  - 503 SERVER_NOT_CONFIGURED when the deployment is missing
+ *    MSAADA_SESSION_SECRET (production fail-fast guard)
  */
 export async function POST(req: Request) {
   let body: unknown;
@@ -77,7 +79,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "ACCOUNT_SUSPENDED" }, { status: 403 });
   }
 
-  await setSession(chv.id);
+  // setSession() resolves the session secret, which fails fast in production
+  // when MSAADA_SESSION_SECRET is missing/too short (deliberate P0 guard).
+  // Surface that as an explicit 503 instead of an opaque 500-with-empty-body,
+  // so an operator testing a fresh deployment immediately knows it is a
+  // configuration problem, not a code or credential problem. The message
+  // names the env var only — its VALUE is never echoed.
+  try {
+    await setSession(chv.id);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("MSAADA_SESSION_SECRET")) {
+      console.error("[login] server misconfigured:", msg.slice(0, 160));
+      return NextResponse.json(
+        {
+          error: "SERVER_NOT_CONFIGURED",
+          message:
+            "MSAADA_SESSION_SECRET must be set to a >=32 char string in the deployment environment.",
+        },
+        { status: 503 }
+      );
+    }
+    throw err;
+  }
   return NextResponse.json(
     {
       chv: {

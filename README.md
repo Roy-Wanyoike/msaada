@@ -140,13 +140,27 @@ Working hackathon MVP built with Next.js + Qwen AI. End-to-end functional with s
 
 ## Quick Start
 
+**Prerequisites:** Node.js 20+ (`node -v`). On Windows, run npm scripts from a **Git Bash** terminal in VS Code (they use `tee`/`cp`).
+
 ```bash
-bun install && bun run db:push && bun run dev   # http://localhost:3000
+npm install            # or: bun install
+npx prisma generate
+npm run dev            # → http://localhost:3000
 ```
 
-**Demo accounts:**
+No database setup is needed: on first boot the app **self-provisions** its SQLite database (`db/custom.db`) — full schema DDL + demo seed run automatically (see "Vercel demo mode" below; the same bootstrap runs locally). `npm run db:push` remains available as an explicit alternative, and `npx prisma studio` browses the data.
+
+**Optional `.env.local`** (git-ignored) — without it the app runs with deterministic triage fallback and the Supabase layer off:
+
+```bash
+QWEN_API_KEY=<your ModelScope key>          # enables live AI triage
+NEXT_PUBLIC_SUPABASE_URL=<project url>      # enables encounter-draft sync +
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<anon key>  # community-report mirror
+```
+
+**Demo accounts** (both seeded automatically on a fresh database):
 - CHV: `demo@msaada.health` / `msaada123`
-- County Admin: `county.admin@msaada.health` / `msaada123`
+- County Admin (powers the `/admin` onboarding demo): `county.admin@msaada.health` / `msaada123`
 
 **Tech Stack:** Next.js 16 (App Router, TypeScript) + Qwen (ModelScope OpenAI-compatible API) + Supabase (client helpers + session proxy) + Prisma + Tailwind CSS 4 + shadcn/ui + Recharts
 

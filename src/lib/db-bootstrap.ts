@@ -31,6 +31,7 @@ export type BootstrapResult = {
   databaseUrl?: string;
   appliedStatements?: number;
   createdDemoChv?: boolean;
+  createdDemoAdmin?: boolean;
   createdSeedReports?: number;
   error?: string;
 };
@@ -75,9 +76,13 @@ async function run(): Promise<BootstrapResult> {
   // Late-bind the Prisma client + auth helpers so nothing touches the
   // database before the URL above is pinned.
   const { db } = await import("@/lib/db");
-  const { hashPassword, DEMO_CHV_EMAIL, DEMO_CHV_PASSWORD } = await import(
-    "@/lib/auth"
-  );
+  const {
+    hashPassword,
+    DEMO_CHV_EMAIL,
+    DEMO_CHV_PASSWORD,
+    DEMO_ADMIN_EMAIL,
+    DEMO_ADMIN_PASSWORD,
+  } = await import("@/lib/auth");
   const { seedCommunityReports } = await import("@/lib/community-report-seed");
 
   // Fast path: schema already present? One cheap query proves it.
@@ -117,6 +122,27 @@ async function run(): Promise<BootstrapResult> {
     createdDemoChv = true;
   }
 
+  // Demo county admin — the /admin page advertises these credentials on its
+  // sign-in hint, so fresh deployments must have the account (county_admin
+  // is one of the institutional roles the admin page gates on).
+  let createdDemoAdmin = false;
+  const existingAdmin = await db.chvUser.findUnique({
+    where: { email: DEMO_ADMIN_EMAIL },
+  });
+  if (!existingAdmin) {
+    await db.chvUser.create({
+      data: {
+        email: DEMO_ADMIN_EMAIL,
+        passwordHash: hashPassword(DEMO_ADMIN_PASSWORD),
+        fullName: "County Admin (Demo)",
+        county: "Kilifi",
+        ward: "Malindi Town",
+        role: "county_admin",
+      },
+    });
+    createdDemoAdmin = true;
+  }
+
   // Demo community reports + response cases (idempotent by stable codes).
   const seed = await seedCommunityReports(chv.id);
 
@@ -125,6 +151,7 @@ async function run(): Promise<BootstrapResult> {
     databaseUrl: url,
     appliedStatements,
     createdDemoChv,
+    createdDemoAdmin,
     createdSeedReports: seed.createdCount,
   };
 }
