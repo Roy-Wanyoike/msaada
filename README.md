@@ -162,11 +162,13 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<anon key>  # community-report mirror
 - CHV: `demo@msaada.health` / `msaada123`
 - County Admin (powers the `/admin` onboarding demo): `county.admin@msaada.health` / `msaada123`
 
+**Demo data** (also seeded automatically, idempotent by stable codes — safe on every cold start): a Kilifi County organization + Malindi Town CHU, 4 households with 6 members for the demo CHV, 5 backdated encounters (9 days → today, mixed text/voice capture, online/offline/intermittent connectivity) with structured triage verdicts covering every workflow class (routine, needs_followup, needs_facility_referral, crisis_override), 2 referrals (one completed, one in-progress emergency), 3 follow-ups, audit-log entries, and 4 community reports with response cases. Dashboards, households, referrals, follow-ups and the audit page are all populated the moment you sign in — no Qwen calls needed. `POST /api/seed` remains available for extra Qwen-generated synthetic transcripts.
+
 **Tech Stack:** Next.js 16 (App Router, TypeScript) + Qwen (ModelScope OpenAI-compatible API) + Supabase (client helpers + session proxy) + Prisma + Tailwind CSS 4 + shadcn/ui + Recharts
 
 **GitHub:** https://github.com/Roy-Wanyoike/msaada
 
-**Pitch deck:** `presentation/Msaada-Pitch-Deck.pptx` — 12-slide judge-facing deck (problem, safety architecture, demo walkthrough, roadmap).
+**Presentation:** view the 12-slide judge-facing deck at **`/presentation`** in the running app (keyboard navigation, speaker notes, fullscreen) — sources live in `public/slides/`, and the original `public/presentation/Msaada-Pitch-Deck.pptx` is downloadable from the same page.
 
 ---
 
@@ -188,7 +190,7 @@ Set the variables in **Vercel → Settings → Environment Variables**, then tri
 
 ### Vercel demo mode (self-bootstrapping database)
 
-The Prisma layer uses SQLite and the database file is not tracked in git (repo hygiene, #14) — so a fresh Vercel deployment starts with **no database** and the function bundle is read-only. `src/instrumentation.ts` solves this: on every serverless cold start (before the first request is served) it pins `DATABASE_URL` to `file:/tmp/msaada-demo.db`, applies the full schema DDL (`src/lib/db-ddl.ts`, generated from `prisma/schema.prisma`), and seeds the demo CHV + demo community reports — all idempotent, with a fast path that skips DDL when the schema is already present.
+The Prisma layer uses SQLite and the database file is not tracked in git (repo hygiene, #14) — so a fresh Vercel deployment starts with **no database** and the function bundle is read-only. `src/instrumentation.ts` solves this: on every serverless cold start (before the first request is served) it pins `DATABASE_URL` to `file:/tmp/msaada-demo.db`, applies the full schema DDL (`src/lib/db-ddl.ts`, generated from `prisma/schema.prisma`), and seeds the demo accounts, community reports and the full demo identity chain (households → encounters → triage → referrals → follow-ups). All idempotent, with a fast path that skips DDL when the schema is already present **and current** — the probe checks a table introduced by the latest schema (the auth tables), so databases created by older deploys are upgraded in place on the next cold start.
 
 Consequences for judges / demos:
 - The deployed site works immediately — demo login (`demo@msaada.health` / `msaada123`), triage, reports and the dashboard all function without any `DATABASE_URL` configuration.
@@ -203,7 +205,7 @@ Supabase is an optional enhancement layer. With the two `NEXT_PUBLIC_SUPABASE_*`
 - `src/utils/supabase/server.ts` — server client for Server Components / Route Handlers, wired to `next/headers` cookies: it reads the whole cookie store for token refreshes and writes every `Set-Cookie` the SDK emits back.
 - `src/utils/supabase/config.ts` — lazy, call-time validation of the two public env vars. Nothing throws at module scope (so `next build` never breaks for deploys without Supabase); `requireSupabaseConfig()` throws a clear error only where Supabase is genuinely required.
 - `src/proxy.ts` — implements the Next.js 16 **proxy** convention (the network-boundary file formerly named `middleware.ts` with a `middleware` export) and refreshes Supabase auth sessions via `src/utils/supabase/middleware.ts` before requests hit route handlers or Server Components. It is a strict pass-through when the Supabase env is unset, so local dev and un-configured deploys are unaffected.
-- `supabase/schema.sql` must be run once in the Supabase SQL Editor (Dashboard → SQL Editor → New query). It is idempotent (safe to re-run) and creates the `todos` demo table, the `community_reports` cloud-mirror table and the `encounter_drafts` offline-sync table, all protected by row-level security (RLS) policies.
+- `supabase/schema.sql` must be run once in the Supabase SQL Editor (Dashboard → SQL Editor → New query). It is idempotent (safe to re-run) and creates the `todos` demo table, the `community_reports` cloud-mirror table, the `encounter_drafts` offline-sync table, and the **authentication schema** (`auth_sessions`, `auth_events`, `password_reset_tokens` — RLS enabled, no client policies: only the server's service-role path may touch them), all protected by row-level security (RLS) policies.
 
 ### AI provider notes
 
@@ -229,17 +231,18 @@ Supabase is an optional enhancement layer. With the two `NEXT_PUBLIC_SUPABASE_*`
 | `/audit` | Compliance | Policy-version-logged audit trail of triage, referrals, follow-ups, community-report events. |
 | `/admin` | MoH / County Admin | Institutional onboarding + invitation-based CHV creation. |
 | `/docs` | All | Project documentation hub. |
+| `/presentation` | All | 12-slide pitch-deck viewer — keyboard navigation, clickable dots + slide index, speaker-notes panel, fullscreen, `.pptx` download. |
 | `/status` | All | Live dependency status (Database / Qwen AI / Supabase) — green / amber (not configured) / red cards, auto-refreshes every 30 s. |
 
 ---
 
 ## API surface
 
-All routes are server-side; auth is cookie-session (`msaada_session`). Sensitive endpoints are rate-limited (`src/lib/rate-limit.ts`). The raw observation/reporter text is never persisted — only model-returned structured fields + de-identified metadata.
+All routes are server-side; auth is cookie-session (`msaada_session`) backed by a **server-side session registry**: every issued token is stored as a SHA-256 hash in `AuthSession`, so sessions are revocable (logout revokes the row; a replayed cookie is rejected) and validation is two-layer — HMAC signature + unrevoked/unexpired DB row, failing closed on any DB error. Login/logout attempts are recorded in the append-only `AuthEvent` audit trail (never passwords, tokens, or IPs). Password-reset tokens use the same hash-only storage (`PasswordResetToken`, schema live, flow pending). Sensitive endpoints are rate-limited (`src/lib/rate-limit.ts`). The raw observation/reporter text is never persisted — only model-returned structured fields + de-identified metadata.
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `/api/auth/signup` `/login` `/logout` `/me` | POST / POST / POST / GET | Demo auth (scrypt-hashed, cookie session). |
+| `/api/auth/signup` `/login` `/logout` `/me` | POST / POST / POST / GET | Demo auth (scrypt-hashed passwords, HMAC cookie + DB-backed revocable session, audit events). |
 | `/api/triage` | POST | Qwen classify + de-identified DB write (CHV encounter). Creates follow-up if needs_followup / needs_facility_referral. |
 | `/api/seed` `/demo-chv` | POST / POST | Synthetic transcripts + demo CHV seeding. |
 | `/api/dashboard` | GET | Aggregate stats (byCounty / byDay / byTag / totals) — never selects indicator text. |

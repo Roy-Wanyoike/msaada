@@ -1,6 +1,12 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { db } from "@/lib/db";
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+} from "crypto";
 
 /**
  * Demo auth — substitutes for Supabase Auth in this sandbox (no Postgres/Auth
@@ -51,6 +57,16 @@ function sessionSecret(): string {
     cachedSecret = resolveSessionSecret();
   }
   return cachedSecret;
+}
+
+/**
+ * SHA-256 of an opaque token — the ONLY form of a session/reset token that
+ * is ever persisted. The database stores hashes, so a database read (backup,
+ * SQL editor session, support query) can never be replayed into a valid
+ * cookie.
+ */
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 /** HMAC-SHA256 over the payload bytes, base64url-encoded. */
@@ -127,30 +143,170 @@ export function parseSessionToken(token: string): { uid: string; exp: number } |
   }
 }
 
+/**
+ * Issue a session: persist a DB-backed AuthSession row FIRST, then set the
+ * cookie. The row makes the cookie token revocable server-side (logout,
+ * suspension, incident kill switch) — until this schema existed a session
+ * lived entirely in the cookie until natural expiry.
+ *
+ * Order matters: if the row write fails (DB unreachable), the error
+ * propagates and the cookie is never set — a session that could never be
+ * validated must never be issued. The login route maps unexpected failures
+ * to a 500 without revealing which step failed.
+ */
 export async function setSession(chvId: string) {
   const token = createSessionToken(chvId);
   const store = await cookies();
-  store.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_TTL,
+  let userAgent: string | null = null;
+  try {
+    const h = await headers();
+    userAgent = h.get("user-agent")?.slice(0, 180) ?? null;
+  } catch {
+    // headers() unavailable in some call contexts — device hint is optional
+  }
+  await db.authSession.create({
+    data: {
+      userId: chvId,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + SESSION_TTL * 1000),
+      userAgent,
+    },
   });
+  try {
+    store.set(SESSION_COOKIE, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: SESSION_TTL,
+    });
+  } catch (err) {
+    // Mirror-failure guard: if the cookie can't be set after the row was
+    // created, revoke the row immediately so no orphaned (never-presentable)
+    // session lingers in the registry.
+    try {
+      await db.authSession.updateMany({
+        where: { tokenHash: hashToken(token), revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    } catch {
+      // best-effort — the original error below is what matters
+    }
+    throw err;
+  }
+  // Opportunistic GC: expired sessions can never validate again, so prune
+  // them whenever a new one is issued (keeps the registry bounded on
+  // long-lived local databases; Vercel /tmp resets on its own).
+  try {
+    await db.authSession.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+  } catch {
+    // never let housekeeping break sign-in
+  }
 }
 
-export async function clearSession() {
+/**
+ * Revoke the current session row (if any) and clear the cookie. Returns the
+ * userId whose session was revoked (for the auth audit trail), or null.
+ * Revocation is best-effort: the cookie is cleared no matter what, so the
+ * user is signed out locally even if the DB write fails.
+ */
+export async function clearSession(): Promise<string | null> {
   const store = await cookies();
+  const token = store.get(SESSION_COOKIE)?.value;
+  let revokedUserId: string | null = null;
+  if (token) {
+    try {
+      const res = await db.authSession.updateMany({
+        where: { tokenHash: hashToken(token), revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      if (res.count > 0) {
+        const row = await db.authSession.findFirst({
+          where: { tokenHash: hashToken(token) },
+          select: { userId: true },
+        });
+        revokedUserId = row?.userId ?? null;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[auth] session revoke failed:", msg.slice(0, 120));
+    }
+  }
   store.delete(SESSION_COOKIE);
+  return revokedUserId;
 }
 
+/**
+ * Resolve the signed-in user from the session cookie. Validation is now
+ * TWO-layer (defense in depth):
+ *   1. Cryptographic: HMAC signature + payload expiry (parseSessionToken).
+ *   2. Database: an unexpired, unrevoked AuthSession row must exist for the
+ *      exact token. A stolen-then-revoked cookie, or a token whose row was
+ *      lost (e.g. /tmp reset), fails here — the signature alone is not
+ *      sufficient.
+ * Any DB error fails CLOSED (returns null) — an unvalidatable session must
+ * never grant access.
+ */
 export async function getSessionChv() {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const parsed = parseSessionToken(token);
   if (!parsed) return null;
+  let session: { userId: string; revokedAt: Date | null; expiresAt: Date } | null;
+  try {
+    session = await db.authSession.findUnique({
+      where: { tokenHash: hashToken(token) },
+      select: { userId: true, revokedAt: true, expiresAt: true },
+    });
+  } catch {
+    return null; // fail closed
+  }
+  if (!session || session.revokedAt) return null;
+  if (session.expiresAt.getTime() < Date.now()) return null;
+  if (session.userId !== parsed.uid) return null; // defense in depth
   const chv = await db.chvUser.findUnique({ where: { id: parsed.uid } });
   return chv;
+}
+
+/**
+ * Append an authentication audit event. Best-effort by design: an audit write
+ * failure is logged and swallowed so it can NEVER break the auth flow it
+ * observes. Never stores passwords, tokens, or IPs.
+ *
+ * Note: `session_rejected` is declared but intentionally not yet emitted —
+ * writing an AuthEvent on every rejected request would add a DB write to
+ * every 401 (a flooding vector). It is reserved for the Supabase-Auth
+ * migration, where rejection happens inside the platform auth service.
+ */
+export async function logAuthEvent(input: {
+  event: "login_succeeded" | "login_failed" | "logout" | "session_rejected";
+  userId?: string | null;
+  emailAttempt?: string | null;
+  detail?: string | null;
+}): Promise<void> {
+  try {
+    let userAgent: string | null = null;
+    try {
+      const h = await headers();
+      userAgent = h.get("user-agent")?.slice(0, 180) ?? null;
+    } catch {
+      // optional context
+    }
+    await db.authEvent.create({
+      data: {
+        event: input.event,
+        userId: input.userId ?? null,
+        emailAttempt: input.emailAttempt ?? null,
+        detail: input.detail ?? null,
+        userAgent,
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[auth] event write failed:", msg.slice(0, 120));
+  }
 }
 
 export async function requireChv() {
@@ -196,6 +352,9 @@ export function rateLimitIdentifier(
 
 export const DEMO_CHV_EMAIL = "demo@msaada.health";
 export const DEMO_CHV_PASSWORD = "msaada123";
+
+/** Exposed for tests/ops tooling that need to hash-verify tokens. */
+export { hashToken };
 
 // Second demo identity — powers the /admin onboarding demo. The UI hardcodes
 // the same credentials on the sign-in hint (src/app/admin/page.tsx); the

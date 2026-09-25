@@ -118,3 +118,74 @@ create policy "Users can update their own encounter drafts"
   on public.encounter_drafts for update to authenticated
   using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
+
+-- ---------------------------------------------------------------------------
+-- 4. Authentication schema (mirrors the Prisma models in prisma/schema.prisma)
+-- ---------------------------------------------------------------------------
+-- The app currently signs its own HMAC cookie sessions against the primary
+-- Prisma database (see src/lib/auth.ts). These tables provision the SAME
+-- auth layer in Supabase so the hosted database has a complete schema for
+-- authentication, ready for the moment auth moves to Supabase Auth:
+--
+--   auth_sessions          one row per issued session — stores ONLY the
+--                          SHA-256 hash of the opaque token (never the raw
+--                          token), so sessions are revocable server-side.
+--   auth_events            append-only audit trail of login/logout attempts
+--                          (never passwords, never tokens, never IPs).
+--   password_reset_tokens  hashed, single-use, expiring reset tokens.
+--
+-- Security posture: RLS is ENABLED and NO anon/authenticated policies are
+-- created — clients (anon or authenticated keys) are denied everything.
+-- Only the server, using the service-role key (which bypasses RLS), may
+-- read/write these tables. Session hashes and auth audit rows must never
+-- be client-readable.
+create table if not exists public.auth_sessions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  token_hash text not null unique,
+  expires_at timestamptz not null,
+  revoked_at timestamptz,
+  user_agent text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists auth_sessions_user_idx
+  on public.auth_sessions (user_id, revoked_at);
+create index if not exists auth_sessions_expiry_idx
+  on public.auth_sessions (expires_at);
+
+create table if not exists public.auth_events (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  event text not null check (event in ('login_succeeded','login_failed','logout','session_rejected')),
+  user_id uuid references auth.users(id) on delete set null,
+  email_attempt text,
+  detail text,
+  user_agent text
+);
+
+create index if not exists auth_events_user_idx
+  on public.auth_events (user_id, created_at desc);
+create index if not exists auth_events_event_idx
+  on public.auth_events (event, created_at desc);
+create index if not exists auth_events_email_idx
+  on public.auth_events (email_attempt);
+
+create table if not exists public.password_reset_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  token_hash text not null unique,
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists password_reset_tokens_user_idx
+  on public.password_reset_tokens (user_id);
+
+alter table public.auth_sessions enable row level security;
+alter table public.auth_events enable row level security;
+alter table public.password_reset_tokens enable row level security;
+
+-- Deliberately NO policies: deny-all for anon + authenticated (see the
+-- security note above). The service-role server path bypasses RLS.

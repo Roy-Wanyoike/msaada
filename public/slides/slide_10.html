@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Msaada — Live demo</title>
+<link rel="stylesheet" href="global.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  html, body { margin:0; padding:0; background:var(--bg); }
+  .step-badge { width:36px; height:36px; border-radius:999px; background:var(--accent-deep); color:#FFFFFF; display:flex; align-items:center; justify-content:center; font-family:var(--font-num); font-size:17px; font-weight:700; flex:none; }
+  .step-title { font-family:var(--font-heading); font-size:17px; font-weight:700; color:var(--primary); line-height:1.25; }
+  .step-desc { font-size:13.5px; color:var(--ink-soft); line-height:1.5; margin-top:5px; }
+  .code { font-family:var(--font-num); font-weight:600; color:var(--accent-deep); }
+  .check-row { display:flex; align-items:flex-start; gap:10px; }
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="h-full flex flex-col" style="padding:54px 64px 48px;">
+
+    <header>
+      <div class="flex items-center" style="gap:10px;">
+        <span data-decor aria-hidden="true" style="width:26px;height:3px;border-radius:2px;background:var(--accent);"></span>
+        <span class="kicker">LIVE DEMO</span>
+      </div>
+      <h1 style="font-family:var(--font-heading); font-size:var(--fs-h1); font-weight:800; letter-spacing:-0.01em; line-height:1.1; margin:12px 0 0;">Three clicks to the hardest workflow.</h1>
+    </header>
+
+    <main class="flex flex-1" style="gap:22px; margin-top:26px; min-height:0;">
+
+      <!-- Numbered tour -->
+      <section class="flex-1 flex flex-col" style="gap:14px; min-width:0;">
+
+        <div class="card flex items-start flex-1" style="padding:18px 22px; gap:16px;">
+          <span class="step-badge">1</span>
+          <div style="min-width:0;">
+            <div class="step-title">Sign in as a CHV</div>
+            <div class="step-desc"><span class="code">demo@msaada.health / msaada123</span> — fresh deployments seed this automatically.</div>
+          </div>
+        </div>
+
+        <div class="card flex items-start flex-1" style="padding:18px 22px; gap:16px;">
+          <span class="step-badge">2</span>
+          <div style="min-width:0;">
+            <div class="step-title">Report a visit</div>
+            <div class="step-desc"><span class="code">/report</span>: type or dictate a mixed Sheng/English observation about a mother with suicidal ideation.</div>
+          </div>
+        </div>
+
+        <div class="flex items-start flex-1" style="padding:18px 22px; gap:16px; background:var(--crisis-soft); border:1px solid rgba(225,29,72,0.28); border-radius:16px;">
+          <span class="step-badge" style="background:var(--crisis);">3</span>
+          <div style="min-width:0;">
+            <div class="step-title">Watch <span class="num" style="font-size:16px;">crisis_override</span> fire</div>
+            <div class="step-desc" style="color:var(--primary);">non-dismissable crisis panel with <span class="num" style="font-weight:700;">1199</span> + Befrienders line + do-not-leave instruction, case created ready for assignment.</div>
+          </div>
+        </div>
+
+        <div class="card flex items-start flex-1" style="padding:18px 22px; gap:16px;">
+          <span class="step-badge">4</span>
+          <div style="min-width:0;">
+            <div class="step-title">See the system react</div>
+            <div class="step-desc"><span class="code">/dashboard</span> county trends, <span class="code">/cases</span> assignment flow, <span class="code">/admin</span> onboarding (<span class="code">county.admin@msaada.health</span>), <span class="code">/status</span> live health probes (database / Qwen / Supabase).</div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Side card -->
+      <aside class="card-teal relative flex flex-col overflow-hidden" style="width:368px; flex:none; padding:26px;">
+        <span data-decor aria-hidden="true" class="material-icons absolute" style="font-size:150px; color:rgba(13,148,136,0.09); right:-22px; top:-24px;">cloud_done</span>
+
+        <div class="relative" style="width:50px; height:50px; border-radius:14px; background:var(--surface); border:1px solid var(--line); display:flex; align-items:center; justify-content:center;">
+          <span class="material-icons" style="font-size:27px; color:var(--accent-deep);">cloud_done</span>
+        </div>
+        <div class="relative" style="font-family:var(--font-heading); font-size:22px; font-weight:800; margin-top:18px;">Deploys itself</div>
+
+        <div class="relative num" style="font-size:11px; font-weight:700; letter-spacing:0.16em; color:var(--ink-soft); margin-top:20px;">ON A FRESH DEPLOYMENT</div>
+        <div class="relative" style="margin-top:12px; display:flex; flex-direction:column; gap:12px;">
+          <div class="check-row"><span class="material-icons" style="font-size:19px; color:var(--accent-deep);">check_circle</span><span style="font-size:13.5px; font-weight:500; color:var(--primary); line-height:1.4;">Database self-provisions</span></div>
+          <div class="check-row"><span class="material-icons" style="font-size:19px; color:var(--accent-deep);">check_circle</span><span style="font-size:13.5px; font-weight:500; color:var(--primary); line-height:1.4;">Demo data seeds automatically</span></div>
+          <div class="check-row"><span class="material-icons" style="font-size:19px; color:var(--accent-deep);">check_circle</span><span style="font-size:13.5px; font-weight:500; color:var(--primary); line-height:1.4;">Zero manual setup for judges</span></div>
+        </div>
+
+        <div class="relative" style="margin-top:auto;">
+          <div data-decor aria-hidden="true" style="height:1px; background:var(--line);"></div>
+          <div class="num" style="font-size:11px; font-weight:700; letter-spacing:0.16em; color:var(--ink-soft); margin-top:16px;">CHV DEMO ACCOUNT</div>
+          <div style="margin-top:10px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px; display:flex; align-items:center; gap:10px;">
+            <span class="material-icons" style="font-size:18px; color:var(--accent-deep);">person</span>
+            <span class="num" style="font-size:13px; font-weight:600; color:var(--accent-deep);">demo@msaada.health / msaada123</span>
+          </div>
+        </div>
+      </aside>
+
+    </main>
+  </div>
+</div>
+
+<aside data-notes class="hidden" style="display:none;">
+  <ul>
+    <li>Rehearse the exact Sheng observation before presenting.</li>
+    <li>fallbackUsed=false means the live model answered, not a canned response.</li>
+    <li>Crisis panel is non-dismissable: 1199, Befrienders line, do-not-leave instruction.</li>
+    <li>Fresh deployments seed demo data automatically — zero manual setup for judges.</li>
+    <li>Walk /dashboard, /cases, /admin and /status only if time allows.</li>
+  </ul>
+</aside>
+</body>
+</html>

@@ -17,6 +17,7 @@ import {
   ClipboardList,
   Megaphone,
   PenLine,
+  Presentation,
   Menu,
   LogOut,
   Phone,
@@ -75,6 +76,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/report", label: "Public report form", icon: Megaphone },
       { href: "/docs", label: "Documentation", icon: BookOpen },
+      { href: "/presentation", label: "Pitch deck", icon: Presentation },
     ],
   },
 ];
@@ -134,7 +136,6 @@ async function signOut() {
     // ignore — navigate away regardless
   }
   // Full reload on purpose: drops every page's client-side session state.
-  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
   window.location.assign("/");
 }
 

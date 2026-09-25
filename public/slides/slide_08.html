@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Msaada — Offline-first, field-ready</title>
+<link rel="stylesheet" href="global.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  body{margin:0;background:var(--bg);}
+  .num-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px;display:flex;gap:16px;align-items:flex-start;}
+  .num-tile{width:40px;height:40px;border-radius:10px;background:var(--teal-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:var(--font-num);font-size:20px;font-weight:700;color:var(--accent-deep);}
+  .state-chip{display:inline-flex;align-items:center;background:rgba(255,255,255,0.12);border-radius:999px;padding:8px 14px;font-family:var(--font-num);font-size:12px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF;white-space:nowrap;}
+  .mode-row{display:flex;align-items:center;gap:12px;}
+</style>
+</head>
+<body>
+<div class="slide" style="display:grid;grid-template-columns:660px 1fr;gap:30px;padding:56px 64px;">
+  <!-- Left: numbered flow -->
+  <div style="display:flex;flex-direction:column;min-height:0;">
+    <header>
+      <div class="kicker">Field-first engineering</div>
+      <h1 style="font-family:var(--font-heading);font-weight:800;font-size:36px;line-height:1.2;color:var(--primary);margin:10px 0 0;">
+        Works in a ward with no network.<br><span style="color:var(--accent-deep);">Syncs when it returns.</span>
+      </h1>
+    </header>
+
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px;margin-top:20px;">
+      <div class="num-card">
+        <div class="num-tile">1</div>
+        <div>
+          <div style="font-family:var(--font-heading);font-size:16.5px;font-weight:700;color:var(--primary);">Draft locally</div>
+          <p style="font-size:14px;line-height:1.55;color:var(--ink-soft);margin:4px 0 0;">Encounter drafts are queued on-device the moment a visit ends.</p>
+        </div>
+      </div>
+      <div class="num-card">
+        <div class="num-tile">2</div>
+        <div>
+          <div style="font-family:var(--font-heading);font-size:16.5px;font-weight:700;color:var(--primary);">Sync automatically</div>
+          <p style="font-size:14px;line-height:1.55;color:var(--ink-soft);margin:4px 0 0;">Drafts flush to Supabase when connectivity returns — upsert by client UUID, duplicates impossible.</p>
+        </div>
+      </div>
+      <div class="num-card">
+        <div class="num-tile">3</div>
+        <div>
+          <div style="font-family:var(--font-heading);font-size:16.5px;font-weight:700;color:var(--primary);">Never lose a signal</div>
+          <p style="font-size:14px;line-height:1.55;color:var(--ink-soft);margin:4px 0 0;">A crisis observed offline is still captured, timestamped and routed on sync.</p>
+        </div>
+      </div>
+    </div>
+
+    <p style="margin:20px 0 0;padding-left:16px;border-left:3px solid var(--accent);font-size:15px;line-height:1.55;color:var(--primary);font-weight:500;">
+      Connectivity is not a luxury in informal settlements and rural wards — the tool assumes it will disappear.
+    </p>
+  </div>
+
+  <!-- Right: field condition card -->
+  <div style="background:var(--primary);border-radius:20px;padding:30px;display:flex;flex-direction:column;justify-content:space-between;min-height:0;">
+    <div style="display:flex;flex-direction:column;align-items:center;text-align:center;">
+      <div style="width:96px;height:96px;border-radius:9999px;background:var(--teal-soft);display:flex;align-items:center;justify-content:center;">
+        <span class="material-icons" aria-hidden="true" style="font-size:48px;color:var(--accent-deep);">wifi_off</span>
+      </div>
+      <div style="font-family:var(--font-body);font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.7);margin-top:16px;">Works without network</div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+      <span class="state-chip">DRAFT</span>
+      <span class="material-icons" aria-hidden="true" style="font-size:17px;color:rgba(255,255,255,0.6);">chevron_right</span>
+      <span class="state-chip">QUEUE</span>
+      <span class="material-icons" aria-hidden="true" style="font-size:17px;color:rgba(255,255,255,0.6);">chevron_right</span>
+      <span class="state-chip">SYNC</span>
+    </div>
+
+    <div style="background:var(--teal-soft);border-radius:14px;padding:20px 22px;">
+      <div style="font-family:var(--font-body);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent-deep);">Input modes</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px;">
+        <div class="mode-row">
+          <span class="material-icons" aria-hidden="true" style="font-size:20px;color:var(--accent-deep);">mic</span>
+          <span style="font-size:14.5px;font-weight:600;color:var(--primary);">Spoken dictation</span>
+        </div>
+        <div class="mode-row">
+          <span class="material-icons" aria-hidden="true" style="font-size:20px;color:var(--accent-deep);">edit_note</span>
+          <span style="font-size:14.5px;font-weight:600;color:var(--primary);">Typed notes</span>
+        </div>
+        <div class="mode-row">
+          <span class="material-icons" aria-hidden="true" style="font-size:20px;color:var(--accent-deep);">translate</span>
+          <span style="font-size:14.5px;font-weight:600;color:var(--primary);">Eng / Swa / Sheng mixed</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<aside data-notes class="hidden" style="display:none;">
+  <ul>
+    <li>Connectivity is not a luxury — the tool assumes the network will disappear mid-visit.</li>
+    <li>Drafts queue on-device the moment a visit ends; they flush to Supabase on reconnect (upsert by client UUID, duplicates impossible).</li>
+    <li>Draft-queue flush reasons are explicit: offline / not configured / not signed in.</li>
+    <li>A crisis observed offline is still captured, timestamped and routed on sync — no lost signals.</li>
+    <li>Input modes: spoken dictation, typed notes, Eng/Swa/Sheng mixed.</li>
+  </ul>
+</aside>
+</body>
+</html>

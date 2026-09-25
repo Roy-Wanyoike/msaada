@@ -13,9 +13,12 @@
 //      filesystem there) — applies when DATABASE_URL is unset or points
 //      outside /tmp. Locally it leaves .env's path untouched.
 //   2. Applies the idempotent schema DDL (src/lib/db-ddl.ts, generated
-//      from prisma/schema.prisma) — only when the schema is missing.
-//   3. Seeds the demo CHV + demo community reports / response cases
-//      (all idempotent, same credentials as POST /api/demo-chv).
+//      from prisma/schema.prisma) — only when the schema is missing or
+//      OLDER than the current one (probed via a table that only exists in
+//      the latest schema version).
+//   3. Seeds the demo accounts, community reports, and the full demo
+//      identity chain (households/encounters/triage/referrals/follow-ups —
+//      see src/lib/demo-data-seed.ts). All idempotent.
 //
 // Trade-off (documented in README): /tmp storage is per-instance and
 // ephemeral — writes survive for the lifetime of a warm lambda, then
@@ -33,6 +36,15 @@ export type BootstrapResult = {
   createdDemoChv?: boolean;
   createdDemoAdmin?: boolean;
   createdSeedReports?: number;
+  demoData?: {
+    households: number;
+    members: number;
+    encounters: number;
+    triageRecords: number;
+    referrals: number;
+    followUps: number;
+    auditLogs: number;
+  };
   error?: string;
 };
 
@@ -84,15 +96,26 @@ async function run(): Promise<BootstrapResult> {
     DEMO_ADMIN_PASSWORD,
   } = await import("@/lib/auth");
   const { seedCommunityReports } = await import("@/lib/community-report-seed");
+  const { seedDemoData } = await import("@/lib/demo-data-seed");
 
-  // Fast path: schema already present? One cheap query proves it.
-  const existingChv = await db.chvUser
-    .findUnique({ where: { email: DEMO_CHV_EMAIL } })
-    .catch(() => undefined);
+  // Fast path: is the schema present AND current? Probe a table that only
+  // exists in the LATEST schema version (AuthSession shipped with the auth
+  // schema). Probing ChvUser would pass on pre-auth-schema databases — both
+  // here and on long-lived Vercel /tmp files — and wrongly skip the DDL
+  // that creates the new auth tables. The DDL is fully idempotent
+  // (CREATE ... IF NOT EXISTS), so re-applying it to a partial schema is
+  // always safe.
+  let schemaReady = false;
+  try {
+    await db.authSession.findFirst({ select: { id: true } });
+    schemaReady = true;
+  } catch {
+    schemaReady = false;
+  }
 
   let appliedStatements = 0;
-  if (existingChv === undefined) {
-    // Schema missing (fresh /tmp db): apply the full DDL. Individual
+  if (!schemaReady) {
+    // Schema missing or an older version: apply the full DDL. Individual
     // "already exists" failures are tolerated for belt-and-braces safety.
     for (const stmt of SQLITE_DDL) {
       try {
@@ -106,9 +129,12 @@ async function run(): Promise<BootstrapResult> {
     }
   }
 
+  // Schema is now guaranteed current — the demo-account lookups below can
+  // hit any table safely.
+
   // Demo CHV — identical semantics to POST /api/demo-chv.
   let createdDemoChv = false;
-  let chv = existingChv;
+  let chv = await db.chvUser.findUnique({ where: { email: DEMO_CHV_EMAIL } });
   if (!chv) {
     chv = await db.chvUser.create({
       data: {
@@ -126,11 +152,11 @@ async function run(): Promise<BootstrapResult> {
   // sign-in hint, so fresh deployments must have the account (county_admin
   // is one of the institutional roles the admin page gates on).
   let createdDemoAdmin = false;
-  const existingAdmin = await db.chvUser.findUnique({
+  let admin = await db.chvUser.findUnique({
     where: { email: DEMO_ADMIN_EMAIL },
   });
-  if (!existingAdmin) {
-    await db.chvUser.create({
+  if (!admin) {
+    admin = await db.chvUser.create({
       data: {
         email: DEMO_ADMIN_EMAIL,
         passwordHash: hashPassword(DEMO_ADMIN_PASSWORD),
@@ -146,6 +172,11 @@ async function run(): Promise<BootstrapResult> {
   // Demo community reports + response cases (idempotent by stable codes).
   const seed = await seedCommunityReports(chv.id);
 
+  // Full demo identity chain: org/CHU + households + members + backdated
+  // encounters + structured triage verdicts + referrals + follow-ups +
+  // audit entries (idempotent by stable codes — safe on every cold start).
+  const demo = await seedDemoData(chv.id, admin.id);
+
   return {
     status: "ok",
     databaseUrl: url,
@@ -153,6 +184,15 @@ async function run(): Promise<BootstrapResult> {
     createdDemoChv,
     createdDemoAdmin,
     createdSeedReports: seed.createdCount,
+    demoData: {
+      households: demo.householdsCreated,
+      members: demo.membersCreated,
+      encounters: demo.encountersCreated,
+      triageRecords: demo.triageRecordsCreated,
+      referrals: demo.referralsCreated,
+      followUps: demo.followUpsCreated,
+      auditLogs: demo.auditLogsCreated,
+    },
   };
 }
 

@@ -54,6 +54,9 @@ model ChvUser {
   referrals     Referral[]
   invitations   Invitation[] @relation("InvitedBy")
   supervisedCHUs CommunityHealthUnit[]
+  authSessions  AuthSession[]
+  authEvents    AuthEvent[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 /// Organization — multi-tenant hierarchy (§1, §15).
@@ -498,4 +501,91 @@ model ResponseCase {
   @@index([assignedChvId, status])
   @@index([status])
   @@index([encounterId])
+}
+
+// =====================================================================
+// AUTHENTICATION SCHEMA (§10 — identity, credentials, sessions)
+// The app signs HMAC cookie tokens; these tables give authentication a
+// durable, auditable database layer:
+//   • AuthSession          — server-side session registry. Every issued
+//                            cookie token is stored as a SHA-256 hash
+//                            (the raw token value is NEVER persisted), so
+//                            a session can be revoked server-side
+//                            (suspension, logout-everywhere, incident
+//                            response) instead of living only in the
+//                            cookie until natural expiry.
+//   • AuthEvent            — append-only audit trail of authentication
+//                            attempts (succeeded/failed/logout). Enables
+//                            abuse review without ever storing passwords.
+//   • PasswordResetToken   — hashed, single-use, expiring reset tokens.
+//                            Schema is live so the reset flow can be
+//                            wired without a migration; nothing reads it
+//                            yet.
+// =====================================================================
+
+/// Server-side session registry — one row per issued session cookie.
+/// The cookie stores an HMAC-signed token; only tokenHash = SHA-256(token)
+/// is persisted. A session is valid iff: the signature verifies AND the
+/// row exists AND revokedAt IS NULL AND expiresAt > now().
+model AuthSession {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  user      ChvUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// SHA-256 hex of the opaque cookie token. Unique — one row per token.
+  tokenHash String   @unique
+  /// When this session stops being valid (matches the token payload exp).
+  expiresAt DateTime
+  /// Set when the session is revoked (logout, suspension, incident kill
+  /// switch). Revoked sessions fail validation immediately.
+  revokedAt DateTime?
+  /// Truncated request User-Agent captured at issuance (device hint for
+  /// the account holder; data minimization — no IPs, no fingerprints).
+  userAgent String?
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+/// Append-only authentication audit trail. Records WHO attempted WHAT and
+/// the outcome — never passwords, never tokens. `emailAttempt` stores the
+/// (lowercased) address that was typed so abuse review can correlate
+/// brute-force patterns; unknown accounts are logged with userId = NULL.
+model AuthEvent {
+  id           String    @id @default(cuid())
+  createdAt    DateTime  @default(now())
+  /// login_succeeded | login_failed | logout | session_rejected
+  event        String
+  /// The user concerned (NULL for attempts against unknown accounts).
+  userId       String?
+  user         ChvUser?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// Lowercased email as typed by the attempter (audit only).
+  emailAttempt String?
+  /// Machine-readable outcome detail, e.g. unknown_account |
+  /// invalid_password | auth_state:suspended | user_initiated.
+  detail       String?
+  /// Truncated request User-Agent (data minimization — no IPs).
+  userAgent    String?
+
+  @@index([userId, createdAt])
+  @@index([event, createdAt])
+  @@index([emailAttempt])
+}
+
+/// Hashed, single-use, expiring password-reset tokens. The raw token is
+/// emailed as a link; only its SHA-256 hash is stored. `usedAt` enforces
+/// single use; expired-but-unused rows are garbage-collected by the reset
+/// flow. Reserved for the upcoming reset flow — schema ships now so no
+/// migration is needed later.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  userId    String
+  user      ChvUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// SHA-256 hex of the raw reset token (raw value never persisted).
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([userId])
 }

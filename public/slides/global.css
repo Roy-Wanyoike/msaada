@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap');
+
+:root {
+  /* Msaada clinical-teal palette (mirrors the app's brand scale) */
+  --bg: #F7FAF9;
+  --primary: #0E3A3D;
+  --accent: #0D9488;
+  --accent-deep: #0F6E64;
+  --ink-soft: #3E5C5E;
+  --ink-faint: #6B8486;
+  --surface: #FFFFFF;
+  --line: #DCE9E7;
+  --crisis: #E11D48;
+  --crisis-soft: #FFF1F3;
+  --teal-soft: #E6F4F2;
+
+  /* Typography tokens (families + sizes only — no bundled classes) */
+  --font-heading: 'Sora', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-num: 'Space Grotesk', monospace;
+
+  --fs-display: 64px;
+  --fs-h1: 40px;
+  --fs-h2: 28px;
+  --fs-h3: 20px;
+  --fs-body: 16px;
+  --fs-small: 13px;
+  --fs-micro: 11px;
+}
+
+.slide {
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg);
+  color: var(--primary);
+  font-family: var(--font-body);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.card-teal {
+  background: var(--teal-soft);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.accent-text { color: var(--accent); }
+.crisis-text { color: var(--crisis); }
+
+.kicker {
+  font-family: var(--font-body);
+  font-size: var(--fs-small);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+}
+
+.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
