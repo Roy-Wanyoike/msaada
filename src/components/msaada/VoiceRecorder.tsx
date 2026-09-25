@@ -17,6 +17,7 @@ const MAX_SECONDS = 180;
 
 const ERROR_MESSAGES: Record<string, string> = {
   AI_NOT_CONFIGURED: "Voice-to-text isn't set up on this server yet. Type your observation instead.",
+  ASR_NOT_AVAILABLE: "Voice-to-text isn't available on this AI provider. Type your observation instead.",
   AUDIO_TOO_LARGE: "That recording is too long. Keep voice notes under 3 minutes.",
   UNSUPPORTED_AUDIO_TYPE: "This browser records in a format we can't transcribe. Type your observation instead.",
   NO_SPEECH_DETECTED: "No speech was detected. Try again closer to the microphone.",

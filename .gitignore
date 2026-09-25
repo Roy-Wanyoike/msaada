@@ -24,3 +24,9 @@ validation-test.cjs
 # Local secrets (API keys) — never commit. Next.js loads these automatically.
 .env.local
 .env*.local
+
+# Smoke-test artifacts (contain live endpoint traffic, may echo env values)
+smoke-test.sh
+smoke-jar.txt
+smoke-server.log
+dev.log

@@ -1,27 +1,32 @@
 /**
  * Qwen client — the single place Msaada talks to a language model.
  *
- * Uses Alibaba Cloud Model Studio's OpenAI-compatible Chat Completions API
- * over plain fetch (no SDK dependency). Every AI task in src/lib/ai/ goes
- * through `qwenChat`, so timeouts, auth and error handling live here once.
+ * Uses the ModelScope OpenAI-compatible Chat Completions API
+ * (Hack for Humanity with Qwen inference endpoint) over plain fetch — no SDK
+ * dependency. Every AI task in src/lib/ai/ goes through `qwenChat`, so
+ * timeouts, auth and error handling live here once.
  *
  * Configuration (server-only env vars — put secrets in .env.local, which is
- * git-ignored; .env is committed):
- *   QWEN_API_KEY   required. Model Studio / DashScope API key.
- *   QWEN_MODEL     optional. Default "qwen-plus".
- *   QWEN_BASE_URL  optional. Default is the international (Singapore)
- *                  endpoint; use https://dashscope.aliyuncs.com/compatible-mode/v1
- *                  for a mainland-China account.
+ * git-ignored):
+ *   QWEN_API_KEY   required. ModelScope API key.
+ *   QWEN_MODEL     optional. Default "Qwen-Ambassador/Qwen3.8-Max".
+ *   QWEN_BASE_URL  optional. Default https://api-inference.modelscope.ai/v1.
+ *                  For DashScope/Model Studio accounts use
+ *                  https://dashscope-intl.aliyuncs.com/compatible-mode/v1.
  *   QWEN_TIMEOUT_MS optional. Per-request timeout, default 15000.
- *   QWEN_ASR_MODEL optional. Speech-to-text model, default "qwen3-asr-flash".
+ *   QWEN_ASR_MODEL optional. Speech-to-text model, default "qwen3-asr-flash"
+ *                  (NOT hosted on ModelScope — see transcribe.ts).
+ *   QWEN_ASR_BASE_URL optional. Endpoint override for ASR calls only, so a
+ *                  DashScope key can be used for speech-to-text while chat
+ *                  runs on ModelScope.
  *
  * Tasks: triage.ts (CHV observations), report-intake.ts (public reports),
  * transcribe.ts (voice notes), summaries.ts (dashboard briefing),
  * followup.ts (follow-up visit questions).
  */
 
-const DEFAULT_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
-const DEFAULT_MODEL = "qwen-plus";
+const DEFAULT_BASE_URL = "https://api-inference.modelscope.ai/v1";
+const DEFAULT_MODEL = "Qwen-Ambassador/Qwen3.8-Max";
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 export type ChatRole = "system" | "user" | "assistant";
@@ -44,6 +49,8 @@ export interface QwenChatOptions {
   maxTokens?: number;
   /** Overrides QWEN_MODEL for this call. */
   model?: string;
+  /** Overrides QWEN_BASE_URL for this call (e.g. ASR on a different host). */
+  baseUrl?: string;
   timeoutMs?: number;
   /**
    * Send enable_thinking=false (default true). Set false for models that
@@ -64,7 +71,13 @@ export interface QwenChatResult {
 export class QwenError extends Error {
   constructor(
     message: string,
-    readonly kind: "not_configured" | "timeout" | "http" | "network" | "empty",
+    readonly kind:
+      | "not_configured"
+      | "timeout"
+      | "http"
+      | "network"
+      | "empty"
+      | "invalid_model",
     readonly status?: number
   ) {
     super(message);
@@ -85,7 +98,10 @@ export async function qwenChat(opts: QwenChatOptions): Promise<QwenChatResult> {
   if (!apiKey) {
     throw new QwenError("QWEN_API_KEY is not set", "not_configured");
   }
-  const baseUrl = (process.env.QWEN_BASE_URL?.trim() || DEFAULT_BASE_URL).replace(/\/+$/, "");
+  const baseUrl = (opts.baseUrl || process.env.QWEN_BASE_URL?.trim() || DEFAULT_BASE_URL).replace(
+    /\/+$/,
+    ""
+  );
   const model = opts.model ?? qwenModel();
   const timeoutMs =
     opts.timeoutMs ?? (Number(process.env.QWEN_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS);
@@ -132,6 +148,17 @@ export async function qwenChat(opts: QwenChatOptions): Promise<QwenChatResult> {
       detail = errBody.error?.code || errBody.error?.message || "";
     } catch {
       // non-JSON error body
+    }
+    // A rejected model id won't fix itself on retry — surface it as its own
+    // kind so callers can degrade gracefully (e.g. ASR on a host that has no
+    // speech models returns 501 instead of a generic 502).
+    const invalidModelId = /invalid model id/i.test(detail);
+    if (invalidModelId) {
+      throw new QwenError(
+        `Qwen API rejected model id: ${detail || model}`,
+        "invalid_model",
+        res.status
+      );
     }
     throw new QwenError(
       `Qwen API returned HTTP ${res.status}${detail ? ` (${detail})` : ""}`,
