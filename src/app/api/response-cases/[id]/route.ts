@@ -139,7 +139,10 @@ export async function PATCH(
       encounterId?: unknown;
     };
 
-    if (action !== "accept" && !(action in ACTION_TO_STATUS)) {
+    if (
+      typeof action !== "string" ||
+      (action !== "accept" && !(action in ACTION_TO_STATUS))
+    ) {
       return NextResponse.json(
         {
           error: "INVALID_ACTION",

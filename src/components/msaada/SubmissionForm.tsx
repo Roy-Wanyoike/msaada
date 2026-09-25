@@ -879,15 +879,12 @@ export function SubmissionForm({
                 <div className="space-y-2">
                   <Button
                     type="submit"
-                    disabled={status === "loading" || !encounter}
+                    disabled={!encounter}
                     className="h-12 w-full bg-emerald-600 text-base hover:bg-emerald-700"
                   >
-                    {status === "loading" ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Submitting…
-                      </>
-                    ) : !encounter ? (
+                    {/* status narrows to "idle" | "error" here — the loading
+                        skeleton above replaces this section while submitting. */}
+                    {!encounter ? (
                       <>
                         <Lock className="h-4 w-4" />
                         Start an encounter to submit

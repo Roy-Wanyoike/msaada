@@ -45,7 +45,13 @@ export async function POST(
     // also re-checks ownership, so this is defense-in-depth (TOCTOU guard).
     const existing = await db.responseCase.findUnique({
       where: { id },
-      select: { id: true, assignedChvId: true, encounterId: true, status: true },
+      select: {
+        id: true,
+        assignedChvId: true,
+        encounterId: true,
+        status: true,
+        reportId: true,
+      },
     });
     if (!existing) {
       return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
