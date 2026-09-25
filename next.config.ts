@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // /docs reads the repo markdown files at request time — trace them into the
+  // server output so the standalone/Vercel deployment has them (otherwise the
+  // page renders its "# ... not found" fallback there).
+  outputFileTracingIncludes: {
+    "/docs": ["./README.md", "./PROBLEM.md", "./LICENSE"],
+  },
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
