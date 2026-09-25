@@ -1,0 +1,94 @@
+name: "✨ Feature request"
+description: "New capability or enhancement (operating model §18 type: FEATURE)"
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    validations:
+      required: true
+    attributes:
+      label: "Problem"
+      description: "What user/system need does this address? Link the master-prompt section if applicable."
+  - type: textarea
+    id: affected
+    validations:
+      required: true
+    attributes:
+      label: "User / system affected"
+      description: "CHV / supervisor / county admin / citizen / platform."
+  - type: textarea
+    id: value
+    validations:
+      required: true
+    attributes:
+      label: "Business value"
+      description: "Why this now — hackathon demo value, safety value, or platform value."
+  - type: textarea
+    id: scope
+    validations:
+      required: true
+    attributes:
+      label: "Scope"
+      description: "Concrete deliverables in THIS issue."
+  - type: textarea
+    id: out_of_scope
+    validations:
+      required: true
+    attributes:
+      label: "Out of scope"
+      description: "Adjacent work deliberately deferred (split into its own issues, §32)."
+  - type: textarea
+    id: dependencies
+    validations:
+      required: true
+    attributes:
+      label: "Dependencies"
+      description: "Depends on / Blocks / Related to (§21). Do not start while a dependency is incomplete unless it is a stable contract."
+  - type: textarea
+    id: owner
+    attributes:
+      label: "Domain owner"
+      description: "Owning agent/role per the responsibility matrix (§13, §23–27)."
+  - type: checkboxes
+    id: impacts
+    attributes:
+      label: "Impact declarations (§19)"
+      description: "Tick every area this feature touches."
+      options:
+        - label: "API"
+        - label: "Database"
+        - label: "Events"
+        - label: "Security"
+        - label: "Privacy / PII"
+        - label: "Offline-first behavior"
+        - label: "AI / triage model path"
+        - label: "Observability / audit"
+  - type: textarea
+    id: acceptance
+    validations:
+      required: true
+    attributes:
+      label: "Acceptance criteria (Given / When / Then)"
+      description: "Observable criteria per §20 — 'Given a CHV creates an encounter offline, when connectivity returns, the record uploads exactly once.'"
+  - type: textarea
+    id: testing
+    validations:
+      required: true
+    attributes:
+      label: "Testing requirements"
+      description: "Unit / integration / API contract / offline contract / manual matrix."
+  - type: textarea
+    id: migration
+    attributes:
+      label: "Migration requirements"
+      description: "Schema migration or data backfill needed; 'None' if not applicable."
+  - type: textarea
+    id: rollback
+    attributes:
+      label: "Rollback considerations"
+      description: "How to disable/revert safely (feature flag, revert plan)."
+  - type: textarea
+    id: docs
+    attributes:
+      label: "Documentation requirements"
+      description: "README / docs page / ADR updates required by the Definition of Done (§46)."

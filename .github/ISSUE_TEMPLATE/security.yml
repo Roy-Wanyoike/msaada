@@ -1,0 +1,89 @@
+name: "🔒 Security report"
+description: "Security vulnerability or abuse vector (operating model §18 type: SECURITY — review requires a security reviewer, §38)"
+labels: ["security"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **Do not include secrets, tokens, or real patient data in this report.**
+        Msaada's de-identification invariant: raw observation text must never
+        appear anywhere — including issues.
+  - type: textarea
+    id: problem
+    validations:
+      required: true
+    attributes:
+      label: "Problem"
+      description: "Vulnerability class (e.g. authz bypass, injection, PII leak), affected component, and exploit preconditions."
+  - type: textarea
+    id: affected
+    validations:
+      required: true
+    attributes:
+      label: "User / system affected"
+      description: "Which roles/data flows are exposed; confidentiality/integrity/availability impact."
+  - type: textarea
+    id: repro
+    validations:
+      required: true
+    attributes:
+      label: "Steps to reproduce"
+      description: "Deterministic reproduction WITHOUT live secrets. Redact tokens."
+  - type: textarea
+    id: expected
+    validations:
+      required: true
+    attributes:
+      label: "Expected behavior"
+      description: "The security invariant that should hold (cite master-prompt §31 Security / §32 Authentication where possible)."
+  - type: textarea
+    id: scope
+    validations:
+      required: true
+    attributes:
+      label: "Scope"
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: "Out of scope"
+  - type: textarea
+    id: dependencies
+    validations:
+      required: true
+    attributes:
+      label: "Dependencies"
+      description: "Depends on / Blocks / Related to (§21)."
+  - type: checkboxes
+    id: impacts
+    attributes:
+      label: "Impact declarations (§19)"
+      options:
+        - label: "Authentication / sessions"
+        - label: "Authorization / RBAC"
+        - label: "API"
+        - label: "Database"
+        - label: "Privacy / PII"
+        - label: "Secrets handling"
+        - label: "Rate limiting / abuse"
+        - label: "Audit trail"
+  - type: textarea
+    id: acceptance
+    validations:
+      required: true
+    attributes:
+      label: "Acceptance criteria (Given / When / Then)"
+      description: "The attack must be demonstrably closed, e.g. 'Given a revoked session token, when replayed against /api/records/mine, the API responds 401 and no data is returned.'"
+  - type: textarea
+    id: testing
+    validations:
+      required: true
+    attributes:
+      label: "Testing requirements"
+      description: "Regression test that fails before the fix and passes after (security test matrix, §78)."
+  - type: textarea
+    id: severity
+    validations:
+      required: true
+    attributes:
+      label: "Severity assessment"
+      description: "P0 (exploitable now / data exposure) / P1 / P2, with one-line rationale."

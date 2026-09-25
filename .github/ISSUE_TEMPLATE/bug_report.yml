@@ -1,0 +1,83 @@
+name: "🐛 Bug report"
+description: "Something is broken or behaves contrary to spec (operating model §18 type: BUG)"
+labels: ["bug"]
+body:
+  - type: textarea
+    id: problem
+    validations:
+      required: true
+    attributes:
+      label: "Problem"
+      description: "What is broken? Include exact observed behavior."
+  - type: textarea
+    id: affected
+    validations:
+      required: true
+    attributes:
+      label: "User / system affected"
+      description: "Which role (CHV / supervisor / county admin / citizen) or subsystem?"
+  - type: textarea
+    id: repro
+    validations:
+      required: true
+    attributes:
+      label: "Steps to reproduce"
+      description: "Minimal, deterministic steps. Include environment (local / Vercel demo / CI)."
+  - type: textarea
+    id: expected
+    validations:
+      required: true
+    attributes:
+      label: "Expected behavior"
+  - type: textarea
+    id: scope
+    validations:
+      required: true
+    attributes:
+      label: "Scope"
+      description: "Files/components you believe are involved."
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: "Out of scope"
+      description: "Adjacent problems deliberately NOT addressed here (one concern per issue, §32)."
+  - type: textarea
+    id: dependencies
+    validations:
+      required: true
+    attributes:
+      label: "Dependencies"
+      description: "Depends on / Blocks / Related to (§21)."
+  - type: checkboxes
+    id: impacts
+    attributes:
+      label: "Impact declarations (§19)"
+      description: "Tick every area this bug fix touches."
+      options:
+        - label: "API"
+        - label: "Database"
+        - label: "Events"
+        - label: "Security"
+        - label: "Privacy / PII"
+        - label: "Offline-first behavior"
+        - label: "AI / triage model path"
+        - label: "Observability / audit"
+  - type: textarea
+    id: acceptance
+    validations:
+      required: true
+    attributes:
+      label: "Acceptance criteria (Given / When / Then)"
+      description: "Observable criteria, e.g. 'Given a suspended CHV account, when login is attempted, the request is rejected and an audit event is written.'"
+  - type: textarea
+    id: testing
+    validations:
+      required: true
+    attributes:
+      label: "Testing requirements"
+      description: "How the fix will be proven (unit / integration / API contract / manual)."
+  - type: textarea
+    id: security
+    attributes:
+      label: "Security considerations"
+      description: "Authn/authz, injection, secrets, abuse surface touched by this bug or its fix."
