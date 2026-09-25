@@ -148,9 +148,43 @@ bun install && bun run db:push && bun run dev   # http://localhost:3000
 - CHV: `demo@msaada.health` / `msaada123`
 - County Admin: `county.admin@msaada.health` / `msaada123`
 
-**Tech Stack:** Next.js 16 (App Router, TypeScript) + Qwen (via z-ai-web-dev-sdk) + Prisma + Tailwind CSS 4 + shadcn/ui + Recharts
+**Tech Stack:** Next.js 16 (App Router, TypeScript) + Qwen (ModelScope OpenAI-compatible API) + Supabase (client helpers + session proxy) + Prisma + Tailwind CSS 4 + shadcn/ui + Recharts
 
 **GitHub:** https://github.com/Roy-Wanyoike/msaada
+
+---
+
+## Deployment (Vercel)
+
+The app deploys to Vercel as-is (`next build` with Turbopack). Configure the environment variables below before the first deploy — they are all resolved lazily at call time, so a deploy never fails at build for a missing variable.
+
+| Variable | Scope | Purpose |
+|---|---|---|
+| `DATABASE_URL` | Server | Prisma connection string. Local default is `file:../db/custom.db`; SQLite is ephemeral on Vercel, so point this at a hosted database for durable data. |
+| `MSAADA_SESSION_SECRET` | Server | HMAC key that signs the `msaada_session` cookie. **Must be ≥ 32 chars** in production (e.g. `openssl rand -base64 48`). |
+| `QWEN_API_KEY` | Server | ModelScope API key for the Qwen chat-completions endpoint. Powers AI triage, report intake, dashboard summaries and follow-up suggestions. |
+| `QWEN_BASE_URL` | Server | Optional. Defaults to `https://api-inference.modelscope.ai/v1`; override for DashScope/Model Studio accounts. |
+| `QWEN_MODEL` | Server | Optional. Defaults to `Qwen-Ambassador/Qwen3.8-Max`. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Client+Server | Supabase project URL (public by design, e.g. `https://mwpyllhgjihvbtmhbbjl.supabase.co`). Unset = the Supabase layer stays off. |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Client+Server | Supabase publishable (anon) key — safe to expose in the browser. Never use the `service_role` key here. |
+
+Set the variables in **Vercel → Settings → Environment Variables**, then trigger a **Redeploy** so the running deployment picks them up.
+
+### Supabase
+
+Supabase is an optional enhancement layer. With the two `NEXT_PUBLIC_SUPABASE_*` variables unset, the app runs entirely on its own cookie-session auth + Prisma database, and every piece below degrades to a no-op:
+
+- `src/utils/supabase/client.ts` — browser client for Client Components (`createBrowserClient` from `@supabase/ssr`, memoized singleton); returns `null` when Supabase isn't configured.
+- `src/utils/supabase/server.ts` — server client for Server Components / Route Handlers, wired to `next/headers` cookies: it reads the whole cookie store for token refreshes and writes every `Set-Cookie` the SDK emits back.
+- `src/utils/supabase/config.ts` — lazy, call-time validation of the two public env vars. Nothing throws at module scope (so `next build` never breaks for deploys without Supabase); `requireSupabaseConfig()` throws a clear error only where Supabase is genuinely required.
+- `src/proxy.ts` — implements the Next.js 16 **proxy** convention (the network-boundary file formerly named `middleware.ts` with a `middleware` export) and refreshes Supabase auth sessions via `src/utils/supabase/middleware.ts` before requests hit route handlers or Server Components. It is a strict pass-through when the Supabase env is unset, so local dev and un-configured deploys are unaffected.
+- `supabase/schema.sql` must be run once in the Supabase SQL Editor (Dashboard → SQL Editor → New query). It is idempotent (safe to re-run) and creates the `todos` demo table, the `community_reports` cloud-mirror table and the `encounter_drafts` offline-sync table, all protected by row-level security (RLS) policies.
+
+### AI provider notes
+
+- The single model client (`src/lib/ai/client.ts`) talks to the **ModelScope OpenAI-compatible inference API** (Hack for Humanity with Qwen) over plain `fetch` — no SDK dependency. Default model: `Qwen-Ambassador/Qwen3.8-Max` (override with `QWEN_MODEL`).
+- ModelScope hosts **chat models only** — there is no ASR (speech-to-text) model on that endpoint. `/api/transcribe` therefore returns `501 ASR_NOT_AVAILABLE` and the UI asks the CHV to type the observation instead.
+- Escape hatch for voice notes: point `QWEN_ASR_BASE_URL` (ASR calls only) at DashScope — e.g. `https://dashscope.aliyuncs.com/compatible-mode/v1` with `QWEN_ASR_MODEL=qwen3-asr-flash` — so chat stays on ModelScope while speech-to-text runs on DashScope.
 
 ---
 
