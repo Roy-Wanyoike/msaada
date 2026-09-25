@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Toaster as RadixToaster } from "@/components/ui/toaster";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -74,6 +75,7 @@ export default function RootLayout({
             @/hooks/use-toast, which renders into <Toaster /> below. Without it,
             dashboard toasts are invisible. The two coexist fine. */}
         <RadixToaster />
+        <Analytics />
       </body>
     </html>
   );
