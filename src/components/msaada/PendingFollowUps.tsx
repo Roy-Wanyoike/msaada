@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { FollowUpSuggestions } from "./FollowUpSuggestions";
 
 interface FollowUpDTO {
   id: string;
@@ -317,6 +318,7 @@ export function PendingFollowUps({ refreshKey }: Props) {
                                   <span className="text-muted-foreground">{f.chpNextAction}</span>
                                 </p>
                               )}
+                              <FollowUpSuggestions followUpId={f.id} />
                               <div className="space-y-1">
                                 <Label htmlFor={`note-${f.id}`} className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                                   Resolution note (de-identified — no names/addresses)

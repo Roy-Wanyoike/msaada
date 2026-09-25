@@ -1,4 +1,4 @@
-import ZAI from "z-ai-web-dev-sdk";
+import { qwenChat, qwenModel, QwenError, type ChatMessage } from "@/lib/ai/client";
 import {
   CLASSIFICATIONS,
   type Classification,
@@ -20,14 +20,48 @@ Otherwise classify into exactly one of: routine, needs_followup, needs_facility_
 
 If information is too limited to classify confidently, default to needs_followup rather than routine — under-triage is the higher-risk error.`;
 
-let zaiPromise: Promise<Awaited<ReturnType<typeof ZAI.create>>> | null = null;
+/**
+ * Version of the prompt + parsing contract above. Bump it whenever
+ * TRIAGE_SYSTEM_PROMPT or the output schema changes; it is stored on every
+ * TriageRecord so each classification can be traced to the prompt that made it.
+ */
+export const TRIAGE_PROMPT_VERSION = "triage-v1.1";
 
-async function getZAI() {
-  if (!zaiPromise) {
-    zaiPromise = ZAI.create();
-  }
-  return zaiPromise;
+/** Recorded as the model when no model produced the result. */
+export const FALLBACK_MODEL = "fallback";
+
+/**
+ * Deterministic crisis screen, used ONLY when the model could not produce a
+ * result (unreachable, misconfigured, or unparseable). Without it, the
+ * needs_followup fallback would silently under-triage a crisis statement.
+ * Deliberately broad (English, Kiswahili, Sheng): a false positive costs an
+ * unnecessary escalation; a false negative can cost a life.
+ */
+const CRISIS_PATTERNS: RegExp[] = [
+  // English
+  /\b(suicid\w*|kill (him|her|them)sel(f|ves)|kill myself|end (his|her|my|their) (own )?life|take (his|her|my|their) (own )?life)\b/i,
+  /\b(self[- ]?harm\w*|harm(ing)? (him|her|them|my)sel(f|ves)|cut(ting)? (him|her|them|my)sel(f|ves))\b/i,
+  /\b(want(s|ed)? to die|wish(es|ed)? (he|she|they|i) (was|were) dead|no reason to live|better off dead|overdose)\b/i,
+  /\b(hang(ing)? (him|her|them|my)sel(f|ves)|jump(ed|ing)? (off|into)|drown (him|her|them|my)sel(f|ves))\b/i,
+  // Kiswahili / Sheng
+  /\b(kujiua|anataka kujiua|nataka kujiua|kujidhuru|kujiumiza|kujinyonga|kujikata)\b/i,
+  /\b(hana sababu ya kuishi|sina sababu ya kuishi|anataka kufa|nataka kufa|afadhali kufa|maisha hayana maana)\b/i,
+  /\b(sumu|kisu|kamba ya kujinyonga|dawa nyingi)\b/i,
+  /\b(hatari ya moja kwa moja|msaada wa dharura|ataingia (mto|river))\b/i,
+];
+
+export function crisisKeywordScreen(text: string): boolean {
+  return CRISIS_PATTERNS.some((re) => re.test(text));
 }
+
+export const CRISIS_OUTPUT: CrisisResult = {
+  escalation: true,
+  chp_instruction:
+    "Do not leave the household unaccompanied. Contact your CHV supervisor and the nearest Level 4+ facility immediately. If immediate danger, call Kenya Red Cross Emergency: 1199.",
+  crisis_line:
+    "Kenya Red Cross Emergency: 1199 | Befrienders Kenya: +254 722 178 177",
+  record_for_reporting: true,
+};
 
 function stripJsonFence(raw: string): string {
   let s = raw.trim();
@@ -113,10 +147,13 @@ export interface QwenCallResult {
   output: TriageModelOutput;
   fallbackUsed: boolean;
   attempts: number;
+  /** Model that produced `output`, or FALLBACK_MODEL. */
+  model: string;
+  promptVersion: string;
 }
 
 /**
- * Call Qwen (via z-ai-web-dev-sdk) with the triage system prompt.
+ * Call Qwen (see src/lib/ai/client.ts) with the triage system prompt.
  *
  * Latency optimization: the FIRST call already includes the strict "single
  * valid JSON object, nothing else" reinforcement (the system prompt demands
@@ -132,8 +169,6 @@ export interface QwenCallResult {
 export async function classifyObservation(
   observationText: string
 ): Promise<QwenCallResult> {
-  const zai = await getZAI();
-
   const buildMessages = (strict: boolean) => {
     // The base system prompt already mandates "valid JSON only, no other
     // text". The strict reinforcement makes this unambiguous for models that
@@ -143,34 +178,76 @@ export async function classifyObservation(
         "\n\nCRITICAL FORMAT REQUIREMENT: Respond with a SINGLE valid JSON object and ABSOLUTELY NOTHING else. No prose, no markdown, no code fences, no leading or trailing text. The first character must be '{' and the last must be '}'."
       : TRIAGE_SYSTEM_PROMPT +
         "\n\nRespond with a single valid JSON object only. No markdown, no code fences, no extra text.";
-    return [
-      { role: "assistant" as const, content: system },
-      { role: "user" as const, content: observationText },
+    const messages: ChatMessage[] = [
+      // Must be the system role: sent as "assistant" (as before), the model
+      // treats the crisis rules as its own prior turn, not as instructions.
+      { role: "system", content: system },
+      { role: "user", content: observationText },
     ];
+    return messages;
   };
 
   let attempts = 0;
   for (let strict = 0; strict < 2; strict++) {
     attempts++;
     try {
-      const completion = await zai.chat.completions.create({
+      // Inside the try: a missing key, timeout or HTTP error must reach the
+      // fallback below, not crash the request with a 500.
+      const { content, model } = await qwenChat({
         messages: buildMessages(strict === 1),
-        thinking: { type: "disabled" },
+        json: true,
+        temperature: 0.1,
+        maxTokens: 800,
       });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      if (!raw) continue;
-      const parsed = parseModelOutput(raw);
+      const parsed = parseModelOutput(content);
       if (parsed) {
-        return { output: parsed, fallbackUsed: false, attempts };
+        return {
+          output: parsed,
+          fallbackUsed: false,
+          attempts,
+          model,
+          promptVersion: TRIAGE_PROMPT_VERSION,
+        };
       }
       // If the first (already-strict) attempt failed to parse, the retry uses
       // the even-harder instruction. In practice the first call now succeeds
       // ~always, so the retry rarely fires — cutting typical latency roughly
       // in half (from ~25s to ~12-15s).
     } catch (err) {
-      // swallow and retry once
-      console.error("[qwen] attempt", attempts, "error:", err);
+      console.error(
+        `[qwen] triage attempt ${attempts} (${qwenModel()}) failed:`,
+        err instanceof Error ? err.message : err
+      );
+      // A missing or rejected key won't fix itself on retry — go straight to
+      // the fallback. (Timeouts, 429s and 5xx are worth one more try.)
+      if (
+        err instanceof QwenError &&
+        (err.kind === "not_configured" || err.status === 401 || err.status === 403)
+      ) {
+        break;
+      }
     }
+  }
+
+  return fallbackTriage(observationText, attempts);
+}
+
+/**
+ * Result used when no model produced a usable answer. Screens for crisis
+ * language first, so a model outage can never downgrade a crisis to routine
+ * follow-up; otherwise applies the spec fallback (needs_followup). Shared by
+ * every AI task whose output feeds the policy engine.
+ */
+export function fallbackTriage(text: string, attempts: number): QwenCallResult {
+  const fallbackMeta = {
+    fallbackUsed: true,
+    attempts,
+    model: FALLBACK_MODEL,
+    promptVersion: TRIAGE_PROMPT_VERSION,
+  };
+
+  if (crisisKeywordScreen(text)) {
+    return { output: CRISIS_OUTPUT, ...fallbackMeta };
   }
 
   // Spec-mandated fallback: never silently drop.
@@ -184,5 +261,5 @@ export async function classifyObservation(
       "model output could not be parsed, defaulting to caution",
     aggregate_tag: "incomplete_observation",
   };
-  return { output: fallback, fallbackUsed: true, attempts };
+  return { output: fallback, ...fallbackMeta };
 }

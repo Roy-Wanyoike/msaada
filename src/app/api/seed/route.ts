@@ -5,7 +5,7 @@ import {
   DEMO_CHV_EMAIL,
   DEMO_CHV_PASSWORD,
 } from "@/lib/auth";
-import { classifyObservation } from "@/lib/qwen";
+import { classifyObservation } from "@/lib/ai/triage";
 import { insertTriageRecord } from "@/lib/triage-store";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { generateCode } from "@/lib/identity-types";
@@ -442,7 +442,7 @@ export async function POST(req: Request) {
     });
 
     // 5. Qwen interprets the observation (transcript text is in-memory only).
-    const { output, fallbackUsed } = await classifyObservation(t.text);
+    const { output, fallbackUsed, model: aiModel, promptVersion } = await classifyObservation(t.text);
 
     // 6. Persist the de-identified triage record, linked to the encounter.
     const record = await insertTriageRecord({
@@ -451,6 +451,8 @@ export async function POST(req: Request) {
       ward: t.ward,
       output,
       fallbackUsed,
+      aiModel,
+      promptVersion,
       encounterId: encounter.id,
     });
 

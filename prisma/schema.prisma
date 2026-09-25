@@ -154,6 +154,11 @@ model TriageRecord {
   crisisLine        String?  // populated only on escalation=true (crisis)
   confidenceNote    String?
 
+  // AI transparency: which model (or "fallback") and prompt version produced
+  // this classification. Nullable for records created before tracking.
+  aiModel           String?
+  promptVersion     String?
+
   // Submission audit / ownership (mirrors the `submitted_by` RLS column)
   submittedById     String
   submittedBy       ChvUser  @relation(fields: [submittedById], references: [id])
@@ -198,6 +203,7 @@ model AuditLog {
   piiRedactions  String?  // JSON counts from the scrubber (phone/email/id/name), never the redactions
   /// Policy engine version + workflow classification (section 12, 21 -- auditable).
   policyVersion  String?
+  aiModel        String?  // model id that produced the verdict, or "fallback"
   workflowClass  String?  // routine|follow_up_required|referral_required|human_review|crisis_override
   /// Referral created by this triage (if any).
   referralId     String?

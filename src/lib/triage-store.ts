@@ -21,8 +21,11 @@ export async function insertTriageRecord(args: {
   fallbackUsed: boolean;
   /** Links to the Encounter that generated this observation (section 6, 15). */
   encounterId?: string;
+  /** AI transparency: model id (or "fallback") and prompt version used. */
+  aiModel?: string;
+  promptVersion?: string;
 }): Promise<TriageRecordDTO> {
-  const { submittedById, county, ward, output, fallbackUsed, encounterId } = args;
+  const { submittedById, county, ward, output, fallbackUsed, encounterId, aiModel, promptVersion } = args;
   const isCrisis = output.escalation === true;
 
   const created = await db.triageRecord.create({
@@ -39,6 +42,8 @@ export async function insertTriageRecord(args: {
       chpNextAction: isCrisis ? null : output.chp_next_action,
       fallbackUsed,
       encounterId: encounterId ?? null,
+      aiModel: aiModel ?? null,
+      promptVersion: promptVersion ?? null,
       chpInstruction: isCrisis ? output.chp_instruction : null,
       crisisLine: isCrisis ? output.crisis_line : null,
       confidenceNote: isCrisis
@@ -340,6 +345,17 @@ export async function getMyStats(submittedById: string): Promise<ChvStats> {
   return stats;
 }
 
+/**
+ * YYYY-MM-DD in the server's local time zone. Day ladders start at local
+ * midnight, so their keys must be local too: keying by UTC shifts every
+ * bucket back a day east of UTC (EAT is +3) and drops today's records.
+ */
+function localDayKey(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
 export interface CountyAggregate {
   county: string;
   routine: number;
@@ -430,7 +446,7 @@ export async function getAggregateByDay(days = 14): Promise<DailyAggregate[]> {
   for (let i = 0; i < days; i++) {
     const d = new Date(since);
     d.setDate(d.getDate() + i);
-    const key = d.toISOString().slice(0, 10);
+    const key = localDayKey(d);
     byDay.set(key, {
       day: key,
       routine: 0,
@@ -442,7 +458,7 @@ export async function getAggregateByDay(days = 14): Promise<DailyAggregate[]> {
   }
 
   for (const r of rows) {
-    const key = r.createdAt.toISOString().slice(0, 10);
+    const key = localDayKey(r.createdAt);
     const a = byDay.get(key);
     if (!a) continue;
     a.total++;
@@ -573,6 +589,8 @@ export async function writeAuditEntry(args: {
   piiRedactions?: Record<string, number> | null;
   /** Policy engine version + workflow classification (section 12, 21). */
   policyVersion?: string;
+  /** Model id that produced the verdict, or "fallback". */
+  aiModel?: string;
   workflowClass?: string;
   referralId?: string | null;
 }): Promise<void> {
@@ -590,6 +608,7 @@ export async function writeAuditEntry(args: {
         ? JSON.stringify(args.piiRedactions)
         : null,
       policyVersion: args.policyVersion ?? null,
+      aiModel: args.aiModel ?? null,
       workflowClass: args.workflowClass ?? null,
       referralId: args.referralId ?? null,
     },
@@ -972,7 +991,7 @@ export async function getDashboardStatsForCounty(
   for (let i = 0; i < days; i++) {
     const d = new Date(since);
     d.setDate(d.getDate() + i);
-    const key = d.toISOString().slice(0, 10);
+    const key = localDayKey(d);
     byDay.set(key, {
       day: key,
       routine: 0,
@@ -983,7 +1002,7 @@ export async function getDashboardStatsForCounty(
     });
   }
   for (const r of dayRows) {
-    const key = r.createdAt.toISOString().slice(0, 10);
+    const key = localDayKey(r.createdAt);
     const a = byDay.get(key);
     if (!a) continue;
     a.total++;
@@ -1014,5 +1033,7 @@ export async function getDashboardStatsForCounty(
     if (g.escalation) totals.escalation += g._count;
   }
 
-  return { byCounty, byDay, byTag, totals, county };
+  // byDay was built as a Map keyed by date (insertion order = oldest → newest);
+  // the DashboardStats contract is an array.
+  return { byCounty, byDay: Array.from(byDay.values()), byTag, totals, county };
 }

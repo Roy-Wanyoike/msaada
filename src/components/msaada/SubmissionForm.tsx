@@ -47,6 +47,7 @@ import type {
 } from "@/lib/identity-types";
 import { SAMPLE_TRANSCRIPTS } from "./samples";
 import { TriageResultCard } from "./TriageResultCard";
+import { VoiceRecorder } from "./VoiceRecorder";
 import type { Chv } from "./AuthCard";
 
 type Status = "idle" | "loading" | "result" | "error";
@@ -755,7 +756,7 @@ export function SubmissionForm({
                         aria-hidden="true"
                       />
                       <span className="text-sm font-medium">
-                        Paste voice transcript
+                        Voice note
                       </span>
                     </div>
                     <CollapsibleTrigger asChild>
@@ -767,19 +768,33 @@ export function SubmissionForm({
                       </Button>
                     </CollapsibleTrigger>
                   </div>
-                  <CollapsibleContent className="mt-2 space-y-1.5">
+                  <CollapsibleContent className="mt-2 space-y-2">
+                    <VoiceRecorder
+                      disabled={!encounter}
+                      onTranscript={(text) => {
+                        setVoiceTranscript((prev) =>
+                          prev.trim() ? `${prev.trim()}\n\n${text}` : text
+                        );
+                        toast.success("Voice note transcribed", {
+                          description: "Check the text below and correct anything misheard.",
+                        });
+                      }}
+                    />
                     <Textarea
                       value={voiceTranscript}
                       onChange={(e) => setVoiceTranscript(e.target.value)}
                       rows={3}
-                      placeholder="Paste a transcript here if you recorded a voice note…"
+                      placeholder="Your transcript appears here. You can also paste or type one."
                       className="min-h-24"
                       disabled={!encounter}
+                      aria-label="Voice note transcript"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Voice-to-text is stubbed for the demo; paste a transcript
-                      here if you recorded a voice note. If filled, its content
-                      is prepended to the observation text sent to the model.
+                      Speak in Kiswahili, Sheng or English. The recording is
+                      transcribed and then discarded; it is never stored.
+                      Review the transcript before submitting. It is added to
+                      your observation, and names and numbers are scrubbed
+                      before triage.
                     </p>
                   </CollapsibleContent>
                 </Collapsible>

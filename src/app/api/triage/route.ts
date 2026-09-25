@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionChv } from "@/lib/auth";
-import { classifyObservation } from "@/lib/qwen";
+import { classifyObservation } from "@/lib/ai/triage";
 import { scrubPII } from "@/lib/pii-scrub";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
     );
 
     // 3. AI interprets (section 9).
-    const { output, fallbackUsed } = await classifyObservation(scrubbedText);
+    const { output, fallbackUsed, model: aiModel, promptVersion } = await classifyObservation(scrubbedText);
 
     // 4. DETERMINISTIC POLICY ENGINE (section 10, 12).
     const interpretation: ModelInterpretation = {
@@ -134,6 +134,8 @@ export async function POST(req: Request) {
       ward: wardTyped,
       output,
       fallbackUsed,
+      aiModel,
+      promptVersion,
       encounterId: encounterId || undefined,
     });
 
@@ -209,6 +211,7 @@ export async function POST(req: Request) {
       fallbackUsed,
       piiRedactions: redactionCount,
       policyVersion: policyDecision.policyVersion,
+      aiModel,
       workflowClass: policyDecision.workflowClass,
       referralId,
     }).catch((e) => {

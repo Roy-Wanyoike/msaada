@@ -29,6 +29,7 @@ import { InsightCallouts } from "@/components/msaada/insight-callouts";
 import { CountyTable } from "@/components/msaada/county-table";
 import { AuditStrip } from "@/components/msaada/AuditStrip";
 import { AppNav } from "@/components/msaada/AppNav";
+import { AiSummaryCard } from "@/components/msaada/AiSummaryCard";
 import { FollowUpKpiCard } from "@/components/msaada/FollowUpKpiCard";
 import { CommunityIntelligenceWidget } from "@/components/msaada/CommunityIntelligenceWidget";
 
@@ -338,6 +339,7 @@ export default function DashboardPage() {
               audit={audit}
               scope={scope}
               followUpStats={followUpStats}
+              days={days}
               onSeed={() => {
                 void seedDemo();
               }}
@@ -507,6 +509,7 @@ function DashboardView({
   audit,
   scope,
   followUpStats,
+  days,
   onSeed,
   seeding,
 }: {
@@ -514,6 +517,7 @@ function DashboardView({
   audit: DashboardPayload["audit"];
   scope: DashboardPayload["scope"];
   followUpStats: DashboardPayload["followUpStats"] | null;
+  days: number;
   onSeed: () => void;
   seeding: boolean;
 }) {
@@ -638,6 +642,9 @@ function DashboardView({
       {totals.total > 0 && totals.total < 3 ? (
         <SeedPromptBanner onSeed={onSeed} seeding={seeding} />
       ) : null}
+
+      {/* AI briefing (on demand) — resets when the range or scope changes. */}
+      <AiSummaryCard key={`${days}-${scope.mode}`} days={days} scope={scope.mode} />
 
       {/* Insights */}
       <section aria-label="Insight callouts" aria-live="polite">

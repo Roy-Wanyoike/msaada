@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionChv } from "@/lib/auth";
 import {
   acceptCaseAssignment,
+  toCaseDTO,
   updateCaseStatus,
 } from "@/lib/community-report-store";
 import { db } from "@/lib/db";
@@ -268,45 +269,4 @@ export async function PATCH(
     console.error("[response-cases PATCH] internal error:", err);
     return NextResponse.json({ error: "INTERNAL" }, { status: 500 });
   }
-}
-
-// ---- DTO mapper (inline duplicate of toCaseDTO in community-report-store) ----
-// Duplicated here because the task scope is "create these NEW files ONLY" —
-// we don't add a getCaseById to the store. The shape MUST stay in sync with
-// the store's toCaseDTO so the list and single-fetch endpoints agree.
-function toCaseDTO(row: {
-  id: string; caseCode: string; createdAt: Date; updatedAt: Date;
-  reportId: string; assignedChvId: string | null; assignedSupervisorId: string | null;
-  assignmentReason: string | null; assignedAt: Date | null; acceptedAt: Date | null;
-  reassignedAt: Date | null; status: string; encounterId: string | null;
-  resolvedAt: Date | null; resolutionNote: string | null;
-  report: {
-    reportCode: string; description: string; category: string; county: string;
-    ward: string | null; landmark: string | null; directions: string | null;
-  } | null;
-}): ResponseCaseDTO {
-  const r = row.report;
-  return {
-    id: row.id,
-    caseCode: row.caseCode,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-    reportId: row.reportId,
-    reportCode: r?.reportCode ?? "—",
-    assignedChvId: row.assignedChvId,
-    assignedSupervisorId: row.assignedSupervisorId,
-    assignmentReason: row.assignmentReason,
-    assignedAt: row.assignedAt ? row.assignedAt.toISOString() : null,
-    acceptedAt: row.acceptedAt ? row.acceptedAt.toISOString() : null,
-    status: row.status,
-    encounterId: row.encounterId,
-    resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
-    resolutionNote: row.resolutionNote,
-    reportDescription: r?.description ?? "—",
-    reportCategory: r?.category ?? "—",
-    county: r?.county ?? "—",
-    ward: r?.ward ?? null,
-    landmark: r?.landmark ?? null,
-    directions: r?.directions ?? null,
-  };
 }

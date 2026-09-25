@@ -309,7 +309,7 @@ export async function getOpenCasesByCounty(county: string): Promise<{ total: num
   };
 }
 
-function toCaseDTO(row: {
+export function toCaseDTO(row: {
   id: string; caseCode: string; createdAt: Date; updatedAt: Date;
   reportId: string; assignedChvId: string | null; assignedSupervisorId: string | null;
   assignmentReason: string | null; assignedAt: Date | null; acceptedAt: Date | null;
@@ -318,6 +318,7 @@ function toCaseDTO(row: {
   report: {
     reportCode: string; description: string; category: string; county: string;
     ward: string | null; landmark: string | null; directions: string | null;
+    aiInterpretation: string | null;
   } | null;
 }): ResponseCaseDTO {
   const r = row.report;
@@ -343,5 +344,29 @@ function toCaseDTO(row: {
     ward: r?.ward ?? null,
     landmark: r?.landmark ?? null,
     directions: r?.directions ?? null,
+    aiIntake: parseIntake(r?.aiInterpretation ?? null),
   };
+}
+
+/** Pull the advisory intake block out of the stored AI interpretation JSON. */
+function parseIntake(raw: string | null): ResponseCaseDTO["aiIntake"] {
+  if (!raw) return null;
+  try {
+    const intake = (JSON.parse(raw) as { intake?: unknown }).intake;
+    if (!intake || typeof intake !== "object") return null;
+    const i = intake as Record<string, unknown>;
+    const list = (v: unknown) =>
+      Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+    const urgency = i.urgency === "low" || i.urgency === "high" ? i.urgency : "medium";
+    if (typeof i.summary !== "string" || !i.summary) return null;
+    return {
+      summary: i.summary,
+      urgency,
+      suggestedCategory: typeof i.suggestedCategory === "string" ? i.suggestedCategory : "other",
+      questionsForVisit: list(i.questionsForVisit),
+      missingInformation: list(i.missingInformation),
+    };
+  } catch {
+    return null;
+  }
 }

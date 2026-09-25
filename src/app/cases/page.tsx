@@ -24,6 +24,7 @@ import {
   ClipboardCheck,
   ShieldCheck,
   PhoneMissed,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -91,6 +92,13 @@ interface ResponseCaseDTO {
   ward: string | null;
   landmark: string | null;
   directions: string | null;
+  aiIntake: {
+    summary: string;
+    urgency: "low" | "medium" | "high";
+    suggestedCategory: string;
+    questionsForVisit: string[];
+    missingInformation: string[];
+  } | null;
 }
 
 type StatusFilter =
@@ -643,6 +651,56 @@ function KpiCard({
   );
 }
 
+const URGENCY_STYLES: Record<"low" | "medium" | "high", string> = {
+  low: "bg-muted text-muted-foreground",
+  medium: "bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
+  high: "bg-red-50 text-red-800 dark:bg-red-950/50 dark:text-red-300",
+};
+
+/** Advisory AI intake for the report: summary, urgency, what to ask. */
+function AiIntakePanel({ intake }: { intake: NonNullable<ResponseCaseDTO["aiIntake"]> }) {
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Sparkles className="size-3.5 text-primary" aria-hidden />
+        <span className="text-xs font-semibold text-foreground">AI intake</span>
+        <span
+          className={cn(
+            "rounded px-1.5 py-0.5 text-[11px] font-medium capitalize",
+            URGENCY_STYLES[intake.urgency]
+          )}
+        >
+          {intake.urgency} urgency
+        </span>
+        <span className="text-[11px] text-muted-foreground">
+          Suggestion only · verify on your visit
+        </span>
+      </div>
+      <p className="mt-2 text-sm text-foreground">{intake.summary}</p>
+      {intake.questionsForVisit.length > 0 && (
+        <div className="mt-2">
+          <p className="text-xs font-medium text-muted-foreground">Questions to ask</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-foreground">
+            {intake.questionsForVisit.map((q) => (
+              <li key={q}>{q}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {intake.missingInformation.length > 0 && (
+        <div className="mt-2">
+          <p className="text-xs font-medium text-muted-foreground">Not in the report</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-foreground">
+            {intake.missingInformation.map((m) => (
+              <li key={m}>{m}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CaseCard({
   c,
   actioningId,
@@ -726,6 +784,8 @@ function CaseCard({
         <p className="mt-1 text-[11px] text-muted-foreground">
           De-identified — names/contacts scrubbed before storage.
         </p>
+
+        {c.aiIntake && <AiIntakePanel intake={c.aiIntake} />}
 
         {/* Assignment reason + time */}
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">

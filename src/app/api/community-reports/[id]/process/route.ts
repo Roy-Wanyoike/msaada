@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionChv } from "@/lib/auth";
-import { classifyObservation } from "@/lib/qwen";
+import { analyzeCommunityReport } from "@/lib/ai/report-intake";
 import {
   evaluatePolicy,
   type ModelInterpretation,
@@ -138,17 +138,16 @@ export async function POST(
   const concernText = report.description;
 
   try {
-    // 4. AI Intake (CR-005) — Qwen structures the concern into a triage
-    //    flag. classifyObservation is REUSED from /api/triage — no
-    //    duplication per CR-015. It already implements:
-    //      - 2-attempt retry with strict JSON reinforcement
-    //      - spec-mandated fallback (needs_followup) on parse failure
-    //      - never silently drops a failed classification
-    //    In normal operation it returns a parsed output. Catastrophic
-    //    network/SDK failures can still throw — those propagate up to the
+    // 4. AI Intake (CR-005) — Qwen structures the concern with a prompt
+    //    written for public reports (src/lib/ai/report-intake.ts). It
+    //    returns the same triage verdict shape as /api/triage (same crisis
+    //    rule, same fallback: crisis keyword screen, then needs_followup),
+    //    plus advisory extras for the CHV: summary, urgency, visit questions.
+    //    Model failures never throw; anything unexpected propagates to the
     //    outer catch, leaving the report at status="received" (§10 safety:
     //    the AI failure does NOT block the report; a human can still act).
-    const { output, fallbackUsed } = await classifyObservation(concernText);
+    const { output, fallbackUsed, model: aiModel, promptVersion, intake } =
+      await analyzeCommunityReport(concernText);
 
     // 5. Deterministic Safety Routing (CR-006) — adapt the Qwen output to
     //    the policy engine's ModelInterpretation type (SAME pattern as
@@ -195,15 +194,18 @@ export async function POST(
     //    aiConfidence is a static 0.85 per the build spec — it is a
     //    coarse disposition marker, not a calibrated probability. The
     //    auditable artifact is the policy decision, not this number.
-    //    aiUncertainty is null here; if the fallback path ran, the
-    //    policy engine's confidenceDisposition captures that nuance
-    //    (human_review) instead of a free-text uncertainty string.
+    //    aiUncertainty holds what the report leaves out (JSON string[]),
+    //    so the CHV knows what to find out on the visit.
     await updateReportAI({
       reportId: id,
-      aiInterpretation: JSON.stringify(output),
-      aiModelVersion: "qwen-via-z-ai-sdk",
+      // The triage verdict plus the advisory intake extras (summary,
+      // urgency, visit questions) shown on the CHV's case card.
+      aiInterpretation: JSON.stringify({ ...output, intake }),
+      aiModelVersion: `${aiModel} (${promptVersion})`,
       aiConfidence: 0.85,
-      aiUncertainty: null,
+      aiUncertainty: intake?.missingInformation.length
+        ? JSON.stringify(intake.missingInformation)
+        : undefined,
     });
 
     // 7. Persist the deterministic policy decision (status →

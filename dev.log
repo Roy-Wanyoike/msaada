@@ -1,43 +1,525 @@
-▲ Next.js 16.1.3 (Turbopack)
+▲ Next.js 16.3.6 (Turbopack)
 - Local:         http://localhost:3000
-- Network:       http://21.0.18.47:3000
+- Network:       http://192.168.100.5:3000
 - Environments: .env
+✓ Ready in 738ms
+✓ Running next.config.ts took 311ms
 
-✓ Starting...
-✓ Ready in 736ms
-○ Compiling / ...
- GET / 200 in 3.9s (compile: 3.7s, render: 205ms)
- GET /api/auth/me 200 in 120ms (compile: 98ms, render: 22ms)
- GET / 200 in 39ms (compile: 4ms, render: 35ms)
- GET / 200 in 37ms (compile: 7ms, render: 30ms)
+ GET / 200 in 2.1s (next.js: 1141ms, application-code: 934ms)
+⚠ Blocked cross-origin request to Next.js dev resource /_next/hmr from "192.168.100.5".
+Cross-origin access to Next.js dev resources is blocked by default for safety.
+
+To allow this host in development, add it to "allowedDevOrigins" in next.config.js and restart the dev server:
+
+// next.config.js
+module.exports = {
+  allowedDevOrigins: ['192.168.100.5'],
+}
+
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ GET / 200 in 199ms (next.js: 22ms, application-code: 177ms)
+ GET / 200 in 148ms (next.js: 10ms, application-code: 138ms)
+○ Compiling /_not-found/page ...
+ GET /login 404 in 5.3s (next.js: 5.1s, application-code: 199ms)
+ GET / 200 in 1001ms (next.js: 789ms, application-code: 212ms)
+✓ Finished filesystem cache database compaction in 20.3s
+ GET / 200 in 127ms (next.js: 55ms, application-code: 73ms)
+ GET /login 404 in 219ms (next.js: 35ms, application-code: 185ms)
+ GET /api/auth/me 200 in 335ms (next.js: 237ms, application-code: 98ms)
+ GET / 200 in 139ms (next.js: 16ms, application-code: 123ms)
+ GET / 200 in 137ms (next.js: 5ms, application-code: 131ms)
+ GET /api/auth/me 200 in 15ms (next.js: 5ms, application-code: 11ms)
+ GET / 200 in 221ms (next.js: 17ms, application-code: 204ms)
+⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+▲ Next.js 16.3.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.100.5:3000
+- Environments: .env
+✓ Ready in 2.1s
+✓ Running next.config.ts took 307ms
+
+ GET / 200 in 1411ms (next.js: 850ms, application-code: 561ms)
+ GET /api/auth/me 200 in 318ms (next.js: 207ms, application-code: 110ms)
+ GET / 200 in 351ms (next.js: 211ms, application-code: 140ms)
+ GET /api/auth/me 200 in 25ms (next.js: 16ms, application-code: 9ms)
 prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`email` = ? AND 1=1) LIMIT ? OFFSET ?
- POST /api/auth/login 200 in 94ms (compile: 40ms, render: 54ms)
+ POST /api/auth/login 200 in 285ms (next.js: 141ms, application-code: 143ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`email` = ? AND 1=1) LIMIT ? OFFSET ?
+ POST /api/auth/login 200 in 100ms (next.js: 3ms, application-code: 97ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`email` = ? AND 1=1) LIMIT ? OFFSET ?
+ POST /api/auth/login 200 in 240ms (next.js: 26ms, application-code: 214ms)
 prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
-prisma:query SELECT `main`.`CommunityReport`.`id`, `main`.`CommunityReport`.`reportCode`, `main`.`CommunityReport`.`createdAt`, `main`.`CommunityReport`.`updatedAt`, `main`.`CommunityReport`.`reporterName`, `main`.`CommunityReport`.`reporterContact`, `main`.`CommunityReport`.`reporterType`, `main`.`CommunityReport`.`assistedById`, `main`.`CommunityReport`.`subjectType`, `main`.`CommunityReport`.`subjectPersonId`, `main`.`CommunityReport`.`subjectHouseholdId`, `main`.`CommunityReport`.`description`, `main`.`CommunityReport`.`category`, `main`.`CommunityReport`.`county`, `main`.`CommunityReport`.`ward`, `main`.`CommunityReport`.`landmark`, `main`.`CommunityReport`.`directions`, `main`.`CommunityReport`.`channel`, `main`.`CommunityReport`.`status`, `main`.`CommunityReport`.`aiInterpretation`, `main`.`CommunityReport`.`aiModelVersion`, `main`.`CommunityReport`.`aiConfidence`, `main`.`CommunityReport`.`aiUncertainty`, `main`.`CommunityReport`.`aiProcessedAt`, `main`.`CommunityReport`.`policyVersion`, `main`.`CommunityReport`.`policyDecision`, `main`.`CommunityReport`.`policyWorkflowClass`, `main`.`CommunityReport`.`idempotencyKey` FROM `main`.`CommunityReport` WHERE `main`.`CommunityReport`.`county` = ? ORDER BY `main`.`CommunityReport`.`createdAt` DESC LIMIT ? OFFSET ?
-prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`CommunityReport`.`id` FROM `main`.`CommunityReport` WHERE `main`.`CommunityReport`.`county` = ? LIMIT ? OFFSET ?) AS `sub`
-prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
-prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
-prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
-prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
-prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
-prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
-prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
-prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
-prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
- GET /api/community-reports 200 in 71ms (compile: 48ms, render: 23ms)
+ GET /api/auth/me 200 in 31ms (next.js: 18ms, application-code: 14ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE (`main`.`ResponseCase`.`assignedChvId` = ? AND `main`.`ResponseCase`.`status` = ?) ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/response-cases?status=assigned 200 in 698ms (next.js: 148ms, application-code: 550ms)
+prisma:query SELECT `main`.`FollowUp`.`id`, `main`.`FollowUp`.`createdAt`, `main`.`FollowUp`.`dueAt`, `main`.`FollowUp`.`status`, `main`.`FollowUp`.`resolvedAt`, `main`.`FollowUp`.`resolutionNote`, `main`.`FollowUp`.`triageRecordId`, `main`.`FollowUp`.`chvId`, `main`.`FollowUp`.`referralId` FROM `main`.`FollowUp` WHERE (`main`.`FollowUp`.`chvId` = ? AND `main`.`FollowUp`.`status` = ?) ORDER BY `main`.`FollowUp`.`status` ASC, `main`.`FollowUp`.`dueAt` ASC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`ward`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation`, `main`.`TriageRecord`.`aggregateTag`, `main`.`TriageRecord`.`chpNextAction` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`id` IN (?,?,?,?,?,?,?,?,?,?) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`createdAt`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`ward`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation`, `main`.`TriageRecord`.`fallbackUsed`, `main`.`TriageRecord`.`observedIndicators`, `main`.`TriageRecord`.`aggregateTag`, `main`.`TriageRecord`.`chpNextAction`, `main`.`TriageRecord`.`chpInstruction`, `main`.`TriageRecord`.`crisisLine`, `main`.`TriageRecord`.`confidenceNote`, `main`.`TriageRecord`.`submittedById`, `main`.`TriageRecord`.`encounterId` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`submittedById` = ? ORDER BY `main`.`TriageRecord`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`submittedById` = ? GROUP BY `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`TriageRecord`.`id` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`submittedById` = ? AND `main`.`TriageRecord`.`createdAt` >= ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`createdAt` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`submittedById` = ? ORDER BY `main`.`TriageRecord`.`createdAt` ASC LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`TriageRecord`.`id` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`submittedById` = ? AND `main`.`TriageRecord`.`createdAt` >= ? AND `main`.`TriageRecord`.`createdAt` < ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`county` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`submittedById` = ? GROUP BY `main`.`TriageRecord`.`county` LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Household`.`id`, `main`.`Household`.`householdCode`, `main`.`Household`.`chwId`, `main`.`Household`.`county`, `main`.`Household`.`ward`, `main`.`Household`.`label`, `main`.`Household`.`status`, `main`.`Household`.`createdAt`, `main`.`Household`.`updatedAt` FROM `main`.`Household` WHERE (`main`.`Household`.`chwId` = ? AND `main`.`Household`.`status` = ?) ORDER BY `main`.`Household`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/followups?status=pending&limit=20 200 in 725ms (next.js: 297ms, application-code: 428ms)
+ GET /api/records/mine?limit=15 200 in 737ms (next.js: 473ms, application-code: 263ms)
+ GET /api/stats/mine 200 in 742ms (next.js: 562ms, application-code: 180ms)
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+ GET /api/households 200 in 829ms (next.js: 646ms, application-code: 182ms)
+ GET /cases 200 in 239ms (next.js: 162ms, application-code: 78ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/auth/me 200 in 25ms (next.js: 5ms, application-code: 20ms)
+prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`assignedChvId` = ? ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`CommunityReport`.`id`, `main`.`CommunityReport`.`reportCode`, `main`.`CommunityReport`.`createdAt`, `main`.`CommunityReport`.`updatedAt`, `main`.`CommunityReport`.`reporterName`, `main`.`CommunityReport`.`reporterContact`, `main`.`CommunityReport`.`reporterType`, `main`.`CommunityReport`.`assistedById`, `main`.`CommunityReport`.`subjectType`, `main`.`CommunityReport`.`subjectPersonId`, `main`.`CommunityReport`.`subjectHouseholdId`, `main`.`CommunityReport`.`description`, `main`.`CommunityReport`.`category`, `main`.`CommunityReport`.`county`, `main`.`CommunityReport`.`ward`, `main`.`CommunityReport`.`landmark`, `main`.`CommunityReport`.`directions`, `main`.`CommunityReport`.`channel`, `main`.`CommunityReport`.`status`, `main`.`CommunityReport`.`aiInterpretation`, `main`.`CommunityReport`.`aiModelVersion`, `main`.`CommunityReport`.`aiConfidence`, `main`.`CommunityReport`.`aiUncertainty`, `main`.`CommunityReport`.`aiProcessedAt`, `main`.`CommunityReport`.`policyVersion`, `main`.`CommunityReport`.`policyDecision`, `main`.`CommunityReport`.`policyWorkflowClass`, `main`.`CommunityReport`.`idempotencyKey` FROM `main`.`CommunityReport` WHERE `main`.`CommunityReport`.`id` IN (?,?,?,?) LIMIT ? OFFSET ?
+ GET /api/response-cases 200 in 34ms (next.js: 11ms, application-code: 23ms)
+ GET / 200 in 70ms (next.js: 14ms, application-code: 56ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/auth/me 200 in 50ms (next.js: 16ms, application-code: 34ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/auth/me 200 in 22ms (next.js: 6ms, application-code: 17ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE (`main`.`ResponseCase`.`assignedChvId` = ? AND `main`.`ResponseCase`.`status` = ?) ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/response-cases?status=assigned 200 in 66ms (next.js: 14ms, application-code: 51ms)
+prisma:query SELECT `main`.`Household`.`id`, `main`.`Household`.`householdCode`, `main`.`Household`.`chwId`, `main`.`Household`.`county`, `main`.`Household`.`ward`, `main`.`Household`.`label`, `main`.`Household`.`status`, `main`.`Household`.`createdAt`, `main`.`Household`.`updatedAt` FROM `main`.`Household` WHERE (`main`.`Household`.`chwId` = ? AND `main`.`Household`.`status` = ?) ORDER BY `main`.`Household`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`createdAt`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`ward`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation`, `main`.`TriageRecord`.`fallbackUsed`, `main`.`TriageRecord`.`observedIndicators`, `main`.`TriageRecord`.`aggregateTag`, `main`.`TriageRecord`.`chpNextAction`, `main`.`TriageRecord`.`chpInstruction`, `main`.`TriageRecord`.`crisisLine`, `main`.`TriageRecord`.`confidenceNote`, `main`.`TriageRecord`.`submittedById`, `main`.`TriageRecord`.`encounterId` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`submittedById` = ? ORDER BY `main`.`TriageRecord`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/households 200 in 136ms (next.js: 24ms, application-code: 112ms)
+ GET /api/records/mine?limit=15 200 in 123ms (next.js: 30ms, application-code: 93ms)
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`submittedById` = ? GROUP BY `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`createdAt` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`submittedById` = ? ORDER BY `main`.`TriageRecord`.`createdAt` ASC LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`county` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`submittedById` = ? GROUP BY `main`.`TriageRecord`.`county` LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/stats/mine 200 in 120ms (next.js: 35ms, application-code: 84ms)
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`TriageRecord`.`id` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`submittedById` = ? AND `main`.`TriageRecord`.`createdAt` >= ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`TriageRecord`.`id` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`submittedById` = ? AND `main`.`TriageRecord`.`createdAt` >= ? AND `main`.`TriageRecord`.`createdAt` < ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`FollowUp`.`id`, `main`.`FollowUp`.`createdAt`, `main`.`FollowUp`.`dueAt`, `main`.`FollowUp`.`status`, `main`.`FollowUp`.`resolvedAt`, `main`.`FollowUp`.`resolutionNote`, `main`.`FollowUp`.`triageRecordId`, `main`.`FollowUp`.`chvId`, `main`.`FollowUp`.`referralId` FROM `main`.`FollowUp` WHERE (`main`.`FollowUp`.`chvId` = ? AND `main`.`FollowUp`.`status` = ?) ORDER BY `main`.`FollowUp`.`status` ASC, `main`.`FollowUp`.`dueAt` ASC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`ward`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation`, `main`.`TriageRecord`.`aggregateTag`, `main`.`TriageRecord`.`chpNextAction` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`id` IN (?,?,?,?,?,?,?,?,?,?) LIMIT ? OFFSET ?
+ GET /api/followups?status=pending&limit=20 200 in 111ms (next.js: 58ms, application-code: 53ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Household`.`id`, `main`.`Household`.`householdCode`, `main`.`Household`.`chwId`, `main`.`Household`.`county`, `main`.`Household`.`ward`, `main`.`Household`.`label`, `main`.`Household`.`status`, `main`.`Household`.`createdAt`, `main`.`Household`.`updatedAt` FROM `main`.`Household` WHERE (`main`.`Household`.`id` = ? AND `main`.`Household`.`chwId` = ?) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`HouseholdMember`.`id`, `main`.`HouseholdMember`.`memberCode`, `main`.`HouseholdMember`.`householdId`, `main`.`HouseholdMember`.`displayName`, `main`.`HouseholdMember`.`role`, `main`.`HouseholdMember`.`ageBand`, `main`.`HouseholdMember`.`status`, `main`.`HouseholdMember`.`createdAt`, `main`.`HouseholdMember`.`updatedAt` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) ORDER BY `main`.`HouseholdMember`.`createdAt` ASC LIMIT ? OFFSET ?
+ GET /api/households/cmufjxspe0007ir9xxtm7pnue 200 in 4.7s (next.js: 4.7s, application-code: 43ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Household`.`id`, `main`.`Household`.`householdCode`, `main`.`Household`.`chwId`, `main`.`Household`.`county`, `main`.`Household`.`ward`, `main`.`Household`.`label`, `main`.`Household`.`status`, `main`.`Household`.`createdAt`, `main`.`Household`.`updatedAt` FROM `main`.`Household` WHERE (`main`.`Household`.`id` = ? AND `main`.`Household`.`chwId` = ?) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`HouseholdMember`.`id`, `main`.`HouseholdMember`.`memberCode`, `main`.`HouseholdMember`.`householdId`, `main`.`HouseholdMember`.`displayName`, `main`.`HouseholdMember`.`role`, `main`.`HouseholdMember`.`ageBand`, `main`.`HouseholdMember`.`status`, `main`.`HouseholdMember`.`createdAt`, `main`.`HouseholdMember`.`updatedAt` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`id` = ? AND `main`.`HouseholdMember`.`householdId` = ?) LIMIT ? OFFSET ?
+prisma:query BEGIN IMMEDIATE
+prisma:query INSERT INTO `main`.`Encounter` (`id`, `encounterCode`, `householdId`, `memberId`, `chwId`, `status`, `captureMethod`, `connectivity`, `startedAt`, `createdAt`, `updatedAt`) VALUES (?,?,?,?,?,?,?,?,?,?,?) RETURNING `id` AS `id`
+prisma:query SELECT `main`.`Encounter`.`id`, `main`.`Encounter`.`encounterCode`, `main`.`Encounter`.`householdId`, `main`.`Encounter`.`memberId`, `main`.`Encounter`.`chwId`, `main`.`Encounter`.`status`, `main`.`Encounter`.`captureMethod`, `main`.`Encounter`.`connectivity`, `main`.`Encounter`.`startedAt`, `main`.`Encounter`.`completedAt`, `main`.`Encounter`.`createdAt`, `main`.`Encounter`.`updatedAt` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`id` = ? LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Household`.`id`, `main`.`Household`.`label` FROM `main`.`Household` WHERE `main`.`Household`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`HouseholdMember`.`id`, `main`.`HouseholdMember`.`displayName` FROM `main`.`HouseholdMember` WHERE `main`.`HouseholdMember`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query COMMIT
+ POST /api/encounters 201 in 753ms (next.js: 684ms, application-code: 68ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE (`main`.`ResponseCase`.`assignedChvId` = ? AND `main`.`ResponseCase`.`status` = ?) ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/response-cases?status=assigned 200 in 34ms (next.js: 11ms, application-code: 22ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+[triage] unexpected failure: Error: Configuration file not found or invalid. Please create .z-ai-config in your project, home directory, or /etc.
+    at async classifyObservation (src/lib/qwen.ts:135:15)
+    at async POST (src/app/api/triage/route.ts:114:38)
+  133 |   observationText: string
+  134 | ): Promise<QwenCallResult> {
+> 135 |   const zai = await getZAI();
+      |               ^
+  136 |
+  137 |   const buildMessages = (strict: boolean) => {
+  138 |     // The base system prompt already mandates "valid JSON only, no other
+ POST /api/triage 500 in 1348ms (next.js: 650ms, application-code: 698ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE (`main`.`ResponseCase`.`assignedChvId` = ? AND `main`.`ResponseCase`.`status` = ?) ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/response-cases?status=assigned 200 in 28ms (next.js: 6ms, application-code: 22ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+[triage] unexpected failure: Error: Configuration file not found or invalid. Please create .z-ai-config in your project, home directory, or /etc.
+    at async classifyObservation (src/lib/qwen.ts:135:15)
+    at async POST (src/app/api/triage/route.ts:114:38)
+  133 |   observationText: string
+  134 | ): Promise<QwenCallResult> {
+> 135 |   const zai = await getZAI();
+      |               ^
+  136 |
+  137 |   const buildMessages = (strict: boolean) => {
+  138 |     // The base system prompt already mandates "valid JSON only, no other
+ POST /api/triage 500 in 83ms (next.js: 18ms, application-code: 66ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE (`main`.`ResponseCase`.`assignedChvId` = ? AND `main`.`ResponseCase`.`status` = ?) ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/response-cases?status=assigned 200 in 43ms (next.js: 11ms, application-code: 31ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE (`main`.`ResponseCase`.`assignedChvId` = ? AND `main`.`ResponseCase`.`status` = ?) ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/response-cases?status=assigned 200 in 50ms (next.js: 8ms, application-code: 42ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE (`main`.`ResponseCase`.`assignedChvId` = ? AND `main`.`ResponseCase`.`status` = ?) ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/response-cases?status=assigned 200 in 33ms (next.js: 5ms, application-code: 27ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE (`main`.`ResponseCase`.`assignedChvId` = ? AND `main`.`ResponseCase`.`status` = ?) ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/response-cases?status=assigned 200 in 32ms (next.js: 6ms, application-code: 27ms)
+ GET / 200 in 38ms (next.js: 4ms, application-code: 34ms)
+ GET / 200 in 35ms (next.js: 4ms, application-code: 31ms)
+ GET / 200 in 29ms (next.js: 4ms, application-code: 26ms)
+ GET / 200 in 28ms (next.js: 3ms, application-code: 25ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/response-cases?status=assigned 200 in 45ms (next.js: 7ms, application-code: 38ms)
+prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE (`main`.`ResponseCase`.`assignedChvId` = ? AND `main`.`ResponseCase`.`status` = ?) ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET / 200 in 30ms (next.js: 3ms, application-code: 27ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`email` = ? AND 1=1) LIMIT ? OFFSET ?
+ POST /api/auth/login 200 in 209ms (next.js: 10ms, application-code: 199ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+[qwen] attempt 1 error: Error: Configuration file not found or invalid. Please create .z-ai-config in your project, home directory, or /etc.
+    at async classifyObservation (src/lib/qwen.ts:193:19)
+    at async POST (src/app/api/triage/route.ts:114:38)
+  191 |       // Inside the try: a missing/invalid model config must reach the
+  192 |       // fallback below, not crash the request with a 500.
+> 193 |       const zai = await getZAI();
+      |                   ^
+  194 |       const completion = await zai.chat.completions.create({
+  195 |         messages: buildMessages(strict === 1),
+  196 |         thinking: { type: "disabled" },
+[qwen] attempt 2 error: Error: Configuration file not found or invalid. Please create .z-ai-config in your project, home directory, or /etc.
+    at async classifyObservation (src/lib/qwen.ts:193:19)
+    at async POST (src/app/api/triage/route.ts:114:38)
+  191 |       // Inside the try: a missing/invalid model config must reach the
+  192 |       // fallback below, not crash the request with a 500.
+> 193 |       const zai = await getZAI();
+      |                   ^
+  194 |       const completion = await zai.chat.completions.create({
+  195 |         messages: buildMessages(strict === 1),
+  196 |         thinking: { type: "disabled" },
+prisma:query INSERT INTO `main`.`TriageRecord` (`id`, `createdAt`, `county`, `ward`, `classification`, `escalation`, `fallbackUsed`, `observedIndicators`, `aggregateTag`, `chpNextAction`, `chpInstruction`, `crisisLine`, `confidenceNote`, `submittedById`, `encounterId`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING `id` AS `id`, `createdAt` AS `createdAt`, `county` AS `county`, `ward` AS `ward`, `classification` AS `classification`, `escalation` AS `escalation`, `fallbackUsed` AS `fallbackUsed`, `observedIndicators` AS `observedIndicators`, `aggregateTag` AS `aggregateTag`, `chpNextAction` AS `chpNextAction`, `chpInstruction` AS `chpInstruction`, `crisisLine` AS `crisisLine`, `confidenceNote` AS `confidenceNote`, `submittedById` AS `submittedById`, `encounterId` AS `encounterId`
+prisma:query SELECT `main`.`FollowUp`.`id`, `main`.`FollowUp`.`createdAt`, `main`.`FollowUp`.`dueAt`, `main`.`FollowUp`.`status`, `main`.`FollowUp`.`resolvedAt`, `main`.`FollowUp`.`resolutionNote`, `main`.`FollowUp`.`triageRecordId`, `main`.`FollowUp`.`chvId`, `main`.`FollowUp`.`referralId` FROM `main`.`FollowUp` WHERE (`main`.`FollowUp`.`triageRecordId` = ? AND `main`.`FollowUp`.`status` = ?) LIMIT ? OFFSET ?
+prisma:query BEGIN IMMEDIATE
+prisma:query INSERT INTO `main`.`FollowUp` (`id`, `createdAt`, `dueAt`, `status`, `triageRecordId`, `chvId`, `referralId`) VALUES (?,?,?,?,?,?,?) RETURNING `id` AS `id`
+prisma:query SELECT `main`.`FollowUp`.`id`, `main`.`FollowUp`.`createdAt`, `main`.`FollowUp`.`dueAt`, `main`.`FollowUp`.`status`, `main`.`FollowUp`.`resolvedAt`, `main`.`FollowUp`.`resolutionNote`, `main`.`FollowUp`.`triageRecordId`, `main`.`FollowUp`.`chvId`, `main`.`FollowUp`.`referralId` FROM `main`.`FollowUp` WHERE `main`.`FollowUp`.`id` = ? LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`ward`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation`, `main`.`TriageRecord`.`aggregateTag`, `main`.`TriageRecord`.`chpNextAction` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query COMMIT
+[triage] stored id=cmugk5wze0003wddua6srui5g county=Kilifi ward=- escalation=true classification=needs_facility_referral fallback=true policy=1.0.0:crisis_override referral=- scrubbed={"phone":0,"email":0,"idNumber":0,"namePattern":0,"mpesaCode":0,"plotNumber":0,"vehiclePlate":0,"schoolName":0}
+ POST /api/triage 200 in 162ms (next.js: 8ms, application-code: 154ms)
+prisma:query INSERT INTO `main`.`AuditLog` (`id`, `createdAt`, `triageRecordId`, `actorId`, `event`, `county`, `ward`, `classification`, `escalation`, `fallbackUsed`, `piiRedactions`, `policyVersion`, `workflowClass`, `referralId`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING `id` AS `id`, `createdAt` AS `createdAt`, `triageRecordId` AS `triageRecordId`, `actorId` AS `actorId`, `event` AS `event`, `county` AS `county`, `ward` AS `ward`, `classification` AS `classification`, `escalation` AS `escalation`, `fallbackUsed` AS `fallbackUsed`, `piiRedactions` AS `piiRedactions`, `policyVersion` AS `policyVersion`, `workflowClass` AS `workflowClass`, `referralId` AS `referralId`
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+[qwen] attempt 1 error: Error: Configuration file not found or invalid. Please create .z-ai-config in your project, home directory, or /etc.
+    at async classifyObservation (src/lib/qwen.ts:193:19)
+    at async POST (src/app/api/triage/route.ts:114:38)
+  191 |       // Inside the try: a missing/invalid model config must reach the
+  192 |       // fallback below, not crash the request with a 500.
+> 193 |       const zai = await getZAI();
+      |                   ^
+  194 |       const completion = await zai.chat.completions.create({
+  195 |         messages: buildMessages(strict === 1),
+  196 |         thinking: { type: "disabled" },
+[qwen] attempt 2 error: Error: Configuration file not found or invalid. Please create .z-ai-config in your project, home directory, or /etc.
+    at async classifyObservation (src/lib/qwen.ts:193:19)
+    at async POST (src/app/api/triage/route.ts:114:38)
+  191 |       // Inside the try: a missing/invalid model config must reach the
+  192 |       // fallback below, not crash the request with a 500.
+> 193 |       const zai = await getZAI();
+      |                   ^
+  194 |       const completion = await zai.chat.completions.create({
+  195 |         messages: buildMessages(strict === 1),
+  196 |         thinking: { type: "disabled" },
+prisma:query INSERT INTO `main`.`TriageRecord` (`id`, `createdAt`, `county`, `ward`, `classification`, `escalation`, `fallbackUsed`, `observedIndicators`, `aggregateTag`, `chpNextAction`, `chpInstruction`, `crisisLine`, `confidenceNote`, `submittedById`, `encounterId`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING `id` AS `id`, `createdAt` AS `createdAt`, `county` AS `county`, `ward` AS `ward`, `classification` AS `classification`, `escalation` AS `escalation`, `fallbackUsed` AS `fallbackUsed`, `observedIndicators` AS `observedIndicators`, `aggregateTag` AS `aggregateTag`, `chpNextAction` AS `chpNextAction`, `chpInstruction` AS `chpInstruction`, `crisisLine` AS `crisisLine`, `confidenceNote` AS `confidenceNote`, `submittedById` AS `submittedById`, `encounterId` AS `encounterId`
+prisma:query SELECT `main`.`FollowUp`.`id`, `main`.`FollowUp`.`createdAt`, `main`.`FollowUp`.`dueAt`, `main`.`FollowUp`.`status`, `main`.`FollowUp`.`resolvedAt`, `main`.`FollowUp`.`resolutionNote`, `main`.`FollowUp`.`triageRecordId`, `main`.`FollowUp`.`chvId`, `main`.`FollowUp`.`referralId` FROM `main`.`FollowUp` WHERE (`main`.`FollowUp`.`triageRecordId` = ? AND `main`.`FollowUp`.`status` = ?) LIMIT ? OFFSET ?
+prisma:query BEGIN IMMEDIATE
+prisma:query INSERT INTO `main`.`FollowUp` (`id`, `createdAt`, `dueAt`, `status`, `triageRecordId`, `chvId`, `referralId`) VALUES (?,?,?,?,?,?,?) RETURNING `id` AS `id`
+prisma:query SELECT `main`.`FollowUp`.`id`, `main`.`FollowUp`.`createdAt`, `main`.`FollowUp`.`dueAt`, `main`.`FollowUp`.`status`, `main`.`FollowUp`.`resolvedAt`, `main`.`FollowUp`.`resolutionNote`, `main`.`FollowUp`.`triageRecordId`, `main`.`FollowUp`.`chvId`, `main`.`FollowUp`.`referralId` FROM `main`.`FollowUp` WHERE `main`.`FollowUp`.`id` = ? LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`ward`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation`, `main`.`TriageRecord`.`aggregateTag`, `main`.`TriageRecord`.`chpNextAction` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query COMMIT
+prisma:query INSERT INTO `main`.`AuditLog` (`id`, `createdAt`, `triageRecordId`, `actorId`, `event`, `county`, `ward`, `classification`, `escalation`, `fallbackUsed`, `piiRedactions`, `policyVersion`, `workflowClass`, `referralId`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING `id` AS `id`, `createdAt` AS `createdAt`, `triageRecordId` AS `triageRecordId`, `actorId` AS `actorId`, `event` AS `event`, `county` AS `county`, `ward` AS `ward`, `classification` AS `classification`, `escalation` AS `escalation`, `fallbackUsed` AS `fallbackUsed`, `piiRedactions` AS `piiRedactions`, `policyVersion` AS `policyVersion`, `workflowClass` AS `workflowClass`, `referralId` AS `referralId`
+[triage] stored id=cmugk5x3x0008wddu1pbcs38x county=Kilifi ward=- escalation=false classification=needs_followup fallback=true policy=1.0.0:human_review referral=- scrubbed={"phone":0,"email":0,"idNumber":0,"namePattern":0,"mpesaCode":0,"plotNumber":0,"vehiclePlate":0,"schoolName":0}
+ POST /api/triage 200 in 121ms (next.js: 6ms, application-code: 115ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+[qwen] attempt 1 error: Error: Configuration file not found or invalid. Please create .z-ai-config in your project, home directory, or /etc.
+    at async classifyObservation (src/lib/qwen.ts:193:19)
+    at async POST (src/app/api/triage/route.ts:114:38)
+  191 |       // Inside the try: a missing/invalid model config must reach the
+  192 |       // fallback below, not crash the request with a 500.
+> 193 |       const zai = await getZAI();
+      |                   ^
+  194 |       const completion = await zai.chat.completions.create({
+  195 |         messages: buildMessages(strict === 1),
+  196 |         thinking: { type: "disabled" },
+[qwen] attempt 2 error: Error: Configuration file not found or invalid. Please create .z-ai-config in your project, home directory, or /etc.
+    at async classifyObservation (src/lib/qwen.ts:193:19)
+    at async POST (src/app/api/triage/route.ts:114:38)
+  191 |       // Inside the try: a missing/invalid model config must reach the
+  192 |       // fallback below, not crash the request with a 500.
+> 193 |       const zai = await getZAI();
+      |                   ^
+  194 |       const completion = await zai.chat.completions.create({
+  195 |         messages: buildMessages(strict === 1),
+  196 |         thinking: { type: "disabled" },
+prisma:query INSERT INTO `main`.`TriageRecord` (`id`, `createdAt`, `county`, `ward`, `classification`, `escalation`, `fallbackUsed`, `observedIndicators`, `aggregateTag`, `chpNextAction`, `chpInstruction`, `crisisLine`, `confidenceNote`, `submittedById`, `encounterId`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING `id` AS `id`, `createdAt` AS `createdAt`, `county` AS `county`, `ward` AS `ward`, `classification` AS `classification`, `escalation` AS `escalation`, `fallbackUsed` AS `fallbackUsed`, `observedIndicators` AS `observedIndicators`, `aggregateTag` AS `aggregateTag`, `chpNextAction` AS `chpNextAction`, `chpInstruction` AS `chpInstruction`, `crisisLine` AS `crisisLine`, `confidenceNote` AS `confidenceNote`, `submittedById` AS `submittedById`, `encounterId` AS `encounterId`
+prisma:query SELECT `main`.`FollowUp`.`id`, `main`.`FollowUp`.`createdAt`, `main`.`FollowUp`.`dueAt`, `main`.`FollowUp`.`status`, `main`.`FollowUp`.`resolvedAt`, `main`.`FollowUp`.`resolutionNote`, `main`.`FollowUp`.`triageRecordId`, `main`.`FollowUp`.`chvId`, `main`.`FollowUp`.`referralId` FROM `main`.`FollowUp` WHERE (`main`.`FollowUp`.`triageRecordId` = ? AND `main`.`FollowUp`.`status` = ?) LIMIT ? OFFSET ?
+prisma:query BEGIN IMMEDIATE
+prisma:query INSERT INTO `main`.`FollowUp` (`id`, `createdAt`, `dueAt`, `status`, `triageRecordId`, `chvId`, `referralId`) VALUES (?,?,?,?,?,?,?) RETURNING `id` AS `id`
+prisma:query SELECT `main`.`FollowUp`.`id`, `main`.`FollowUp`.`createdAt`, `main`.`FollowUp`.`dueAt`, `main`.`FollowUp`.`status`, `main`.`FollowUp`.`resolvedAt`, `main`.`FollowUp`.`resolutionNote`, `main`.`FollowUp`.`triageRecordId`, `main`.`FollowUp`.`chvId`, `main`.`FollowUp`.`referralId` FROM `main`.`FollowUp` WHERE `main`.`FollowUp`.`id` = ? LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`ward`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation`, `main`.`TriageRecord`.`aggregateTag`, `main`.`TriageRecord`.`chpNextAction` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query COMMIT
+[triage] stored id=cmugk5x88000dwddum56a098v county=Kilifi ward=- escalation=false classification=needs_followup fallback=true policy=1.0.0:human_review referral=- scrubbed={"phone":0,"email":0,"idNumber":0,"namePattern":0,"mpesaCode":0,"plotNumber":0,"vehiclePlate":0,"schoolName":0}
+ POST /api/triage 200 in 141ms (next.js: 3ms, application-code: 138ms)
+prisma:query INSERT INTO `main`.`AuditLog` (`id`, `createdAt`, `triageRecordId`, `actorId`, `event`, `county`, `ward`, `classification`, `escalation`, `fallbackUsed`, `piiRedactions`, `policyVersion`, `workflowClass`, `referralId`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING `id` AS `id`, `createdAt` AS `createdAt`, `triageRecordId` AS `triageRecordId`, `actorId` AS `actorId`, `event` AS `event`, `county` AS `county`, `ward` AS `ward`, `classification` AS `classification`, `escalation` AS `escalation`, `fallbackUsed` AS `fallbackUsed`, `piiRedactions` AS `piiRedactions`, `policyVersion` AS `policyVersion`, `workflowClass` AS `workflowClass`, `referralId` AS `referralId`
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE (`main`.`ResponseCase`.`assignedChvId` = ? AND `main`.`ResponseCase`.`status` = ?) ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/response-cases?status=assigned 200 in 12ms (next.js: 2ms, application-code: 9ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE (`main`.`ResponseCase`.`assignedChvId` = ? AND `main`.`ResponseCase`.`status` = ?) ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/response-cases?status=assigned 200 in 31ms (next.js: 5ms, application-code: 25ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+[qwen] attempt 1 error: Error: Configuration file not found or invalid. Please create .z-ai-config in your project, home directory, or /etc.
+    at async classifyObservation (src/lib/qwen.ts:193:19)
+    at async POST (src/app/api/triage/route.ts:114:38)
+  191 |       // Inside the try: a missing/invalid model config must reach the
+  192 |       // fallback below, not crash the request with a 500.
+> 193 |       const zai = await getZAI();
+      |                   ^
+  194 |       const completion = await zai.chat.completions.create({
+  195 |         messages: buildMessages(strict === 1),
+  196 |         thinking: { type: "disabled" },
+[qwen] attempt 2 error: Error: Configuration file not found or invalid. Please create .z-ai-config in your project, home directory, or /etc.
+    at async classifyObservation (src/lib/qwen.ts:193:19)
+    at async POST (src/app/api/triage/route.ts:114:38)
+  191 |       // Inside the try: a missing/invalid model config must reach the
+  192 |       // fallback below, not crash the request with a 500.
+> 193 |       const zai = await getZAI();
+      |                   ^
+  194 |       const completion = await zai.chat.completions.create({
+  195 |         messages: buildMessages(strict === 1),
+  196 |         thinking: { type: "disabled" },
+prisma:query INSERT INTO `main`.`TriageRecord` (`id`, `createdAt`, `county`, `ward`, `classification`, `escalation`, `fallbackUsed`, `observedIndicators`, `aggregateTag`, `chpNextAction`, `chpInstruction`, `crisisLine`, `confidenceNote`, `submittedById`, `encounterId`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING `id` AS `id`, `createdAt` AS `createdAt`, `county` AS `county`, `ward` AS `ward`, `classification` AS `classification`, `escalation` AS `escalation`, `fallbackUsed` AS `fallbackUsed`, `observedIndicators` AS `observedIndicators`, `aggregateTag` AS `aggregateTag`, `chpNextAction` AS `chpNextAction`, `chpInstruction` AS `chpInstruction`, `crisisLine` AS `crisisLine`, `confidenceNote` AS `confidenceNote`, `submittedById` AS `submittedById`, `encounterId` AS `encounterId`
+prisma:query SELECT `main`.`FollowUp`.`id`, `main`.`FollowUp`.`createdAt`, `main`.`FollowUp`.`dueAt`, `main`.`FollowUp`.`status`, `main`.`FollowUp`.`resolvedAt`, `main`.`FollowUp`.`resolutionNote`, `main`.`FollowUp`.`triageRecordId`, `main`.`FollowUp`.`chvId`, `main`.`FollowUp`.`referralId` FROM `main`.`FollowUp` WHERE (`main`.`FollowUp`.`triageRecordId` = ? AND `main`.`FollowUp`.`status` = ?) LIMIT ? OFFSET ?
+prisma:query BEGIN IMMEDIATE
+prisma:query INSERT INTO `main`.`FollowUp` (`id`, `createdAt`, `dueAt`, `status`, `triageRecordId`, `chvId`, `referralId`) VALUES (?,?,?,?,?,?,?) RETURNING `id` AS `id`
+prisma:query SELECT `main`.`FollowUp`.`id`, `main`.`FollowUp`.`createdAt`, `main`.`FollowUp`.`dueAt`, `main`.`FollowUp`.`status`, `main`.`FollowUp`.`resolvedAt`, `main`.`FollowUp`.`resolutionNote`, `main`.`FollowUp`.`triageRecordId`, `main`.`FollowUp`.`chvId`, `main`.`FollowUp`.`referralId` FROM `main`.`FollowUp` WHERE `main`.`FollowUp`.`id` = ? LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`ward`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation`, `main`.`TriageRecord`.`aggregateTag`, `main`.`TriageRecord`.`chpNextAction` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query COMMIT
+prisma:query INSERT INTO `main`.`AuditLog` (`id`, `createdAt`, `triageRecordId`, `actorId`, `event`, `county`, `ward`, `classification`, `escalation`, `fallbackUsed`, `piiRedactions`, `policyVersion`, `workflowClass`, `referralId`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING `id` AS `id`, `createdAt` AS `createdAt`, `triageRecordId` AS `triageRecordId`, `actorId` AS `actorId`, `event` AS `event`, `county` AS `county`, `ward` AS `ward`, `classification` AS `classification`, `escalation` AS `escalation`, `fallbackUsed` AS `fallbackUsed`, `piiRedactions` AS `piiRedactions`, `policyVersion` AS `policyVersion`, `workflowClass` AS `workflowClass`, `referralId` AS `referralId`
+[triage] stored id=cmugk757d000iwddujmsqp35w county=Mombasa ward=Likoni escalation=false classification=needs_followup fallback=true policy=1.0.0:human_review referral=- scrubbed={"phone":0,"email":0,"idNumber":0,"namePattern":0,"mpesaCode":0,"plotNumber":0,"vehiclePlate":0,"schoolName":0}
+ POST /api/triage 200 in 291ms (next.js: 9ms, application-code: 282ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`createdAt`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`ward`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation`, `main`.`TriageRecord`.`fallbackUsed`, `main`.`TriageRecord`.`observedIndicators`, `main`.`TriageRecord`.`aggregateTag`, `main`.`TriageRecord`.`chpNextAction`, `main`.`TriageRecord`.`chpInstruction`, `main`.`TriageRecord`.`crisisLine`, `main`.`TriageRecord`.`confidenceNote`, `main`.`TriageRecord`.`submittedById`, `main`.`TriageRecord`.`encounterId` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`submittedById` = ? ORDER BY `main`.`TriageRecord`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/records/mine?limit=15 200 in 34ms (next.js: 5ms, application-code: 29ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`submittedById` = ? GROUP BY `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`TriageRecord`.`id` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`submittedById` = ? AND `main`.`TriageRecord`.`createdAt` >= ? AND `main`.`TriageRecord`.`createdAt` < ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`TriageRecord`.`id` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`submittedById` = ? AND `main`.`TriageRecord`.`createdAt` >= ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`createdAt` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`submittedById` = ? ORDER BY `main`.`TriageRecord`.`createdAt` ASC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`county` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`submittedById` = ? GROUP BY `main`.`TriageRecord`.`county` LIMIT ? OFFSET ?
+ GET /api/stats/mine 200 in 58ms (next.js: 8ms, application-code: 50ms)
+prisma:query SELECT `main`.`FollowUp`.`id`, `main`.`FollowUp`.`createdAt`, `main`.`FollowUp`.`dueAt`, `main`.`FollowUp`.`status`, `main`.`FollowUp`.`resolvedAt`, `main`.`FollowUp`.`resolutionNote`, `main`.`FollowUp`.`triageRecordId`, `main`.`FollowUp`.`chvId`, `main`.`FollowUp`.`referralId` FROM `main`.`FollowUp` WHERE (`main`.`FollowUp`.`chvId` = ? AND `main`.`FollowUp`.`status` = ?) ORDER BY `main`.`FollowUp`.`status` ASC, `main`.`FollowUp`.`dueAt` ASC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`ward`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation`, `main`.`TriageRecord`.`aggregateTag`, `main`.`TriageRecord`.`chpNextAction` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`id` IN (?,?,?,?,?,?,?,?,?,?,?,?,?,?) LIMIT ? OFFSET ?
+ GET /api/followups?status=pending&limit=20 200 in 69ms (next.js: 34ms, application-code: 35ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE (`main`.`ResponseCase`.`assignedChvId` = ? AND `main`.`ResponseCase`.`status` = ?) ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/response-cases?status=assigned 200 in 30ms (next.js: 5ms, application-code: 24ms)
+ GET /cases 200 in 80ms (next.js: 14ms, application-code: 66ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/auth/me 200 in 40ms (next.js: 20ms, application-code: 20ms)
 prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
 prisma:query SELECT `main`.`ResponseCase`.`id`, `main`.`ResponseCase`.`caseCode`, `main`.`ResponseCase`.`createdAt`, `main`.`ResponseCase`.`updatedAt`, `main`.`ResponseCase`.`reportId`, `main`.`ResponseCase`.`assignedChvId`, `main`.`ResponseCase`.`assignedSupervisorId`, `main`.`ResponseCase`.`assignmentReason`, `main`.`ResponseCase`.`assignmentRuleVersion`, `main`.`ResponseCase`.`assignedAt`, `main`.`ResponseCase`.`acceptedAt`, `main`.`ResponseCase`.`reassignedAt`, `main`.`ResponseCase`.`status`, `main`.`ResponseCase`.`encounterId`, `main`.`ResponseCase`.`resolvedAt`, `main`.`ResponseCase`.`resolutionNote` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`assignedChvId` = ? ORDER BY `main`.`ResponseCase`.`createdAt` DESC LIMIT ? OFFSET ?
 prisma:query SELECT `main`.`CommunityReport`.`id`, `main`.`CommunityReport`.`reportCode`, `main`.`CommunityReport`.`createdAt`, `main`.`CommunityReport`.`updatedAt`, `main`.`CommunityReport`.`reporterName`, `main`.`CommunityReport`.`reporterContact`, `main`.`CommunityReport`.`reporterType`, `main`.`CommunityReport`.`assistedById`, `main`.`CommunityReport`.`subjectType`, `main`.`CommunityReport`.`subjectPersonId`, `main`.`CommunityReport`.`subjectHouseholdId`, `main`.`CommunityReport`.`description`, `main`.`CommunityReport`.`category`, `main`.`CommunityReport`.`county`, `main`.`CommunityReport`.`ward`, `main`.`CommunityReport`.`landmark`, `main`.`CommunityReport`.`directions`, `main`.`CommunityReport`.`channel`, `main`.`CommunityReport`.`status`, `main`.`CommunityReport`.`aiInterpretation`, `main`.`CommunityReport`.`aiModelVersion`, `main`.`CommunityReport`.`aiConfidence`, `main`.`CommunityReport`.`aiUncertainty`, `main`.`CommunityReport`.`aiProcessedAt`, `main`.`CommunityReport`.`policyVersion`, `main`.`CommunityReport`.`policyDecision`, `main`.`CommunityReport`.`policyWorkflowClass`, `main`.`CommunityReport`.`idempotencyKey` FROM `main`.`CommunityReport` WHERE `main`.`CommunityReport`.`id` IN (?,?,?,?) LIMIT ? OFFSET ?
- GET /api/response-cases 200 in 78ms (compile: 58ms, render: 20ms)
+ GET /api/response-cases 200 in 44ms (next.js: 6ms, application-code: 38ms)
+ GET /households 200 in 138ms (next.js: 58ms, application-code: 80ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/auth/me 200 in 38ms (next.js: 14ms, application-code: 23ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Household`.`id`, `main`.`Household`.`householdCode`, `main`.`Household`.`chwId`, `main`.`Household`.`county`, `main`.`Household`.`ward`, `main`.`Household`.`label`, `main`.`Household`.`status`, `main`.`Household`.`createdAt`, `main`.`Household`.`updatedAt` FROM `main`.`Household` WHERE (`main`.`Household`.`chwId` = ? AND `main`.`Household`.`status` = ?) ORDER BY `main`.`Household`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Encounter`.`id` FROM `main`.`Encounter` WHERE `main`.`Encounter`.`householdId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`HouseholdMember`.`id` FROM `main`.`HouseholdMember` WHERE (`main`.`HouseholdMember`.`householdId` = ? AND `main`.`HouseholdMember`.`status` = ?) LIMIT ? OFFSET ?) AS `sub`
+ GET /api/households 200 in 65ms (next.js: 19ms, application-code: 45ms)
+ GET /dashboard 200 in 134ms (next.js: 64ms, application-code: 70ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/auth/me 200 in 115ms (next.js: 12ms, application-code: 103ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/auth/me 200 in 125ms (next.js: 17ms, application-code: 108ms)
 prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`createdAt` >= ? GROUP BY `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` LIMIT ? OFFSET ?
 prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`createdAt`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`createdAt` >= ? LIMIT ? OFFSET ?
-prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`aggregateTag` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`createdAt` >= ? GROUP BY `main`.`TriageRecord`.`aggregateTag` ORDER BY COUNT(`main`.`TriageRecord`.`aggregateTag`) DESC LIMIT ? OFFSET ?
+prisma:query SELECT 1
 prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`createdAt` >= ? GROUP BY `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`aggregateTag` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`createdAt` >= ? GROUP BY `main`.`TriageRecord`.`aggregateTag` ORDER BY COUNT(`main`.`TriageRecord`.`aggregateTag`) DESC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
 prisma:query SELECT `main`.`AuditLog`.`id`, `main`.`AuditLog`.`createdAt`, `main`.`AuditLog`.`triageRecordId`, `main`.`AuditLog`.`actorId`, `main`.`AuditLog`.`event`, `main`.`AuditLog`.`county`, `main`.`AuditLog`.`ward`, `main`.`AuditLog`.`classification`, `main`.`AuditLog`.`escalation`, `main`.`AuditLog`.`fallbackUsed` FROM `main`.`AuditLog` WHERE 1=1 ORDER BY `main`.`AuditLog`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`createdAt` >= ? GROUP BY `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`createdAt`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`createdAt` >= ? LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`createdAt` >= ? GROUP BY `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`aggregateTag` FROM `main`.`TriageRecord` WHERE `main`.`TriageRecord`.`createdAt` >= ? GROUP BY `main`.`TriageRecord`.`aggregateTag` ORDER BY COUNT(`main`.`TriageRecord`.`aggregateTag`) DESC LIMIT ? OFFSET ?
 prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`FollowUp`.`status` FROM `main`.`FollowUp` WHERE `main`.`FollowUp`.`createdAt` >= ? GROUP BY `main`.`FollowUp`.`status` LIMIT ? OFFSET ?
 prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`FollowUp`.`id` FROM `main`.`FollowUp` WHERE (`main`.`FollowUp`.`createdAt` >= ? AND `main`.`FollowUp`.`status` = ? AND `main`.`FollowUp`.`dueAt` < ?) LIMIT ? OFFSET ?) AS `sub`
 prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`FollowUp`.`id` FROM `main`.`FollowUp` WHERE `main`.`FollowUp`.`createdAt` >= ? LIMIT ? OFFSET ?) AS `sub`
- GET /api/dashboard?days=14&scope=all 200 in 78ms (compile: 62ms, render: 16ms)
- GET /report 200 in 146ms (compile: 74ms, render: 72ms)
- GET /cases 200 in 198ms (compile: 98ms, render: 100ms)
- 198ms (compile: 98ms, render: 100ms)
+prisma:query SELECT `main`.`AuditLog`.`id`, `main`.`AuditLog`.`createdAt`, `main`.`AuditLog`.`triageRecordId`, `main`.`AuditLog`.`actorId`, `main`.`AuditLog`.`event`, `main`.`AuditLog`.`county`, `main`.`AuditLog`.`ward`, `main`.`AuditLog`.`classification`, `main`.`AuditLog`.`escalation`, `main`.`AuditLog`.`fallbackUsed` FROM `main`.`AuditLog` WHERE 1=1 ORDER BY `main`.`AuditLog`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/dashboard?days=14&scope=all 200 in 163ms (next.js: 98ms, application-code: 65ms)
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`FollowUp`.`status` FROM `main`.`FollowUp` WHERE `main`.`FollowUp`.`createdAt` >= ? GROUP BY `main`.`FollowUp`.`status` LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`FollowUp`.`id` FROM `main`.`FollowUp` WHERE `main`.`FollowUp`.`createdAt` >= ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`FollowUp`.`id` FROM `main`.`FollowUp` WHERE (`main`.`FollowUp`.`createdAt` >= ? AND `main`.`FollowUp`.`status` = ? AND `main`.`FollowUp`.`dueAt` < ?) LIMIT ? OFFSET ?) AS `sub`
+ GET /api/dashboard?days=14&scope=all 200 in 160ms (next.js: 94ms, application-code: 66ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`createdAt`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`county` = ? AND `main`.`TriageRecord`.`createdAt` >= ?) LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`county` = ? AND `main`.`TriageRecord`.`createdAt` >= ?) GROUP BY `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`aggregateTag` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`county` = ? AND `main`.`TriageRecord`.`createdAt` >= ?) GROUP BY `main`.`TriageRecord`.`aggregateTag` ORDER BY COUNT(`main`.`TriageRecord`.`aggregateTag`) DESC LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`county` = ? AND `main`.`TriageRecord`.`createdAt` >= ?) GROUP BY `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`TriageRecord`.`id`, `main`.`TriageRecord`.`createdAt`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`county` = ? AND `main`.`TriageRecord`.`createdAt` >= ?) LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`aggregateTag` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`county` = ? AND `main`.`TriageRecord`.`createdAt` >= ?) GROUP BY `main`.`TriageRecord`.`aggregateTag` ORDER BY COUNT(`main`.`TriageRecord`.`aggregateTag`) DESC LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`county` = ? AND `main`.`TriageRecord`.`createdAt` >= ?) GROUP BY `main`.`TriageRecord`.`county`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` FROM `main`.`TriageRecord` WHERE (`main`.`TriageRecord`.`county` = ? AND `main`.`TriageRecord`.`createdAt` >= ?) GROUP BY `main`.`TriageRecord`.`classification`, `main`.`TriageRecord`.`escalation` LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`AuditLog`.`id`, `main`.`AuditLog`.`createdAt`, `main`.`AuditLog`.`triageRecordId`, `main`.`AuditLog`.`actorId`, `main`.`AuditLog`.`event`, `main`.`AuditLog`.`county`, `main`.`AuditLog`.`ward`, `main`.`AuditLog`.`classification`, `main`.`AuditLog`.`escalation`, `main`.`AuditLog`.`fallbackUsed` FROM `main`.`AuditLog` WHERE `main`.`AuditLog`.`county` = ? ORDER BY `main`.`AuditLog`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`AuditLog`.`id`, `main`.`AuditLog`.`createdAt`, `main`.`AuditLog`.`triageRecordId`, `main`.`AuditLog`.`actorId`, `main`.`AuditLog`.`event`, `main`.`AuditLog`.`county`, `main`.`AuditLog`.`ward`, `main`.`AuditLog`.`classification`, `main`.`AuditLog`.`escalation`, `main`.`AuditLog`.`fallbackUsed` FROM `main`.`AuditLog` WHERE `main`.`AuditLog`.`county` = ? ORDER BY `main`.`AuditLog`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`FollowUp`.`status` FROM `main`.`FollowUp` LEFT JOIN `main`.`TriageRecord` AS `j0` ON (`j0`.`id`) = (`main`.`FollowUp`.`triageRecordId`) WHERE (`main`.`FollowUp`.`createdAt` >= ? AND (`j0`.`county` = ? AND (`j0`.`id` IS NOT NULL))) GROUP BY `main`.`FollowUp`.`status` LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`FollowUp`.`id` FROM `main`.`FollowUp` LEFT JOIN `main`.`TriageRecord` AS `j0` ON (`j0`.`id`) = (`main`.`FollowUp`.`triageRecordId`) WHERE (`main`.`FollowUp`.`createdAt` >= ? AND (`j0`.`county` = ? AND (`j0`.`id` IS NOT NULL)) AND `main`.`FollowUp`.`status` = ? AND `main`.`FollowUp`.`dueAt` < ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`FollowUp`.`id` FROM `main`.`FollowUp` LEFT JOIN `main`.`TriageRecord` AS `j0` ON (`j0`.`id`) = (`main`.`FollowUp`.`triageRecordId`) WHERE (`main`.`FollowUp`.`createdAt` >= ? AND (`j0`.`county` = ? AND (`j0`.`id` IS NOT NULL))) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all`, `main`.`FollowUp`.`status` FROM `main`.`FollowUp` LEFT JOIN `main`.`TriageRecord` AS `j0` ON (`j0`.`id`) = (`main`.`FollowUp`.`triageRecordId`) WHERE (`main`.`FollowUp`.`createdAt` >= ? AND (`j0`.`county` = ? AND (`j0`.`id` IS NOT NULL))) GROUP BY `main`.`FollowUp`.`status` LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`FollowUp`.`id` FROM `main`.`FollowUp` LEFT JOIN `main`.`TriageRecord` AS `j0` ON (`j0`.`id`) = (`main`.`FollowUp`.`triageRecordId`) WHERE (`main`.`FollowUp`.`createdAt` >= ? AND (`j0`.`county` = ? AND (`j0`.`id` IS NOT NULL)) AND `main`.`FollowUp`.`status` = ? AND `main`.`FollowUp`.`dueAt` < ?) LIMIT ? OFFSET ?) AS `sub`
+ GET /api/dashboard?days=14&scope=mine 200 in 71ms (next.js: 11ms, application-code: 60ms)
+ GET /api/dashboard?days=14&scope=mine 200 in 67ms (next.js: 17ms, application-code: 50ms)
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`FollowUp`.`id` FROM `main`.`FollowUp` LEFT JOIN `main`.`TriageRecord` AS `j0` ON (`j0`.`id`) = (`main`.`FollowUp`.`triageRecordId`) WHERE (`main`.`FollowUp`.`createdAt` >= ? AND (`j0`.`county` = ? AND (`j0`.`id` IS NOT NULL))) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`CommunityReport`.`id`, `main`.`CommunityReport`.`reportCode`, `main`.`CommunityReport`.`createdAt`, `main`.`CommunityReport`.`updatedAt`, `main`.`CommunityReport`.`reporterName`, `main`.`CommunityReport`.`reporterContact`, `main`.`CommunityReport`.`reporterType`, `main`.`CommunityReport`.`assistedById`, `main`.`CommunityReport`.`subjectType`, `main`.`CommunityReport`.`subjectPersonId`, `main`.`CommunityReport`.`subjectHouseholdId`, `main`.`CommunityReport`.`description`, `main`.`CommunityReport`.`category`, `main`.`CommunityReport`.`county`, `main`.`CommunityReport`.`ward`, `main`.`CommunityReport`.`landmark`, `main`.`CommunityReport`.`directions`, `main`.`CommunityReport`.`channel`, `main`.`CommunityReport`.`status`, `main`.`CommunityReport`.`aiInterpretation`, `main`.`CommunityReport`.`aiModelVersion`, `main`.`CommunityReport`.`aiConfidence`, `main`.`CommunityReport`.`aiUncertainty`, `main`.`CommunityReport`.`aiProcessedAt`, `main`.`CommunityReport`.`policyVersion`, `main`.`CommunityReport`.`policyDecision`, `main`.`CommunityReport`.`policyWorkflowClass`, `main`.`CommunityReport`.`idempotencyKey` FROM `main`.`CommunityReport` WHERE (`main`.`CommunityReport`.`status` = ? AND `main`.`CommunityReport`.`county` = ?) ORDER BY `main`.`CommunityReport`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`CommunityReport`.`id` FROM `main`.`CommunityReport` WHERE (`main`.`CommunityReport`.`status` = ? AND `main`.`CommunityReport`.`county` = ?) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`CommunityReport`.`id`, `main`.`CommunityReport`.`reportCode`, `main`.`CommunityReport`.`createdAt`, `main`.`CommunityReport`.`updatedAt`, `main`.`CommunityReport`.`reporterName`, `main`.`CommunityReport`.`reporterContact`, `main`.`CommunityReport`.`reporterType`, `main`.`CommunityReport`.`assistedById`, `main`.`CommunityReport`.`subjectType`, `main`.`CommunityReport`.`subjectPersonId`, `main`.`CommunityReport`.`subjectHouseholdId`, `main`.`CommunityReport`.`description`, `main`.`CommunityReport`.`category`, `main`.`CommunityReport`.`county`, `main`.`CommunityReport`.`ward`, `main`.`CommunityReport`.`landmark`, `main`.`CommunityReport`.`directions`, `main`.`CommunityReport`.`channel`, `main`.`CommunityReport`.`status`, `main`.`CommunityReport`.`aiInterpretation`, `main`.`CommunityReport`.`aiModelVersion`, `main`.`CommunityReport`.`aiConfidence`, `main`.`CommunityReport`.`aiUncertainty`, `main`.`CommunityReport`.`aiProcessedAt`, `main`.`CommunityReport`.`policyVersion`, `main`.`CommunityReport`.`policyDecision`, `main`.`CommunityReport`.`policyWorkflowClass`, `main`.`CommunityReport`.`idempotencyKey` FROM `main`.`CommunityReport` WHERE (`main`.`CommunityReport`.`status` = ? AND `main`.`CommunityReport`.`county` = ?) ORDER BY `main`.`CommunityReport`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`CommunityReport`.`id` FROM `main`.`CommunityReport` WHERE (`main`.`CommunityReport`.`status` = ? AND `main`.`CommunityReport`.`county` = ?) LIMIT ? OFFSET ?) AS `sub`
+ GET /api/auth/me 200 in 178ms (next.js: 135ms, application-code: 43ms)
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`ResponseCase`.`id` FROM `main`.`ResponseCase` WHERE `main`.`ResponseCase`.`reportId` = ? LIMIT ? OFFSET ?) AS `sub`
+ GET /api/community-reports?status=received&limit=100 200 in 191ms (next.js: 114ms, application-code: 77ms)
+ GET /api/community-reports?status=triaged&limit=100 200 in 194ms (next.js: 130ms, application-code: 64ms)
+ GET /dashboard 200 in 53ms (next.js: 6ms, application-code: 47ms)
+ GET /dashboard 200 in 32ms (next.js: 3ms, application-code: 29ms)
+ GET /dashboard 200 in 48ms (next.js: 8ms, application-code: 41ms)
+ GET /dashboard 200 in 34ms (next.js: 5ms, application-code: 29ms)
+ GET /dashboard 200 in 32ms (next.js: 4ms, application-code: 28ms)
+ GET /dashboard 200 in 49ms (next.js: 8ms, application-code: 41ms)
+ GET /dashboard 200 in 36ms (next.js: 4ms, application-code: 32ms)
+ GET /dashboard 200 in 35ms (next.js: 4ms, application-code: 31ms)
+ GET /dashboard 200 in 79ms (next.js: 14ms, application-code: 64ms)
+  Reload env: .env.local
+ GET /dashboard 200 in 207ms (next.js: 164ms, application-code: 42ms)
+ GET /dashboard 200 in 34ms (next.js: 3ms, application-code: 31ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`email` = ? AND 1=1) LIMIT ? OFFSET ?
+ POST /api/auth/login 200 in 264ms (next.js: 145ms, application-code: 120ms)
+prisma:query SELECT `main`.`ChvUser`.`id`, `main`.`ChvUser`.`email`, `main`.`ChvUser`.`fullName`, `main`.`ChvUser`.`county`, `main`.`ChvUser`.`ward`, `main`.`ChvUser`.`passwordHash`, `main`.`ChvUser`.`createdAt`, `main`.`ChvUser`.`updatedAt`, `main`.`ChvUser`.`role`, `main`.`ChvUser`.`authState`, `main`.`ChvUser`.`organizationId`, `main`.`ChvUser`.`invitedById` FROM `main`.`ChvUser` WHERE (`main`.`ChvUser`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+[qwen] triage attempt 1 (qwen-plus) failed: QWEN_API_KEY is not set
+[triage] unexpected failure: Error [PrismaClientValidationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].triageRecord.create()` invocation in
+/home/le-generale/Desktop/msaada/.next/dev/server/chunks/[root-of-the-server]__16umpis._.js:1282:161
+
+  1279 async function insertTriageRecord(args) {
+  1280     const { submittedById, county, ward, output, fallbackUsed, encounterId, aiModel, promptVersion } = args;
+  1281     const isCrisis = output.escalation === true;
+→ 1282     const created = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].triageRecord.create({
+             data: {
+               submittedById: "cmufji2cf0000ir7wrtc3cbl8",
+               county: "Kilifi",
+               ward: null,
+               classification: "needs_followup",
+               escalation: false,
+               observedIndicators: "[]",
+               aggregateTag: "incomplete_observation",
+               chpNextAction: "Revisit the household within 48 hours to gather a more complete observation. If new concern arises, escalate.",
+               fallbackUsed: true,
+               encounterId: null,
+               aiModel: "fallback",
+               ~~~~~~~
+               promptVersion: "triage-v1.1",
+               chpInstruction: null,
+               crisisLine: null,
+               confidenceNote: "model output could not be parsed, defaulting to caution",
+           ?   id?: String,
+           ?   createdAt?: DateTime,
+           ?   followUps?: FollowUpUncheckedCreateNestedManyWithoutTriageRecordInput
+             }
+           })
+
+Unknown argument `aiModel`. Available options are marked with ?.
+    at <unknown> (src/lib/triage-store.ts:31:41)
+    at async insertTriageRecord (src/lib/triage-store.ts:31:19)
+    at async POST (src/app/api/triage/route.ts:131:20)
+  29 |   const isCrisis = output.escalation === true;
+  30 |
+> 31 |   const created = await db.triageRecord.create({
+     |                                         ^
+  32 |     data: {
+  33 |       submittedById,
+  34 |       county, {
+  clientVersion: '6.19.3'
+}
+ POST /api/triage 500 in 284ms (next.js: 85ms, application-code: 198ms)
+[?25h

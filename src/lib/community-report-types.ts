@@ -68,4 +68,12 @@ export interface ResponseCaseDTO {
   ward: string | null;
   landmark: string | null;
   directions: string | null;
+  /** AI intake extras (advisory; null/empty when the model didn't run). */
+  aiIntake: {
+    summary: string;
+    urgency: "low" | "medium" | "high";
+    suggestedCategory: string;
+    questionsForVisit: string[];
+    missingInformation: string[];
+  } | null;
 }
