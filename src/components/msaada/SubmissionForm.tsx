@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
   ChevronDown,
+  CloudOff,
   Loader2,
   Lock,
   Mic,
@@ -40,6 +41,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { COUNTIES, WARDS, type County, type TriageRecordDTO } from "@/lib/types";
+import {
+  flushDrafts,
+  queueDraft,
+  removeDraft,
+} from "@/lib/sync/draft-queue";
 import type {
   EncounterDTO,
   HouseholdDTO,
@@ -99,6 +105,9 @@ export function SubmissionForm({
   const [status, setStatus] = useState<Status>("idle");
   const [result, setResult] = useState<TriageRecordDTO | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
+
+  /** True while a submitted draft is stuck in the offline queue (#18). */
+  const [offlineDraftSaved, setOfflineDraftSaved] = useState(false);
 
   const wardsForCounty = useMemo(() => WARDS[county] ?? [], [county]);
 
@@ -228,6 +237,29 @@ export function SubmissionForm({
     };
   }, [loadHouseholdDetail, onLogout]);
 
+  // --- Offline draft sync (#18) ------------------------------------------
+  // On mount and whenever the device comes back online, push anything still
+  // in the offline draft queue into the Supabase `encounter_drafts` mirror.
+  // Silent unless something actually synced — a false "synced" message when
+  // Supabase is unconfigured or the CHV is signed out would be dishonest.
+  useEffect(() => {
+    let cancelled = false;
+    const sync = async () => {
+      const res = await flushDrafts();
+      if (!cancelled && res.flushed > 0) {
+        toast.success(
+          `Synced ${res.flushed} saved draft${res.flushed === 1 ? "" : "s"}`
+        );
+      }
+    };
+    void sync();
+    window.addEventListener("online", sync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", sync);
+    };
+  }, []);
+
   // --- Identity chain handlers -----------------------------------------
 
   async function handleHouseholdChange(hid: string) {
@@ -355,6 +387,20 @@ export function SubmissionForm({
       .filter(Boolean)
       .join("\n\n");
 
+    // --- Offline-first draft queue (#18) ---------------------------------
+    // Write-ahead: queue the draft BEFORE the network attempt. The payload
+    // is structured metadata only — raw observation free-text is never
+    // persisted (project de-identification rule, on-device or in the cloud).
+    // On success the entry is removed; on any failure it stays queued and is
+    // synced by flushDrafts() on mount / window "online".
+    setOfflineDraftSaved(false);
+    const draftEntry = queueDraft({
+      encounterId: encounter.id,
+      encounterCode: encounter.encounterCode,
+      county,
+      ward: ward || undefined,
+    });
+
     setStatus("loading");
     try {
       const res = await fetch("/api/triage", {
@@ -379,6 +425,8 @@ export function SubmissionForm({
         const msg = `Too many submissions. Please wait ${retry}s before trying again.`;
         setInlineError(msg);
         toast.error("Rate limited", { description: msg });
+        // Keep the draft queued — it syncs automatically later (#18).
+        setOfflineDraftSaved(true);
         setStatus("error");
         return;
       }
@@ -388,11 +436,17 @@ export function SubmissionForm({
           "Triage failed. Please try again.";
         setInlineError(errMsg);
         toast.error("Triage failed", { description: errMsg });
+        // Keep the draft queued — it syncs automatically later (#18).
+        setOfflineDraftSaved(true);
         setStatus("error");
         return;
       }
 
       const record = data as TriageRecordDTO;
+
+      // The observation reached the server — drop its draft from the queue.
+      if (draftEntry) removeDraft(draftEntry.clientUuid);
+      setOfflineDraftSaved(false);
 
       // Crisis override: hand off to the page-level CrisisPanel
       // immediately. Do NOT render the normal result card for a crisis
@@ -429,6 +483,9 @@ export function SubmissionForm({
       const msg = "Network error — could not reach the triage service.";
       setInlineError(msg);
       toast.error(msg);
+      // Offline / unreachable — keep the draft queued and tell the CHV
+      // honestly that it is saved and will sync automatically (#18).
+      setOfflineDraftSaved(true);
       setStatus("error");
     }
   }
@@ -494,6 +551,25 @@ export function SubmissionForm({
           <AlertTitle>Triage failed</AlertTitle>
           <AlertDescription>{inlineError}</AlertDescription>
         </Alert>
+      )}
+
+      {/* ---- Offline draft note (issue #18) ------------------------------ */}
+      {offlineDraftSaved && status !== "loading" && status !== "result" && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4"
+        >
+          <Alert className="border-amber-300 bg-amber-50 text-amber-900">
+            <CloudOff className="h-4 w-4" aria-hidden="true" />
+            <AlertTitle>Draft saved on this device</AlertTitle>
+            <AlertDescription>
+              Saved offline — will sync automatically when you&apos;re back
+              online. Only structured metadata is kept — never raw observation
+              text.
+            </AlertDescription>
+          </Alert>
+        </motion.div>
       )}
 
       {/* ---- Submission form (idle + error states render this; loading + result hide it) ---- */}

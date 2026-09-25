@@ -7,6 +7,8 @@
 --   2. a durable cloud mirror of public community reports (see
 --      src/app/api/community-reports/route.ts) so anonymous reports survive
 --      ephemeral/serverless deploys of the SQLite-backed app.
+--   3. a cloud mirror of offline encounter drafts queued on CHV devices (see
+--      src/lib/sync/draft-queue.ts) so nothing is lost when the network drops.
 
 -- ---------------------------------------------------------------------------
 -- 1. Todos (quick-start demo table)
@@ -78,3 +80,41 @@ create policy "Staff can read reports"
 
 create index if not exists community_reports_county_idx
   on public.community_reports (county, created_at desc);
+
+-- ---------------------------------------------------------------------------
+-- 3. Encounter drafts — offline-first sync queue (issue #18)
+-- ---------------------------------------------------------------------------
+-- Written by the CHV's browser (src/lib/sync/draft-queue.ts): every encounter
+-- observation is queued in localStorage before the network attempt and upserted
+-- here on mount / window "online". `client_uuid` is the client-generated
+-- idempotency key, so retried flushes never duplicate rows. RLS scopes every
+-- row to its owner (auth.uid() = user_id). `payload` is structured metadata
+-- only (encounter/county/ward) — raw observation free-text is never stored,
+-- matching the app-wide de-identification rule.
+create table if not exists public.encounter_drafts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  client_uuid text not null unique,
+  payload jsonb not null,
+  created_at timestamptz not null default now(),
+  synced_at timestamptz
+);
+
+alter table public.encounter_drafts enable row level security;
+
+drop policy if exists "Users can read their own encounter drafts" on public.encounter_drafts;
+drop policy if exists "Users can create their own encounter drafts" on public.encounter_drafts;
+drop policy if exists "Users can update their own encounter drafts" on public.encounter_drafts;
+
+create policy "Users can read their own encounter drafts"
+  on public.encounter_drafts for select to authenticated
+  using ((select auth.uid()) = user_id);
+
+create policy "Users can create their own encounter drafts"
+  on public.encounter_drafts for insert to authenticated
+  with check ((select auth.uid()) = user_id);
+
+create policy "Users can update their own encounter drafts"
+  on public.encounter_drafts for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
