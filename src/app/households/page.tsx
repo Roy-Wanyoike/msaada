@@ -226,7 +226,7 @@ export default function HouseholdsPage() {
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-background text-foreground lg:pl-64 print:pl-0">
       <AppNav />
 
       <main id="main" className="flex-1" tabIndex={-1}>

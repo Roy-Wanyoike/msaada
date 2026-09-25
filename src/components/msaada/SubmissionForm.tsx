@@ -1,15 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
   ChevronDown,
-  ExternalLink,
-  FileText,
   Loader2,
-  LogOut,
   Lock,
   Mic,
   PencilLine,
@@ -58,7 +54,6 @@ type Status = "idle" | "loading" | "result" | "error";
 interface SubmissionFormProps {
   chv: Chv;
   onLogout: () => void;
-  onDashboard: () => void;
   onCrisis: (record: TriageRecordDTO) => void;
   /** Fired after any successful triage write (crisis or normal) so the parent can refresh downstream panels. */
   onResult: (record: TriageRecordDTO) => void;
@@ -69,7 +64,6 @@ interface SubmissionFormProps {
 export function SubmissionForm({
   chv,
   onLogout,
-  onDashboard,
   onCrisis,
   onResult,
   postCrisisBanner,
@@ -444,46 +438,8 @@ export function SubmissionForm({
   const householdLabel = encounter?.householdLabel ?? "—";
 
   return (
-    <div className="w-full max-w-2xl">
-      {/* ---- Top bar ---- */}
-      <header className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-white">
-          <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold leading-tight">
-            Msaada{" "}
-            <span className="text-muted-foreground font-normal">
-              — CHV visit observation
-            </span>
-          </p>
-          <p className="truncate text-xs text-muted-foreground">
-            {chv.fullName} · {chv.county}
-            {chv.ward ? `, ${chv.ward}` : ""}
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9"
-          onClick={onDashboard}
-        >
-          View dashboard <ExternalLink className="h-3.5 w-3.5" />
-        </Button>
-        <Button asChild variant="outline" size="sm" className="h-9">
-          <Link href="/report/mine">
-            <FileText className="h-3.5 w-3.5" /> Report
-          </Link>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-9 text-muted-foreground"
-          onClick={onLogout}
-        >
-          <LogOut className="h-4 w-4" /> Log out
-        </Button>
-      </header>
+    <div className="w-full">
+      {/* Identity, navigation and sign-out live in the app shell (AppNav). */}
 
       {/* ---- Post-crisis banner ---- */}
       {postCrisisBanner && status !== "loading" && (

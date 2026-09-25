@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AppNav } from "@/components/msaada/AppNav";
 import { AuthCard, type Chv } from "@/components/msaada/AuthCard";
 import { CrisisPanel } from "@/components/msaada/CrisisPanel";
 import { SubmissionForm } from "@/components/msaada/SubmissionForm";
@@ -117,8 +118,16 @@ export default function Home() {
     window.location.assign("/dashboard");
   }, []);
 
+  const authed = boot === "authed" && chv !== null;
+
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div
+      className={
+        authed
+          ? "flex min-h-screen flex-col bg-background text-foreground lg:pl-64"
+          : "flex min-h-screen flex-col bg-background text-foreground"
+      }
+    >
       {/* ---------------------------------------------------------- */}
       {/* A. CRISIS PANEL — renders FIRST so it always wins z-index. */}
       {/* Non-dismissable, full-screen, Escape-blocked (see component). */}
@@ -127,45 +136,63 @@ export default function Home() {
         <CrisisPanel record={crisisRecord} onConfirm={handleCrisisConfirm} />
       )}
 
-      <main className="flex flex-1 flex-col">
+      {authed && <AppNav />}
+
+      <main id="main" className="flex flex-1 flex-col">
         {boot === "loading" && <BootSkeleton />}
 
         {boot === "unauthed" && (
           <AuthCard onAuthed={handleAuthed} onDashboard={openDashboard} />
         )}
 
-        {boot === "authed" && chv && (
-          <div className="flex w-full max-w-2xl flex-col gap-4">
-            <CaseNotifications />
-            <MyImpactCard refreshKey={recordsRefreshKey} />
-            <PendingFollowUps refreshKey={recordsRefreshKey} />
-            <SubmissionForm
-              chv={chv}
-              onLogout={handleLogout}
-              onDashboard={openDashboard}
-              onCrisis={handleCrisis}
-              onResult={handleResult}
-              postCrisisBanner={postCrisisBanner}
-              onClearPostCrisisBanner={handleClearPostCrisisBanner}
-            />
-            <MyRecentObservations refreshKey={recordsRefreshKey} />
+        {authed && (
+          <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+            <header className="mb-6 sm:mb-8">
+              <p className="text-sm font-medium text-primary">Field work</p>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                Welcome back, {chv.fullName.split(" ")[0]}
+              </h1>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                Record a household visit, and keep track of the follow-ups
+                assigned to you.
+              </p>
+            </header>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+              <div className="flex min-w-0 flex-col gap-6">
+                <CaseNotifications />
+                <SubmissionForm
+                  chv={chv}
+                  onLogout={handleLogout}
+                  onCrisis={handleCrisis}
+                  onResult={handleResult}
+                  postCrisisBanner={postCrisisBanner}
+                  onClearPostCrisisBanner={handleClearPostCrisisBanner}
+                />
+                <MyRecentObservations refreshKey={recordsRefreshKey} />
+              </div>
+              <aside className="flex min-w-0 flex-col gap-6">
+                <MyImpactCard refreshKey={recordsRefreshKey} />
+                <PendingFollowUps refreshKey={recordsRefreshKey} />
+              </aside>
+            </div>
           </div>
         )}
       </main>
 
-      <footer className="mt-auto border-t border-border bg-muted/40 px-4 py-4 text-center text-xs text-muted-foreground sm:text-sm">
-        <p className="mx-auto max-w-3xl leading-relaxed">
-          Msaada — community mental-health triage support · Demo build · Not a
-          diagnostic tool · Crisis line:{" "}
-          <span className="font-semibold text-foreground">
-            Kenya Red Cross 1199
-          </span>{" "}
-          /{" "}
-          <span className="font-semibold text-foreground">
-            Befrienders Kenya +254 722 178 177
-          </span>
-        </p>
-      </footer>
+      {authed && (
+        <footer className="mt-auto border-t border-border px-4 py-4 text-xs text-muted-foreground sm:px-6 lg:px-8">
+          <p className="mx-auto max-w-5xl leading-relaxed">
+            Msaada · Demo build · Not a diagnostic tool · Crisis line:{" "}
+            <span className="font-medium text-foreground">
+              Kenya Red Cross 1199
+            </span>{" "}
+            /{" "}
+            <span className="font-medium text-foreground">
+              Befrienders Kenya +254 722 178 177
+            </span>
+          </p>
+        </footer>
+      )}
     </div>
   );
 }
@@ -174,7 +201,7 @@ export default function Home() {
 function BootSkeleton() {
   return (
     <div
-      className="w-full max-w-md animate-pulse space-y-4"
+      className="mx-auto mt-24 w-full max-w-md animate-pulse space-y-4 px-4"
       aria-busy="true"
       aria-label="Loading session"
     >

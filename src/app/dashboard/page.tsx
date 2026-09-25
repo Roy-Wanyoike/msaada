@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft,
   RefreshCw,
   ClipboardList,
   ShieldCheck,
@@ -18,14 +16,11 @@ import {
   PieChart as PieChartIcon,
   Table2,
   Download,
-  ScrollText,
-  Users,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 
 import dynamic from "next/dynamic";
@@ -305,7 +300,7 @@ export default function DashboardPage() {
     state === "ready" && stats !== null && stats.totals.total === 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background lg:pl-64 print:pl-0">
       <AppNav />
       <main id="main" className="flex-1">
         <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -389,34 +384,31 @@ function DashboardHeader({
   ];
   return (
     <header className="mb-6 sm:mb-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge
-              variant="outline"
-              className="border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-300"
-            >
-              <span
-                className="inline-block size-1.5 rounded-full bg-teal-500"
-                aria-hidden
-              />
-              Aggregate view · De-identified
-            </Badge>
-            <span className="text-xs font-medium text-muted-foreground">
-              Last {days} days
-            </span>
-            {lastUpdated && <FreshnessBadge lastUpdated={lastUpdated} />}
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Msaada — County Triage Dashboard
-          </h1>
-          <p className="max-w-2xl text-sm text-foreground/70">
-            Aggregate community mental-health triage signals (last {days}{" "}
-            days). De-identified — no individual observation text is exposed at
-            any layer of the data pipeline.
-          </p>
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            variant="outline"
+            className="border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-300"
+          >
+            <span
+              className="inline-block size-1.5 rounded-full bg-teal-500"
+              aria-hidden
+            />
+            Aggregate view · De-identified
+          </Badge>
+          {lastUpdated && <FreshnessBadge lastUpdated={lastUpdated} />}
         </div>
-        <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          County dashboard
+        </h1>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Community mental-health signals over the last {days} days. Aggregates
+          only. No individual observation text is exposed anywhere in the data
+          pipeline.
+        </p>
+      </div>
+      <div className="mt-5 flex flex-wrap items-center gap-2 border-y border-border py-3">
+        <div className="flex flex-wrap items-center gap-2">
           {/* RBAC county-scope toggle — only shown when a CHV session exists. */}
           {chvCounty && (
             <div
@@ -474,56 +466,24 @@ function DashboardHeader({
               </button>
             ))}
           </div>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={onExportCsv}
-            className="h-10 min-h-[44px] px-3"
+            className="h-10 px-3"
             aria-label="Export county data as CSV"
           >
             <Download className="size-4" aria-hidden />
-            <span className="hidden sm:inline">CSV</span>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="h-10 min-h-[44px] px-3"
-          >
-            <Link href="/" aria-label="Back to CHV submission">
-              <ArrowLeft className="size-4" aria-hidden />
-              <span className="hidden sm:inline">Back to CHV submission</span>
-              <span className="sm:hidden">Back</span>
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="h-10 min-h-[44px] px-3"
-          >
-            <Link href="/audit" aria-label="View audit log">
-              <ScrollText className="size-4" aria-hidden />
-              <span className="hidden sm:inline">Audit</span>
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="h-10 min-h-[44px] px-3"
-          >
-            <Link href="/supervisor" aria-label="View supervisor roster">
-              <Users className="size-4" aria-hidden />
-              <span className="hidden sm:inline">Supervisor</span>
-            </Link>
+            <span className="hidden sm:inline">Export CSV</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={onRefresh}
             disabled={refreshing}
-            className="h-10 min-h-[44px] px-3"
+            className="h-10 px-3"
             aria-label="Refresh dashboard data"
           >
             <RefreshCw
@@ -534,7 +494,6 @@ function DashboardHeader({
           </Button>
         </div>
       </div>
-      <Separator className="mt-6" />
     </header>
   );
 }
@@ -682,7 +641,7 @@ function DashboardView({
 
       {/* Insights */}
       <section aria-label="Insight callouts" aria-live="polite">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="mb-3 text-base font-semibold text-foreground">
           Insights
         </h2>
         <InsightCallouts
@@ -735,7 +694,7 @@ function DashboardView({
       <section aria-label="County data table" className="space-y-3">
         <div className="flex items-center gap-2">
           <Table2 className="size-4 text-muted-foreground" aria-hidden />
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="text-base font-semibold text-foreground">
             County detail
           </h2>
         </div>

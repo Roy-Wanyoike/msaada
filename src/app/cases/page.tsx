@@ -5,7 +5,6 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
   RefreshCw,
   ClipboardList,
   CheckCircle2,
@@ -364,7 +363,7 @@ export default function CasesPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background lg:pl-64 print:pl-0">
       <AppNav />
       <main id="main" className="flex-1" tabIndex={-1}>
         <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -388,17 +387,6 @@ export default function CasesPage() {
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="h-11 min-h-[44px] px-3"
-                >
-                  <Link href="/" aria-label="Back to CHV submission">
-                    <ArrowLeft className="size-4" aria-hidden />
-                    <span className="hidden sm:inline">Back</span>
-                  </Link>
-                </Button>
                 <Button
                   onClick={() => void load()}
                   size="sm"
@@ -623,23 +611,33 @@ function KpiCard({
   icon: typeof ClipboardList;
   tone: "teal" | "emerald" | "amber";
 }) {
+  // Tone colours only the icon chip; the card itself stays neutral.
   const toneCls = {
-    teal: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-900",
+    teal: "bg-muted text-muted-foreground",
     emerald:
-      "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900",
+      "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
     amber:
-      "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900",
+      "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
   }[tone];
   return (
-    <Card className={cn("overflow-hidden border", toneCls)}>
-      <CardContent className="px-3 py-3">
-        <div className="flex items-center gap-1.5">
-          <Icon className="size-3.5" aria-hidden />
-          <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">
+    <Card className="gap-0 py-0">
+      <CardContent className="px-4 py-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[13px] font-medium text-muted-foreground">
             {label}
           </span>
+          <span
+            className={cn(
+              "inline-flex size-7 items-center justify-center rounded-md",
+              toneCls
+            )}
+          >
+            <Icon className="size-4" aria-hidden />
+          </span>
         </div>
-        <p className="mt-1 text-2xl font-bold tabular-nums">{value}</p>
+        <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-foreground">
+          {value}
+        </p>
       </CardContent>
     </Card>
   );

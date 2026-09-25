@@ -78,12 +78,12 @@ export interface DashboardPayload extends DashboardStats {
  * for generic context (e.g. top-tags bar chart when no dominant class).
  */
 export const COLORS = {
-  routine: "#10b981", // emerald-500
-  needs_followup: "#f59e0b", // amber-500
-  needs_facility_referral: "#f97316", // orange-500
-  escalation: "#ef4444", // red-500
-  teal: "#14b8a6", // teal-500
-  muted: "#9ca3af", // gray-400 (for chart grid/axes only)
+  routine: "#1b7c77", // brand-600
+  needs_followup: "#d97706", // amber-600
+  needs_facility_referral: "#ea580c", // orange-600
+  escalation: "#dc2626", // red-600
+  teal: "#3c9a93", // brand-500
+  muted: "#94a3b8", // slate-400 (for chart grid/axes only)
 } as const;
 
 /**

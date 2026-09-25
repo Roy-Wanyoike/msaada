@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft,
   RefreshCw,
   ShieldAlert,
   ShieldCheck,
@@ -116,7 +114,7 @@ export default function AuditPage() {
   const totalPages = data ? Math.ceil(data.total / data.pageSize) : 1;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background lg:pl-64 print:pl-0">
       <AppNav />
       <main id="main" className="flex-1">
         <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -146,17 +144,6 @@ export default function AuditPage() {
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <Button asChild variant="outline" size="sm" className="h-10 min-h-[44px] px-3">
-                  <Link href="/" aria-label="Back to CHV submission">
-                    <ArrowLeft className="size-4" aria-hidden />
-                    <span className="hidden sm:inline">CHV</span>
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" size="sm" className="h-10 min-h-[44px] px-3">
-                  <Link href="/dashboard" aria-label="Back to dashboard">
-                    <span className="hidden sm:inline">Dashboard</span>
-                  </Link>
-                </Button>
                 <Button
                   variant="outline"
                   size="sm"

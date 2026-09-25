@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft,
   Printer,
   ShieldCheck,
   Activity,
@@ -120,10 +119,8 @@ export default function ReportPage() {
   const trendNeutral = delta === 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <div className="print:hidden">
-        <AppNav />
-      </div>
+    <div className="flex min-h-screen flex-col bg-background lg:pl-64 print:pl-0">
+      <AppNav />
       <main id="main" className="flex-1">
         <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           {/* Header (hidden in print) */}
@@ -143,12 +140,6 @@ export default function ReportPage() {
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <Button asChild variant="outline" size="sm" className="h-10 min-h-[44px] px-3">
-                  <Link href="/" aria-label="Back to CHV submission">
-                    <ArrowLeft className="size-4" aria-hidden />
-                    <span className="hidden sm:inline">Back</span>
-                  </Link>
-                </Button>
                 <Button
                   onClick={handlePrint}
                   size="sm"

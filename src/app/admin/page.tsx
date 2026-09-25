@@ -166,7 +166,7 @@ export default function AdminPage() {
   const acceptedCount = invitations.filter((i) => i.status === "accepted").length;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background lg:pl-64 print:pl-0">
       <AppNav />
       <main id="main" className="flex-1">
         <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">

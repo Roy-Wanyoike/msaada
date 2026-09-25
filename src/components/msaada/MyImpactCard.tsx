@@ -109,7 +109,7 @@ export function MyImpactCard({ refreshKey }: Props) {
         </CardHeader>
         <CardContent className="px-4 pb-4 sm:px-6">
           {state === "loading" ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2">
               {[0, 1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-16 w-full rounded-md" />
               ))}
@@ -164,7 +164,7 @@ export function MyImpactCard({ refreshKey }: Props) {
               </div>
 
               {/* Breakdown grid */}
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2">
                 <StatTile
                   icon={ShieldCheck}
                   label="Routine"
@@ -228,14 +228,16 @@ function StatTile({
 }) {
   const t = TONE_STYLES[tone];
   return (
-    <div className={cn("rounded-md border border-border/40 px-2.5 py-2", t.soft)}>
-      <div className="flex items-center gap-1">
-        <Icon className={cn("size-3", t.text)} aria-hidden />
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-md border border-border px-3 py-2.5">
+      <div className="flex items-center gap-1.5">
+        <span className={cn("inline-flex size-5 items-center justify-center rounded", t.soft, t.text)}>
+          <Icon className="size-3" aria-hidden />
+        </span>
+        <span className="text-xs font-medium text-muted-foreground">
           {label}
         </span>
       </div>
-      <p className={cn("mt-0.5 text-xl font-bold tabular-nums", t.text)}>
+      <p className="mt-1.5 text-xl font-semibold tabular-nums text-foreground">
         {value}
       </p>
     </div>

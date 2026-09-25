@@ -15,35 +15,13 @@ interface KpiCardProps {
   index?: number;
 }
 
-const TONE_CLASSES: Record<
-  NonNullable<KpiCardProps["tone"]>,
-  { soft: string; border: string; text: string }
-> = {
-  routine: {
-    soft: "bg-emerald-50 dark:bg-emerald-950/40",
-    border: "border-emerald-200 dark:border-emerald-900",
-    text: "text-emerald-700 dark:text-emerald-300",
-  },
-  needs_followup: {
-    soft: "bg-amber-50 dark:bg-amber-950/40",
-    border: "border-amber-200 dark:border-amber-900",
-    text: "text-amber-700 dark:text-amber-300",
-  },
-  needs_facility_referral: {
-    soft: "bg-orange-50 dark:bg-orange-950/40",
-    border: "border-orange-200 dark:border-orange-900",
-    text: "text-orange-700 dark:text-orange-300",
-  },
-  escalation: {
-    soft: "bg-red-50 dark:bg-red-950/40",
-    border: "border-red-200 dark:border-red-900",
-    text: "text-red-700 dark:text-red-300",
-  },
-  teal: {
-    soft: "bg-teal-50 dark:bg-teal-950/40",
-    border: "border-teal-200 dark:border-teal-900",
-    text: "text-teal-700 dark:text-teal-300",
-  },
+/** Tone colours only the icon chip; the card itself stays neutral. */
+const TONE_CLASSES: Record<NonNullable<KpiCardProps["tone"]>, string> = {
+  routine: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
+  needs_followup: "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
+  needs_facility_referral: "bg-orange-50 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300",
+  escalation: "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300",
+  teal: "bg-muted text-muted-foreground",
 };
 
 export function KpiCard({
@@ -54,54 +32,34 @@ export function KpiCard({
   icon: Icon,
   index = 0,
 }: KpiCardProps) {
-  const t = TONE_CLASSES[tone];
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: index * 0.06, ease: "easeOut" }}
-      whileHover={{ y: -3 }}
+      transition={{ duration: 0.3, delay: index * 0.04, ease: "easeOut" }}
       className="h-full"
     >
-      <Card
-        className={cn(
-          "relative overflow-hidden gap-0 px-4 py-4 sm:px-5 sm:py-5 border transition-shadow hover:shadow-md",
-          t.soft,
-          t.border
-        )}
-      >
-        {/* Decorative accent bar (top-left → bottom-right gradient strip) */}
-        <span
-          className={cn(
-            "pointer-events-none absolute inset-x-0 top-0 h-0.5 opacity-60",
-            tone === "routine" && "bg-gradient-to-r from-emerald-400 to-emerald-600",
-            tone === "needs_followup" && "bg-gradient-to-r from-amber-400 to-amber-600",
-            tone === "needs_facility_referral" && "bg-gradient-to-r from-orange-400 to-orange-600",
-            tone === "escalation" && "bg-gradient-to-r from-red-400 to-red-600",
-            tone === "teal" && "bg-gradient-to-r from-teal-400 to-teal-600"
-          )}
-          aria-hidden
-        />
+      <Card className="h-full gap-0 px-4 py-4 sm:px-5">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-[13px] font-medium text-muted-foreground">
             {label}
           </p>
           {Icon ? (
             <span
               className={cn(
-                "inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-background/70 ring-1 ring-border/40",
-                t.text
+                "inline-flex size-7 shrink-0 items-center justify-center rounded-md",
+                TONE_CLASSES[tone]
               )}
             >
               <Icon className="size-4" aria-hidden />
             </span>
           ) : null}
         </div>
-        <p className="mt-2 text-3xl font-semibold leading-none tabular-nums text-foreground">
+        <p className="mt-3 text-3xl font-semibold leading-none tracking-tight tabular-nums text-foreground">
           {value}
         </p>
         {hint ? (
-          <p className={cn("mt-2 text-xs font-medium", t.text)}>{hint}</p>
+          <p className="mt-2 text-xs text-muted-foreground">{hint}</p>
         ) : null}
       </Card>
     </motion.div>

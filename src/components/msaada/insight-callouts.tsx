@@ -70,32 +70,28 @@ export function InsightCallouts({ insights, weeklyDeltaNumber }: Props) {
             transition={{ duration: 0.35, delay: i * 0.08, ease: "easeOut" }}
             className="h-full"
           >
-            <Card
-              className={cn(
-                "flex h-full flex-col gap-2 border px-4 py-4 sm:px-5",
-                tone.soft,
-                tone.border
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-background/70",
-                    tone.text
-                  )}
-                >
-                  <Icon className="size-4" aria-hidden />
-                </span>
-                <p className={cn("text-sm font-semibold leading-tight", tone.text)}>
+            {/* Tone colours only the icon chip; the card itself stays neutral. */}
+            <Card className="flex h-full flex-row items-start gap-3 px-4 py-4 sm:px-5">
+              <span
+                className={cn(
+                  "inline-flex size-8 shrink-0 items-center justify-center rounded-md",
+                  tone.soft,
+                  tone.text
+                )}
+              >
+                <Icon className="size-4" aria-hidden />
+              </span>
+              <div className="min-w-0 space-y-1">
+                <p className="flex items-center gap-1.5 text-sm font-semibold leading-snug text-foreground">
                   {ins.title}
+                  {showArrow ? (
+                    <DeltaArrow delta={weeklyDeltaNumber ?? 0} />
+                  ) : null}
                 </p>
-                {showArrow ? (
-                  <DeltaArrow delta={weeklyDeltaNumber ?? 0} />
-                ) : null}
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {ins.body}
+                </p>
               </div>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {ins.body}
-              </p>
             </Card>
           </motion.div>
         );

@@ -44,27 +44,14 @@ export function FollowUpKpiCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.06, ease: "easeOut" }}
-      whileHover={{ y: -3 }}
       className="h-full"
     >
-      <Card className="relative h-full overflow-hidden border-border/60 px-4 py-4 transition-shadow hover:shadow-md sm:px-5 sm:py-5">
-        {/* Accent bar */}
-        <span
-          className={cn(
-            "pointer-events-none absolute inset-x-0 top-0 h-0.5 opacity-60",
-            overdue > 0
-              ? "bg-gradient-to-r from-red-400 to-red-600"
-              : pending > 0
-                ? "bg-gradient-to-r from-amber-400 to-amber-600"
-                : "bg-gradient-to-r from-emerald-400 to-emerald-600"
-          )}
-          aria-hidden
-        />
+      <Card className="h-full gap-0 px-4 py-4 sm:px-5">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Follow-ups
+          <p className="text-[13px] font-medium text-muted-foreground">
+            Follow-up completion
           </p>
-          <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-background/70 text-teal-600 ring-1 ring-border/40 dark:text-teal-300">
+          <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
             <ClipboardCheck className="size-4" aria-hidden />
           </span>
         </div>
@@ -117,9 +104,11 @@ function Stat({
   }[tone];
   return (
     <div className="text-center">
-      <Icon className={cn("mx-auto size-3", toneCls)} aria-hidden />
-      <p className={cn("mt-0.5 text-sm font-bold tabular-nums", toneCls)}>{value}</p>
-      <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+        <Icon className={cn("size-3", toneCls)} aria-hidden />
+        {label}
+      </p>
+      <p className="mt-0.5 text-base font-semibold tabular-nums text-foreground">{value}</p>
     </div>
   );
 }

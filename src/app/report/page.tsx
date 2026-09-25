@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   HandHeart,
+  HeartPulse,
   Loader2,
   MapPin,
   MessageSquare,
@@ -40,7 +41,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { COUNTIES, WARDS, type County } from "@/lib/types";
 import {
@@ -255,7 +255,7 @@ export default function PublicReportPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-b from-emerald-50 via-background to-teal-50/40 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/10">
+    <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main
         id="main"
@@ -264,28 +264,44 @@ export default function PublicReportPage() {
       >
         <div className="mx-auto w-full max-w-2xl">
           {/* Crisis line — always visible at the top of the reporting flow */}
-          <Alert
-            className="mb-5 border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              Report a community concern
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Share what you have noticed and a Community Health Volunteer in
+              your area will follow up. No account needed.
+            </p>
+          </div>
+
+          {/* Crisis line — always visible at the top of the reporting flow */}
+          <div
+            className="mb-6 flex gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm dark:border-red-900/60 dark:bg-red-950/30"
             role="alert"
           >
-            <AlertTriangle className="size-4" aria-hidden />
-            <AlertTitle className="text-red-800 dark:text-red-200">
-              If someone is in immediate danger
-            </AlertTitle>
-            <AlertDescription className="text-red-700 dark:text-red-300">
-              Call <strong>Kenya Red Cross 1199</strong> or{" "}
-              <strong>Befrienders Kenya +254 722 178 177</strong>. This form is
-              not for emergencies — it routes a CHV to follow up later.
-            </AlertDescription>
-          </Alert>
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-600 dark:text-red-400" aria-hidden />
+            <p className="text-red-900 dark:text-red-200">
+              <span className="font-semibold">If someone is in immediate danger,</span>{" "}
+              call{" "}
+              <a href="tel:1199" className="font-semibold underline-offset-2 hover:underline">
+                Kenya Red Cross 1199
+              </a>{" "}
+              or{" "}
+              <a href="tel:+254722178177" className="font-semibold underline-offset-2 hover:underline">
+                Befrienders Kenya +254 722 178 177
+              </a>
+              . This form is not for emergencies; it routes a CHV to follow up
+              later.
+            </p>
+          </div>
 
           {/* Step indicator */}
           <StepIndicator currentStep={step} />
 
-          <Card className="border-emerald-200/60 shadow-sm dark:border-emerald-900/40">
+          <Card>
             <CardHeader className="pb-4">
               <div className="flex items-start gap-3">
-                <div className="hidden size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 sm:flex">
+                <div className="hidden size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-primary sm:flex">
                   <StepIcon step={step} />
                 </div>
                 <div className="min-w-0">
@@ -320,7 +336,7 @@ export default function PublicReportPage() {
                   exit={{ opacity: 0, x: -8 }}
                   transition={{ duration: 0.2 }}
                 >
-                  {step === 0 && <IntroStep onStart={handleNext} />}
+                  {step === 0 && <IntroStep />}
                   {step === 1 && (
                     <DescribeStep
                       form={form}
@@ -377,9 +393,9 @@ export default function PublicReportPage() {
                     type="button"
                     onClick={handleNext}
                     disabled={!canAdvance}
-                    className="h-11 min-h-[44px] w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto"
+                    className="h-11 min-h-[44px] w-full sm:w-auto"
                   >
-                    Continue
+                    {step === 0 ? "Start a report" : "Continue"}
                     <ArrowRight className="size-4" aria-hidden />
                   </Button>
                 ) : (
@@ -387,7 +403,7 @@ export default function PublicReportPage() {
                     type="button"
                     onClick={handleSubmit}
                     disabled={status === "submitting" || !canAdvance}
-                    className="h-11 min-h-[44px] w-full bg-teal-600 hover:bg-teal-700 sm:w-auto"
+                    className="h-11 min-h-[44px] w-full sm:w-auto"
                   >
                     {status === "submitting" ? (
                       <>
@@ -418,9 +434,6 @@ export default function PublicReportPage() {
             </CardContent>
           </Card>
 
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            Msaada · Not a diagnostic tool · Crisis line: {CRISIS_LINE}
-          </p>
         </div>
       </main>
 
@@ -430,7 +443,7 @@ export default function PublicReportPage() {
       >
         <div className="mx-auto w-full max-w-2xl px-4 py-4 sm:px-6 lg:px-8">
           <p className="text-center text-xs text-muted-foreground sm:text-left">
-            Msaada · Community reporting · De-identified at submission ·{" "}
+            Msaada · Not a diagnostic tool · De-identified at submission ·{" "}
             <Link href="/" className="underline hover:text-foreground">
               CHV sign in
             </Link>
@@ -448,23 +461,22 @@ export default function PublicReportPage() {
 function Header() {
   return (
     <header
-      className="border-b border-emerald-100/60 bg-emerald-50/40 backdrop-blur dark:border-emerald-900/30 dark:bg-emerald-950/20"
+      className="border-b border-border bg-card"
       role="banner"
     >
-      <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-16 w-full max-w-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="flex items-center gap-2.5" aria-label="Msaada home">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-brand-700 text-white">
+            <HeartPulse className="size-4" aria-hidden />
+          </span>
+          <span className="font-semibold text-foreground">Msaada</span>
+        </Link>
         <Link
           href="/"
-          className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300"
+          className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
-          <HandHeart className="size-5" aria-hidden />
-          <span className="text-base font-semibold">Msaada</span>
+          CHV sign in
         </Link>
-        <Badge
-          variant="outline"
-          className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
-        >
-          Community report
-        </Badge>
       </div>
     </header>
   );
@@ -472,64 +484,32 @@ function Header() {
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
   return (
-    <ol
-      className="mb-5 flex items-center justify-between gap-1"
-      aria-label="Progress"
-    >
-      {STEPS.map((s, i) => {
-        const done = i < currentStep;
-        const current = i === currentStep;
-        return (
+    <div className="mb-4">
+      <p className="text-sm text-muted-foreground">
+        Step {currentStep + 1} of {STEPS.length}
+        <span className="mx-1.5" aria-hidden>·</span>
+        <span className="font-medium text-foreground">
+          {STEPS[currentStep].label}
+        </span>
+      </p>
+      <ol className="mt-2 flex gap-1.5" aria-label="Progress">
+        {STEPS.map((s, i) => (
           <li
             key={s.id}
-            className="flex flex-1 flex-col items-center gap-1 text-center"
+            className={cn(
+              "h-1.5 flex-1 rounded-full transition-colors",
+              i <= currentStep ? "bg-primary" : "bg-muted"
+            )}
+            aria-current={i === currentStep ? "step" : undefined}
           >
-            <div className="flex w-full items-center">
-              <div
-                className={cn(
-                  "flex size-7 items-center justify-center rounded-full text-xs font-semibold transition-colors sm:size-8",
-                  done &&
-                    "bg-emerald-600 text-white dark:bg-emerald-700",
-                  current &&
-                    "bg-teal-600 text-white ring-2 ring-teal-200 dark:bg-teal-700 dark:ring-teal-900",
-                  !done &&
-                    !current &&
-                    "bg-muted text-muted-foreground"
-                )}
-                aria-current={current ? "step" : undefined}
-              >
-                {done ? (
-                  <CheckCircle2 className="size-4" aria-hidden />
-                ) : (
-                  i + 1
-                )}
-              </div>
-              {i < STEPS.length - 1 && (
-                <div
-                  className={cn(
-                    "h-0.5 flex-1",
-                    done
-                      ? "bg-emerald-500"
-                      : "bg-muted"
-                  )}
-                  aria-hidden
-                />
-              )}
-            </div>
-            <span
-              className={cn(
-                "text-[10px] leading-tight sm:text-xs",
-                current
-                  ? "font-medium text-foreground"
-                  : "text-muted-foreground"
-              )}
-            >
+            <span className="sr-only">
               {s.label}
+              {i < currentStep ? " (done)" : ""}
             </span>
           </li>
-        );
-      })}
-    </ol>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -551,7 +531,7 @@ function StepIcon({ step }: { step: number }) {
 // Step 0: Intro
 // ============================================================
 
-function IntroStep({ onStart }: { onStart: () => void }) {
+function IntroStep() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-foreground/80">
@@ -562,7 +542,7 @@ function IntroStep({ onStart }: { onStart: () => void }) {
       <ul className="space-y-2 text-sm text-muted-foreground">
         <li className="flex items-start gap-2">
           <ShieldCheck
-            className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+            className="mt-0.5 size-4 shrink-0 text-primary"
             aria-hidden
           />
           <span>
@@ -572,7 +552,7 @@ function IntroStep({ onStart }: { onStart: () => void }) {
         </li>
         <li className="flex items-start gap-2">
           <UserRound
-            className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+            className="mt-0.5 size-4 shrink-0 text-primary"
             aria-hidden
           />
           <span>
@@ -582,7 +562,7 @@ function IntroStep({ onStart }: { onStart: () => void }) {
         </li>
         <li className="flex items-start gap-2">
           <ClipboardCheck
-            className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+            className="mt-0.5 size-4 shrink-0 text-primary"
             aria-hidden
           />
           <span>
@@ -591,14 +571,6 @@ function IntroStep({ onStart }: { onStart: () => void }) {
           </span>
         </li>
       </ul>
-      <Button
-        type="button"
-        onClick={onStart}
-        className="h-11 min-h-[44px] w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto"
-      >
-        Start a report
-        <ArrowRight className="size-4" aria-hidden />
-      </Button>
     </div>
   );
 }
@@ -1074,7 +1046,7 @@ function ConfirmationScreen({
   onReset: () => void;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-b from-emerald-50 via-background to-teal-50/40 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/10">
+    <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main
         id="main"
@@ -1155,7 +1127,7 @@ function ConfirmationScreen({
                   <Button
                     type="button"
                     onClick={onReset}
-                    className="h-11 min-h-[44px] w-full bg-emerald-600 hover:bg-emerald-700 sm:flex-1"
+                    className="h-11 min-h-[44px] w-full sm:flex-1"
                   >
                     <RotateCcw className="size-4" aria-hidden />
                     Submit another

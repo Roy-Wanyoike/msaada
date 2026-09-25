@@ -5,10 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Loader2,
-  LogIn,
-  UserPlus,
   HeartPulse,
-  ExternalLink,
   ShieldCheck,
   Phone,
   ArrowRight,
@@ -160,101 +157,6 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
     }
   }
 
-  // ============ PROJECT INFO PANEL (shared by login + signup views) ============
-  const ProjectInfoPanel = () => (
-    <div className="relative flex flex-col justify-between bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 p-8 text-white sm:p-10">
-      {/* Decorative pattern */}
-      <div
-        className="absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 20% 30%, white 1px, transparent 1.5px), radial-gradient(circle at 70% 60%, white 1px, transparent 1.5px)",
-          backgroundSize: "60px 60px, 50px 50px",
-        }}
-        aria-hidden
-      />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.15),transparent_55%)]" aria-hidden />
-
-      {/* Brand */}
-      <div className="relative">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2.5"
-        >
-          <span className="flex size-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 backdrop-blur">
-            <HeartPulse className="size-5" aria-hidden />
-          </span>
-          <span className="text-xl font-bold tracking-tight">Msaada</span>
-        </motion.div>
-      </div>
-
-      {/* Tagline + principles */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="relative space-y-5"
-      >
-        <div>
-          <h2 className="text-2xl font-bold leading-tight sm:text-3xl">
-            Community health,
-            <br />
-            intelligently coordinated.
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-emerald-50/80">
-            AI interprets. Deterministic policy controls safety.
-            <br />
-            Authorized humans control care.
-          </p>
-        </div>
-
-        <div className="space-y-2.5">
-          {[
-            { icon: ShieldCheck, text: "Deterministic policy engine — AI can't override safety" },
-            { icon: HeartPulse, text: "Identity chain: Household → Member → Encounter" },
-            { icon: Phone, text: "Crisis-line protocol fires at point of observation" },
-          ].map((item, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.25 + i * 0.1 }}
-              className="flex items-center gap-2.5"
-            >
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-white/10 ring-1 ring-white/15">
-                <item.icon className="size-3.5" aria-hidden />
-              </span>
-              <span className="text-xs text-emerald-50/90">{item.text}</span>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Crisis line */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="relative rounded-xl border border-white/15 bg-white/5 p-4 backdrop-blur"
-      >
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-100/70">
-          Crisis line
-        </p>
-        <div className="mt-1.5 flex items-center gap-3">
-          <a href="tel:1199" className="flex items-center gap-1.5 text-sm font-bold text-white transition-colors hover:text-emerald-100">
-            <Phone className="size-3.5" aria-hidden />
-            1199
-          </a>
-          <span className="text-emerald-200/30" aria-hidden>|</span>
-          <a href="tel:+254722178177" className="text-xs text-emerald-50/80 transition-colors hover:text-white">
-            Befrienders Kenya
-          </a>
-        </div>
-      </motion.div>
-    </div>
-  );
-
   // ============ HERO VIEW ============ (full landing page — website → webapp)
   if (view === "hero") {
     return (
@@ -270,259 +172,317 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
 
   // ============ LOGIN / SIGNUP TWO-COLUMN VIEW ============
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3 }}
-      className="flex w-full max-w-4xl overflow-hidden rounded-2xl border border-border/60 shadow-2xl shadow-emerald-950/10"
-    >
-      {/* Left: project info (hidden on mobile, shown on lg+) */}
-      <div className="hidden lg:block lg:w-1/2">
-        <ProjectInfoPanel />
-      </div>
-
-      {/* Right: form */}
-      <div className="flex w-full flex-col justify-center bg-background p-6 sm:p-10 lg:w-1/2">
-        {/* Back button */}
-        <button
-          onClick={() => setView("hero")}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" aria-hidden />
-          Back
-        </button>
-
-        {/* Mobile brand (shows on < lg) */}
-        <div className="mb-6 flex items-center gap-2 lg:hidden">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 text-white">
-            <HeartPulse className="size-4" aria-hidden />
-          </span>
-          <span className="text-lg font-bold">Msaada</span>
-        </div>
-
-        {/* Heading */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            {view === "login" ? "Welcome back" : "Create your account"}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {view === "login"
-              ? "Sign in to log observations and manage your households."
-              : "Register as a Community Health Volunteer."}
-          </p>
-        </div>
-
-        {/* Login form */}
-        <AnimatePresence mode="wait">
-          {view === "login" && (
-            <motion.form
-              key="login"
-              onSubmit={handleLogin}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-4"
-            >
-              <div className="space-y-1.5">
-                <Label htmlFor="login-email">Email</Label>
-                <Input
-                  id="login-email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  placeholder="you@msaada.health"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  className="min-h-11"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="login-password">Password</Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  placeholder="••••••••"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  className="min-h-11"
-                />
-              </div>
-              <Button
-                type="submit"
-                className="h-11 w-full bg-emerald-600 hover:bg-emerald-700"
-                disabled={loginLoading}
-              >
-                {loginLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                {loginLoading ? "Signing in…" : "Sign in"}
-                {!loginLoading && <ArrowRight className="ml-1.5 h-4 w-4" />}
-              </Button>
-            </motion.form>
-          )}
-
-          {view === "signup" && (
-            <motion.form
-              key="signup"
-              onSubmit={handleSignup}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-4"
-            >
-              <div className="space-y-1.5">
-                <Label htmlFor="su-name">Full name</Label>
-                <Input
-                  id="su-name"
-                  type="text"
-                  required
-                  autoComplete="name"
-                  placeholder="Wanjiru Kamau"
-                  value={suName}
-                  onChange={(e) => setSuName(e.target.value)}
-                  className="min-h-11"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="su-email">Email</Label>
-                <Input
-                  id="su-email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  placeholder="you@msaada.health"
-                  value={suEmail}
-                  onChange={(e) => setSuEmail(e.target.value)}
-                  className="min-h-11"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="su-password">Password</Label>
-                <Input
-                  id="su-password"
-                  type="password"
-                  required
-                  autoComplete="new-password"
-                  placeholder="••••••••"
-                  value={suPassword}
-                  onChange={(e) => setSuPassword(e.target.value)}
-                  className="min-h-11"
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-county">County</Label>
-                  <Select
-                    value={suCounty}
-                    onValueChange={(v) => {
-                      setSuCounty(v as County);
-                      setSuWard("");
-                    }}
-                  >
-                    <SelectTrigger id="su-county" className="min-h-11 w-full">
-                      <SelectValue placeholder="Select county" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COUNTIES.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="su-ward">Ward</Label>
-                  <Select
-                    value={suWard}
-                    onValueChange={setSuWard}
-                    disabled={!suCounty}
-                  >
-                    <SelectTrigger id="su-ward" className="min-h-11 w-full">
-                      <SelectValue placeholder="Select ward" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(suCounty ? WARDS[suCounty] : []).map((w) => (
-                        <SelectItem key={w} value={w}>
-                          {w}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button
-                type="submit"
-                className="h-11 w-full bg-emerald-600 hover:bg-emerald-700"
-                disabled={suLoading}
-              >
-                {suLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                {suLoading ? "Creating account…" : "Create account"}
-                {!suLoading && <ArrowRight className="ml-1.5 h-4 w-4" />}
-              </Button>
-            </motion.form>
-          )}
-        </AnimatePresence>
-
-        {/* Switch between login/signup + demo */}
-        <div className="mt-6 space-y-3">
-          <p className="text-center text-sm text-muted-foreground">
-            {view === "login" ? (
-              <>
-                Don&apos;t have an account?{" "}
-                <button
-                  onClick={() => setView("signup")}
-                  className="font-medium text-emerald-600 hover:underline"
-                >
-                  Sign up
-                </button>
-              </>
-            ) : (
-              <>
-                Already have an account?{" "}
-                <button
-                  onClick={() => setView("login")}
-                  className="font-medium text-emerald-600 hover:underline"
-                >
-                  Login
-                </button>
-              </>
-            )}
-          </p>
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-background px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                or
-              </span>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            className="h-11 w-full border-emerald-300 bg-emerald-50/40 text-emerald-700 transition-colors hover:bg-emerald-50 hover:border-emerald-400 dark:border-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300"
-            onClick={handleDemoAccount}
-            disabled={demoLoading}
+    <div className="grid min-h-screen w-full lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+      {/* Left: form */}
+      <div className="flex flex-col px-6 py-6 sm:px-10">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setView("hero")}
+            className="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Back to Msaada home"
           >
-            {demoLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {demoLoading ? "Preparing demo…" : "Use demo account"}
-            {!demoLoading && <ArrowRight className="ml-1.5 h-4 w-4" />}
-          </Button>
-          <div className="rounded-lg border border-dashed border-border/70 bg-muted/30 px-3 py-2.5 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Demo credentials
-            </p>
-            <p className="mt-1 font-mono text-xs text-foreground">
-              <span className="select-all">{DEMO_EMAIL}</span>
-              <span className="mx-1.5 text-muted-foreground">·</span>
-              <span className="select-all">{DEMO_PASSWORD}</span>
+            <span className="flex size-8 items-center justify-center rounded-lg bg-brand-700 text-white">
+              <HeartPulse className="size-4" aria-hidden />
+            </span>
+            <span className="font-semibold text-foreground">Msaada</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("hero")}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="size-3.5" aria-hidden />
+            Home
+          </button>
+        </div>
+
+        <motion.div
+          key={view}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12"
+        >
+          {/* Heading */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              {view === "login" ? "Sign in to Msaada" : "Create your account"}
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {view === "login"
+                ? "Log observations, manage households and track follow-ups."
+                : "Register as a Community Health Volunteer."}
             </p>
           </div>
-        </div>
+
+          {/* Login form */}
+          <AnimatePresence mode="wait">
+            {view === "login" && (
+              <motion.form
+                key="login"
+                onSubmit={handleLogin}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-4"
+              >
+                <div className="space-y-1.5">
+                  <Label htmlFor="login-email">Email</Label>
+                  <Input
+                    id="login-email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    placeholder="you@msaada.health"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    className="min-h-11"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="login-password">Password</Label>
+                  <Input
+                    id="login-password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="min-h-11"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="h-11 w-full"
+                  disabled={loginLoading}
+                >
+                  {loginLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {loginLoading ? "Signing in…" : "Sign in"}
+                  {!loginLoading && <ArrowRight className="ml-1.5 h-4 w-4" />}
+                </Button>
+              </motion.form>
+            )}
+
+            {view === "signup" && (
+              <motion.form
+                key="signup"
+                onSubmit={handleSignup}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-4"
+              >
+                <div className="space-y-1.5">
+                  <Label htmlFor="su-name">Full name</Label>
+                  <Input
+                    id="su-name"
+                    type="text"
+                    required
+                    autoComplete="name"
+                    placeholder="Wanjiru Kamau"
+                    value={suName}
+                    onChange={(e) => setSuName(e.target.value)}
+                    className="min-h-11"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="su-email">Email</Label>
+                  <Input
+                    id="su-email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder="you@msaada.health"
+                    value={suEmail}
+                    onChange={(e) => setSuEmail(e.target.value)}
+                    className="min-h-11"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="su-password">Password</Label>
+                  <Input
+                    id="su-password"
+                    type="password"
+                    required
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    value={suPassword}
+                    onChange={(e) => setSuPassword(e.target.value)}
+                    className="min-h-11"
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="su-county">County</Label>
+                    <Select
+                      value={suCounty}
+                      onValueChange={(v) => {
+                        setSuCounty(v as County);
+                        setSuWard("");
+                      }}
+                    >
+                      <SelectTrigger id="su-county" className="min-h-11 w-full">
+                        <SelectValue placeholder="Select county" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COUNTIES.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="su-ward">Ward</Label>
+                    <Select
+                      value={suWard}
+                      onValueChange={setSuWard}
+                      disabled={!suCounty}
+                    >
+                      <SelectTrigger id="su-ward" className="min-h-11 w-full">
+                        <SelectValue placeholder="Select ward" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(suCounty ? WARDS[suCounty] : []).map((w) => (
+                          <SelectItem key={w} value={w}>
+                            {w}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button
+                  type="submit"
+                  className="h-11 w-full"
+                  disabled={suLoading}
+                >
+                  {suLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {suLoading ? "Creating account…" : "Create account"}
+                  {!suLoading && <ArrowRight className="ml-1.5 h-4 w-4" />}
+                </Button>
+              </motion.form>
+            )}
+          </AnimatePresence>
+
+          {/* Switch between login/signup + demo */}
+          <div className="mt-6 space-y-3">
+            <p className="text-center text-sm text-muted-foreground">
+              {view === "login" ? (
+                <>
+                  Don&apos;t have an account?{" "}
+                  <button
+                    onClick={() => setView("signup")}
+                    className="font-medium text-foreground underline-offset-4 hover:underline"
+                  >
+                    Sign up
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <button
+                    onClick={() => setView("login")}
+                    className="font-medium text-foreground underline-offset-4 hover:underline"
+                  >
+                    Login
+                  </button>
+                </>
+              )}
+            </p>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-background px-3 text-xs text-muted-foreground">
+                  or
+                </span>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              className="h-11 w-full"
+              onClick={handleDemoAccount}
+              disabled={demoLoading}
+            >
+              {demoLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {demoLoading ? "Preparing demo…" : "Use demo account"}
+              {!demoLoading && <ArrowRight className="ml-1.5 h-4 w-4" />}
+            </Button>
+            <div className="rounded-lg border border-border bg-muted/50 px-3 py-2.5 text-center">
+              <p className="text-xs font-medium text-muted-foreground">
+                Demo credentials
+              </p>
+              <p className="mt-1 font-mono text-xs text-foreground">
+                <span className="select-all">{DEMO_EMAIL}</span>
+                <span className="mx-1.5 text-muted-foreground">·</span>
+                <span className="select-all">{DEMO_PASSWORD}</span>
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        <p className="text-xs text-muted-foreground">
+          In crisis? Call{" "}
+          <a href="tel:1199" className="font-medium text-foreground hover:underline">1199</a>{" "}
+          (Kenya Red Cross) or{" "}
+          <a href="tel:+254722178177" className="font-medium text-foreground hover:underline">Befrienders Kenya</a>.
+        </p>
       </div>
-    </motion.div>
+
+      {/* Right: brand panel (lg+) */}
+      <BrandPanel />
+    </div>
+  );
+}
+
+const PANEL_POINTS = [
+  { icon: ShieldCheck, title: "Safety rules the AI can't override", text: "Escalation is decided by deterministic, versioned policy." },
+  { icon: HeartPulse, title: "A complete identity chain", text: "Household → member → encounter → referral → follow-up." },
+  { icon: Phone, title: "Crisis protocol at the doorstep", text: "The crisis line appears the moment an observation needs it." },
+];
+
+function BrandPanel() {
+  return (
+    <aside className="relative hidden overflow-hidden bg-brand-950 text-white lg:flex lg:flex-col lg:justify-between lg:p-12">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:linear-gradient(to_right,white_1px,transparent_1px),linear-gradient(to_bottom,white_1px,transparent_1px)] [background-size:40px_40px] [mask-image:radial-gradient(ellipse_at_top_right,black_20%,transparent_70%)]"
+        aria-hidden
+      />
+      <p className="relative text-sm font-medium text-brand-200">
+        Community Health Intelligence · Kenya
+      </p>
+      <div className="relative max-w-md">
+        <h2 className="text-3xl font-semibold leading-tight tracking-tight">
+          Every household visit, followed through.
+        </h2>
+        <p className="mt-4 text-base leading-relaxed text-brand-100/80">
+          AI interprets. Deterministic policy controls safety. Authorised
+          people control care.
+        </p>
+        <ul className="mt-10 space-y-6">
+          {PANEL_POINTS.map((p) => (
+            <li key={p.title} className="flex gap-4">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
+                <p.icon className="size-4" aria-hidden />
+              </span>
+              <div>
+                <p className="text-sm font-semibold">{p.title}</p>
+                <p className="mt-0.5 text-sm text-brand-100/70">{p.text}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <p className="relative text-xs text-brand-100/60">
+        Demo build · Not a diagnostic tool · Synthetic data only
+      </p>
+    </aside>
   );
 }
