@@ -160,7 +160,7 @@ The app deploys to Vercel as-is (`next build` with Turbopack). Configure the env
 
 | Variable | Scope | Purpose |
 |---|---|---|
-| `DATABASE_URL` | Server | Prisma connection string. Local default is `file:../db/custom.db`; SQLite is ephemeral on Vercel, so point this at a hosted database for durable data. |
+| `DATABASE_URL` | Server | Prisma connection string. **Optional on Vercel**: when unset (or pointing at a non-`/tmp` `file:` path), the app self-provisions an ephemeral SQLite database in `/tmp` at cold start — schema DDL + demo seed run automatically via the `instrumentation.ts` bootstrap (see "Vercel demo mode" below). Local default is `file:./db/custom.db`. |
 | `MSAADA_SESSION_SECRET` | Server | HMAC key that signs the `msaada_session` cookie. **Must be ≥ 32 chars** in production (e.g. `openssl rand -base64 48`). |
 | `QWEN_API_KEY` | Server | ModelScope API key for the Qwen chat-completions endpoint. Powers AI triage, report intake, dashboard summaries and follow-up suggestions. |
 | `QWEN_BASE_URL` | Server | Optional. Defaults to `https://api-inference.modelscope.ai/v1`; override for DashScope/Model Studio accounts. |
@@ -168,7 +168,16 @@ The app deploys to Vercel as-is (`next build` with Turbopack). Configure the env
 | `NEXT_PUBLIC_SUPABASE_URL` | Client+Server | Supabase project URL (public by design, e.g. `https://mwpyllhgjihvbtmhbbjl.supabase.co`). Unset = the Supabase layer stays off. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Client+Server | Supabase publishable (anon) key — safe to expose in the browser. Never use the `service_role` key here. |
 
-Set the variables in **Vercel → Settings → Environment Variables**, then trigger a **Redeploy** so the running deployment picks them up.
+Set the variables in **Vercel → Settings → Environment Variables**, then trigger a **Redeploy** so the running deployment picks them up. `NEXT_PUBLIC_*` values are inlined at **build** time — adding them without a redeploy changes nothing on the running site.
+
+### Vercel demo mode (self-bootstrapping database)
+
+The Prisma layer uses SQLite and the database file is not tracked in git (repo hygiene, #14) — so a fresh Vercel deployment starts with **no database** and the function bundle is read-only. `src/instrumentation.ts` solves this: on every serverless cold start (before the first request is served) it pins `DATABASE_URL` to `file:/tmp/msaada-demo.db`, applies the full schema DDL (`src/lib/db-ddl.ts`, generated from `prisma/schema.prisma`), and seeds the demo CHV + demo community reports — all idempotent, with a fast path that skips DDL when the schema is already present.
+
+Consequences for judges / demos:
+- The deployed site works immediately — demo login (`demo@msaada.health` / `msaada123`), triage, reports and the dashboard all function without any `DATABASE_URL` configuration.
+- `/tmp` storage is **per-lambda-instance and ephemeral**: writes survive while the instance is warm, then reset on the next cold start. Do not treat the Vercel deployment as durable storage.
+- Durable data belongs in the **Supabase layer** (encounter drafts + community report mirror), which activates once the two `NEXT_PUBLIC_SUPABASE_*` variables are set and `supabase/schema.sql` has been run in the SQL editor.
 
 ### Supabase
 
