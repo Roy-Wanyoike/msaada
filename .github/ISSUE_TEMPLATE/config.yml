@@ -1,0 +1,4 @@
+# Operating model §18: only standardized issue types are accepted.
+# Blank issues are disabled so every issue carries the §19 fields.
+blank_issues_enabled: false
+# Contact links (ENGINEERING.md digest link is added by the companion docs PR #22).
