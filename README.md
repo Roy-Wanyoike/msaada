@@ -204,6 +204,7 @@ Supabase is an optional enhancement layer. With the two `NEXT_PUBLIC_SUPABASE_*`
 | `/audit` | Compliance | Policy-version-logged audit trail of triage, referrals, follow-ups, community-report events. |
 | `/admin` | MoH / County Admin | Institutional onboarding + invitation-based CHV creation. |
 | `/docs` | All | Project documentation hub. |
+| `/status` | All | Live dependency status (Database / Qwen AI / Supabase) — green / amber (not configured) / red cards, auto-refreshes every 30 s. |
 
 ---
 
@@ -232,6 +233,7 @@ All routes are server-side; auth is cookie-session (`msaada_session`). Sensitive
 | `/api/response-cases/[id]` | GET, PATCH | Case lifecycle (assigned → accepted → in_progress → resolved). |
 | `/api/response-cases/[id]/assign` | POST | Deterministic CHV assignment (ownership-scoped; supervisor can re-assign). |
 | `/api/response-cases/[id]/encounter` | POST | Create an encounter from a case — closes the loop into the existing identity → encounter → referral → follow-up chain. |
+| `/api/health` | GET | Public dependency probe (database / qwen / supabase) — always 200, status words only, never echoes config. |
 
 ---
 

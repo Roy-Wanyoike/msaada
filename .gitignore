@@ -40,3 +40,4 @@ validation-test.cjs
 smoke-test.sh
 smoke-jar.txt
 smoke-server.log
+tsconfig.tsbuildinfo

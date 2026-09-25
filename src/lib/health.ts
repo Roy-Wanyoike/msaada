@@ -94,6 +94,9 @@ export async function checkSupabase(): Promise<CheckStatus> {
   try {
     const healthUrl = new URL("/auth/v1/health", config.url);
     const res = await fetch(healthUrl, {
+      // Supabase (GoTrue) rejects unauthenticated requests with 401 — the
+      // publishable key is public-by-design and safe to send as the apikey.
+      headers: { apikey: config.publishableKey },
       signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
       cache: "no-store",
     });
