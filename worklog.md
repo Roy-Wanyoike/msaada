@@ -1042,3 +1042,23 @@ Stage Summary:
 - README.md: Tech Stack corrected; new sections "Deployment (Vercel)" (7-row env table + Redeploy sentence + ≥32-char secret note), "Supabase" (helpers, proxy convention, schema.sql), "AI provider notes" (ModelScope, 501 ASR_NOT_AVAILABLE, DashScope escape hatch). No secrets.
 - #19 verdict: warning not reproducible locally (0 warnings before AND after); docs/page.tsx hardened against every trigger class (node: prefixed async fs, runtime=nodejs, no client-context server imports) + outputFileTracingIncludes fixes the real Vercel runtime defect (traced md files). Build clean: ~20s compile, 15 pages, 0 warnings.
 - Env note for other agents: worktree node_modules was a symlink that Turbopack rejects at build; replaced with hard-link copy (read-only usage preserved; main repo untouched).
+
+Task ID: 5-b
+Agent: eng-health
+Task: /api/health endpoint + /status demo page (issue #17)
+
+Work Log:
+- Read worklog.md, src/lib/ai/client.ts (QwenError + lazy env resolution + qwenConfigured()), src/lib/db.ts (prisma `db` export), src/utils/supabase/config.ts (supabaseConfig() null-when-unset), src/app/api/triage/route.ts (route conventions), src/app/settings/page.tsx + docs/page.tsx (page design language).
+- Created src/lib/health.ts — shared non-throwing probe module: checkDatabase (Prisma SELECT 1 via db.$queryRaw), checkQwen (qwenConfigured() presence check only — no model call, zero tokens), checkSupabase (supabaseConfig() → fetch ${url}/auth/v1/health when set); each probe bounded by a 3s timeout guard (Promise.race for Prisma, AbortSignal.timeout for fetch); probes run in parallel via Promise.all; runHealthChecks() maps every failure to a status word ("ok" | "error" | "not_configured") and can never throw.
+- Status-logic decision: overall "ok" only when all three probes are "ok"; "not_configured" counts toward "degraded" (spec default, rationale documented in the module docblock) — a health endpoint exists to surface missing wiring, and the /status page renders amber "Not configured" as visibly distinct from red "Down".
+- Created src/app/api/health/route.ts — GET, public, export const dynamic = "force-dynamic", Cache-Control: no-store, always HTTP 200; body { status, checks: { database, qwen, supabase }, timestamp, version: "1.0.0" }; belt-and-braces catch guarantees it can NEVER 500; logs probe names only, never error objects or env values.
+- Created /status: src/app/status/page.tsx (server component, force-dynamic, imports runHealthChecks directly — no HTTP self-call) rendering an overall banner (green all-ok / red probe-failed / amber config-incomplete) + three cards (Database / Qwen AI / Supabase) with green/amber/red shadcn Badge+Card styling matching the settings-page design language; honest per-probe copy; deterministic UTC timestamp; link back to / and to GET /api/health.
+- Created src/app/status/StatusRefresh.tsx ("use client") — 30s router.refresh() interval (skips hidden tabs), manual Refresh button with pending spinner, auto on/off toggle.
+- Verification: bunx tsc --noEmit — zero errors in the four new files (remaining errors are pre-existing in untouched files: skills/*, response-cases routes, SubmissionForm.tsx, county-bar-chart.tsx, community-report-store.ts). rg secret scan on the diff: clean (env var NAMES only, no values/keys/URLs).
+- Committed 62e4a8e on feat/issue-17-health (4 files, +538): src/lib/health.ts, src/app/api/health/route.ts, src/app/status/page.tsx, src/app/status/StatusRefresh.tsx.
+
+Stage Summary:
+- /api/health: always-200, status-words-only probe endpoint; never echoes env values/keys/URLs/error details; qwen check burns zero tokens; supabase reports "not_configured" when URL+publishable key are unset.
+- /status: RSC page reusing the same probe module (no HTTP self-call); "not configured" ≠ "down" (amber vs red, plus amber overall banner when only config is missing); auto-refreshes every 30 s via router.refresh().
+- Decision documented in code: not_configured → overall "degraded" (spec default); all-ok → "ok".
+- Follow-up (out of scope here): add /status + /api/health rows to README Routes / API-surface tables.
