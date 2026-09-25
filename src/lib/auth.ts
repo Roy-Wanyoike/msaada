@@ -37,11 +37,25 @@ function resolveSessionSecret(): string {
   return DEFAULT_SESSION_SECRET;
 }
 
-const SESSION_SECRET = resolveSessionSecret();
+// Lazy, memoized resolution. This module is imported by API routes that Next
+// evaluates during `next build` page-data collection with NODE_ENV=production,
+// so throwing at module scope would fail every Vercel deploy that hasn't set
+// MSAADA_SESSION_SECRET yet — even though sessions are only ever used at
+// request time. Resolution is deferred to the first signing operation instead:
+// builds succeed, and a production instance that actually handles a session
+// request without the env var still fails fast (the guard is unchanged).
+let cachedSecret: string | null = null;
+
+function sessionSecret(): string {
+  if (cachedSecret === null) {
+    cachedSecret = resolveSessionSecret();
+  }
+  return cachedSecret;
+}
 
 /** HMAC-SHA256 over the payload bytes, base64url-encoded. */
 function signPayload(payload: Buffer): string {
-  return createHmac("sha256", SESSION_SECRET)
+  return createHmac("sha256", sessionSecret())
     .update(payload)
     .digest()
     .toString("base64url");
