@@ -1,4 +1,15 @@
+# Internal z-ai agent tooling (not part of the product)
 skills/
+
+# Dev-server log
+dev.log
+
+# Binary SQLite DB, regenerated locally via `bun run db:push`
+db/custom.db
+
+# Repo standardizes on bun + bun.lock; npm lockfile is stale/unused
+package-lock.json
+
 node_modules/
 seed-all.cjs
 
@@ -29,4 +40,3 @@ validation-test.cjs
 smoke-test.sh
 smoke-jar.txt
 smoke-server.log
-dev.log
