@@ -172,6 +172,21 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<anon key>  # community-report mirror
 
 ---
 
+## Engineering workflow
+
+Msaada is built **issue-first** under a written operating model — digest in [ENGINEERING.md](ENGINEERING.md), enforced by the templates under `.github/`:
+
+- **No direct pushes to `main`.** Every change is **1 issue → 1 branch (`chore|MVP-<n>-slug`) → 1 PR (`Closes #n`) → review → squash merge → issue auto-closes.**
+- Issues use the standardized **BUG / FEATURE / SECURITY** forms (`.github/ISSUE_TEMPLATE/`) carrying the required impact declarations and Given/When/Then acceptance criteria; PRs carry the 17-section template + author self-review checklist (`.github/pull_request_template.md`).
+- One command answers *"is this repository healthy?"*:
+
+```bash
+npm run verify          # prisma generate → tsc --noEmit → eslint → next build
+npm run verify:smoke    # + standalone server on a throwaway DB: /api/health, demo login, /presentation, revoked-cookie replay
+```
+
+---
+
 ## Deployment (Vercel)
 
 The app deploys to Vercel as-is (`next build` with Turbopack). Configure the environment variables below before the first deploy — they are all resolved lazily at call time, so a deploy never fails at build for a missing variable.
