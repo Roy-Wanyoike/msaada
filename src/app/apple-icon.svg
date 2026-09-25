@@ -1,13 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
   <defs>
     <linearGradient id="msaada-g" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0D9488"/>
       <stop offset="1" stop-color="#0E3A3D"/>
     </linearGradient>
   </defs>
-  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#msaada-g)"/>
+  <rect x="0" y="0" width="180" height="180" rx="40" fill="url(#msaada-g)"/>
   <!-- Heartbeat trace rising into an "M" — health monitoring + Msaada -->
-  <polyline points="12,42 20,42 26,20 34,50 40,30 44,42 52,42"
-            fill="none" stroke="#FFFFFF" stroke-width="5"
+  <polyline points="34,118 56,118 73,58 96,140 113,84 123,118 146,118"
+            fill="none" stroke="#FFFFFF" stroke-width="14"
             stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

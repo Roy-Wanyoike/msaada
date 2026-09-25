@@ -166,6 +166,8 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<anon key>  # community-report mirror
 
 **GitHub:** https://github.com/Roy-Wanyoike/msaada
 
+**Pitch deck:** `presentation/Msaada-Pitch-Deck.pptx` — 12-slide judge-facing deck (problem, safety architecture, demo walkthrough, roadmap).
+
 ---
 
 ## Deployment (Vercel)
