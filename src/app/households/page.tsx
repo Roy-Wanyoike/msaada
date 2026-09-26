@@ -12,6 +12,7 @@ import {
   Home,
   Loader2,
   MapPin,
+  Mic,
   Plus,
   RefreshCw,
   Stethoscope,
@@ -22,6 +23,8 @@ import {
 } from "lucide-react";
 
 import { AppNav } from "@/components/msaada/AppNav";
+import { CrisisPanel } from "@/components/msaada/CrisisPanel";
+import { VoiceEncounterCapture } from "@/components/msaada/VoiceEncounterCapture";
 import {
   Card,
   CardAction,
@@ -43,7 +46,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { COUNTIES, WARDS, type County } from "@/lib/types";
+import { COUNTIES, WARDS, type County, type TriageRecordDTO } from "@/lib/types";
 import type {
   EncounterDTO,
   HouseholdDTO,
@@ -111,6 +114,16 @@ export default function HouseholdsPage() {
   const [startedEncounter, setStartedEncounter] = useState<EncounterDTO | null>(
     null
   );
+
+  // ---- Voice-first capture sheet (MVP-46) + crisis override --------------
+  // The capture sheet mounts over the just-started encounter; crisis records
+  // never reach its result phase — they land here and CrisisPanel renders
+  // FIRST in the tree (same ordering rule as src/app/page.tsx).
+  const [captureEncounter, setCaptureEncounter] = useState<EncounterDTO | null>(
+    null
+  );
+  const [crisisRecord, setCrisisRecord] = useState<TriageRecordDTO | null>(null);
+  const [postCrisisBanner, setPostCrisisBanner] = useState<string | null>(null);
 
   /** Monotonic fetch counter so stale responses can be dropped. */
   const listReqId = useMemo(() => ({ id: 0 }), []);
@@ -274,6 +287,27 @@ export default function HouseholdsPage() {
         </div>
       </main>
 
+      {/* ----------------------------------------------------------- */}
+      {/* Crisis override (MUST render first so it always wins z-index) */}
+      {/* ----------------------------------------------------------- */}
+      {crisisRecord?.escalation === true && (
+        <CrisisPanel
+          record={crisisRecord}
+          onConfirm={() => {
+            setPostCrisisBanner(
+              `Record logged for reporting · ID ${crisisRecord.id} · ` +
+                `${new Date(crisisRecord.createdAt).toLocaleString()}`
+            );
+            setCrisisRecord(null);
+          }}
+        />
+      )}
+      {postCrisisBanner && (
+        <div className="fixed inset-x-0 bottom-4 z-30 mx-auto w-fit max-w-[92vw] rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-lg dark:border-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200">
+          {postCrisisBanner}
+        </div>
+      )}
+
       <footer
         className="mt-auto border-t border-border bg-muted/40 px-4 py-4 text-center text-xs text-muted-foreground sm:text-sm"
         role="contentinfo"
@@ -308,6 +342,38 @@ export default function HouseholdsPage() {
           <EncounterStartedToast
             encounter={startedEncounter}
             onDismiss={() => setStartedEncounter(null)}
+            onRecord={() => {
+              setStartedEncounter(null);
+              setCaptureEncounter(startedEncounter);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ----------------------------------------------------------- */}
+      {/* Voice-first AI capture sheet (MVP-46)                       */}
+      {/* ----------------------------------------------------------- */}
+      <AnimatePresence>
+        {captureEncounter && (
+          <VoiceEncounterCapture
+            encounter={captureEncounter}
+            household={households.find((h) => h.id === captureEncounter.householdId)}
+            onClose={() => setCaptureEncounter(null)}
+            onSaved={(record) => {
+              setCaptureEncounter(null);
+              toast.success("Observation saved", {
+                description: `${captureEncounter.encounterCode} · ${record.classification.replace(/_/g, " ")}`,
+              });
+            }}
+            onCrisis={(record) => {
+              setCaptureEncounter(null);
+              setCrisisRecord(record);
+            }}
+            onLogout={() => {
+              setCaptureEncounter(null);
+              setCrisisRecord(null);
+              window.location.assign("/");
+            }}
           />
         )}
       </AnimatePresence>
@@ -587,7 +653,9 @@ function MemberRow({
         const res = await fetch("/api/encounters", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ householdId, memberId: member.id }),
+          // This flow supports voice + typed capture, so record the encounter
+          // as "mixed" (schema-allowed; the seed already uses voice/mixed).
+          body: JSON.stringify({ householdId, memberId: member.id, captureMethod: "mixed" }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -1141,9 +1209,12 @@ function NewHouseholdSheet({
 function EncounterStartedToast({
   encounter,
   onDismiss,
+  onRecord,
 }: {
   encounter: EncounterDTO;
   onDismiss: () => void;
+  /** Opens the voice-first capture sheet for this encounter (MVP-46). */
+  onRecord: () => void;
 }) {
   // Auto-dismiss after 12s (but the user can also click through / dismiss).
   useEffect(() => {
@@ -1236,12 +1307,25 @@ function EncounterStartedToast({
               </div>
             </dl>
             <Button
-              asChild
+              type="button"
               size="sm"
+              onClick={onRecord}
               className="h-11 min-h-[44px] w-full bg-emerald-600 text-white hover:bg-emerald-700"
             >
-              <Link href={observeHref} aria-label="Start observation for this encounter">
-                Start observation
+              <Mic className="size-4" aria-hidden />
+              Record observation
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-11 min-h-[44px] w-full"
+            >
+              <Link
+                href={observeHref}
+                aria-label="Type observation on the submission page"
+              >
+                Start observation (type instead)
                 <ArrowRight className="size-4" aria-hidden />
               </Link>
             </Button>
