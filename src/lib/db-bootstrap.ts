@@ -91,11 +91,9 @@ async function run(): Promise<BootstrapResult> {
   // database before the URL above is pinned.
   const { db } = await import("@/lib/db");
   const {
-    hashPassword,
+    SUPABASE_PASSWORD_MARKER,
     DEMO_CHV_EMAIL,
-    DEMO_CHV_PASSWORD,
     DEMO_ADMIN_EMAIL,
-    DEMO_ADMIN_PASSWORD,
   } = await import("@/lib/auth");
   const { seedCommunityReports } = await import("@/lib/community-report-seed");
   const { seedDemoData } = await import("@/lib/demo-data-seed");
@@ -156,7 +154,7 @@ async function run(): Promise<BootstrapResult> {
     chv = await db.chvUser.create({
       data: {
         email: DEMO_CHV_EMAIL,
-        passwordHash: hashPassword(DEMO_CHV_PASSWORD),
+        passwordHash: SUPABASE_PASSWORD_MARKER,
         fullName: "Demo CHV",
         county: "Kilifi",
         ward: "Malindi Town",
@@ -176,7 +174,7 @@ async function run(): Promise<BootstrapResult> {
     admin = await db.chvUser.create({
       data: {
         email: DEMO_ADMIN_EMAIL,
-        passwordHash: hashPassword(DEMO_ADMIN_PASSWORD),
+        passwordHash: SUPABASE_PASSWORD_MARKER,
         fullName: "County Admin (Demo)",
         county: "Kilifi",
         ward: "Malindi Town",

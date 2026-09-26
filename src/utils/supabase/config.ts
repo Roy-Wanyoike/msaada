@@ -1,11 +1,11 @@
 /**
  * Supabase configuration — lazy, call-time resolution.
  *
- * Both values are NEXT_PUBLIC_* (safe in the browser). Like src/lib/auth.ts,
- * nothing here may throw at module scope: modules that import this file get
+ * Both values are NEXT_PUBLIC_* (safe in the browser). Nothing here may throw
+ * at module scope: modules that import this file get
  * evaluated during `next build` page-data collection, where a throw would
- * break every deploy that hasn't configured Supabase yet. Supabase is an
- * optional enhancement — Msaada's own auth + SQLite work without it.
+ * break every deploy that hasn't configured Supabase yet. Authentication
+ * endpoints surface missing configuration as a controlled runtime response.
  */
 
 export interface SupabaseConfig {

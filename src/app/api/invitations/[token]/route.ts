@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { hashPassword, setSession } from "@/lib/auth";
-import { generateCode } from "@/lib/identity-types";
+import { SUPABASE_PASSWORD_MARKER } from "@/lib/auth";
 import { writeAuditEntry } from "@/lib/triage-store";
+import { createAdminClient } from "@/utils/supabase/admin";
+import { createClient as createSupabaseClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -121,24 +122,64 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     resolvedCounty = inviter?.county ?? null;
   }
 
-  const user = await db.chvUser.create({
-    data: {
-      email: invitation.email,
-      fullName: fullName || invitation.fullName || "New CHV",
-      passwordHash: hashPassword(password),
-      role: invitation.role,
-      authState: "active", // skips verification + device steps for the demo
-      organizationId: invitation.organizationId ?? null,
-      invitedById: invitation.invitedById,
-      county: resolvedCounty,
-    },
-  });
+  const admin = createAdminClient();
+  const supabase = await createSupabaseClient();
+  if (!admin || !supabase) {
+    return NextResponse.json(
+      { error: "SERVER_NOT_CONFIGURED" },
+      { status: 503 }
+    );
+  }
 
-  // Mark invitation as accepted.
-  await db.invitation.update({
-    where: { id: invitation.id },
-    data: { status: "accepted", acceptedAt: new Date() },
-  });
+  const normalizedEmail = invitation.email.trim().toLowerCase();
+  const { data: authData, error: authError } =
+    await admin.auth.admin.createUser({
+      email: normalizedEmail,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: fullName || invitation.fullName || "New CHV",
+        county: resolvedCounty,
+        role: invitation.role,
+      },
+    });
+
+  if (authError || !authData.user) {
+    const duplicate =
+      authError?.code === "email_exists" ||
+      authError?.code === "user_already_exists" ||
+      /already (?:been )?registered|already exists/i.test(authError?.message ?? "");
+    return NextResponse.json(
+      { error: duplicate ? "USER_EXISTS" : "SERVER_ERROR" },
+      { status: duplicate ? 409 : 503 }
+    );
+  }
+
+  let user: Awaited<ReturnType<typeof db.chvUser.create>>;
+  try {
+    [user] = await db.$transaction([
+      db.chvUser.create({
+        data: {
+          email: normalizedEmail,
+          fullName: fullName || invitation.fullName || "New CHV",
+          passwordHash: SUPABASE_PASSWORD_MARKER,
+          role: invitation.role,
+          authState: "active", // trusted invitation skips email confirmation
+          organizationId: invitation.organizationId ?? null,
+          invitedById: invitation.invitedById,
+          county: resolvedCounty,
+        },
+      }),
+      db.invitation.update({
+        where: { id: invitation.id },
+        data: { status: "accepted", acceptedAt: new Date() },
+      }),
+    ]);
+  } catch {
+    await admin.auth.admin.deleteUser(authData.user.id).catch(() => undefined);
+    console.error("[invitations accept] local profile creation failed");
+    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 503 });
+  }
 
   // Audit trail (MVP-44): the invitee's account now exists, so the event is
   // attributed to the NEW user id (no session exists at this point — the
@@ -154,8 +195,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     console.error("[invitations accept] audit log write failed:", e);
   });
 
-  // Set session.
-  await setSession(user.id);
+  // Establish the normal cookie-backed Supabase session for the invitee.
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password,
+  });
+  if (signInError) {
+    console.error("[invitations accept] Supabase session creation failed");
+    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 503 });
+  }
 
   return NextResponse.json(
     {

@@ -7,9 +7,8 @@ import { updateSession } from "@/utils/supabase/middleware";
  * is proxy.ts with a `proxy` export — verified against next@16.1.3's
  * PROXY_FILENAME constant.)
  *
- * Refreshes Supabase auth cookies before they hit a route handler or Server
- * Component. Strict pass-through when Supabase isn't configured, so local
- * dev and the Vercel demo are unaffected until env vars are set.
+ * Refreshes and verifies Supabase auth cookies before they hit a route handler
+ * or Server Component. Auth endpoints report missing configuration explicitly.
  */
 export async function proxy(request: NextRequest) {
   return await updateSession(request);

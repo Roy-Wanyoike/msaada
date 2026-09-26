@@ -22,7 +22,6 @@
 import { db } from "@/lib/db";
 import { qwenConfigured } from "@/lib/ai/client";
 import { supabaseConfig } from "@/utils/supabase/config";
-import { sessionSecretMode, type SessionSecretMode } from "@/lib/auth";
 
 export const HEALTH_VERSION = "1.1.0";
 
@@ -37,11 +36,6 @@ export interface Checks {
 export interface HealthReport {
   status: "ok" | "degraded";
   checks: Checks;
-  /** Informational only — how the session-signing secret was resolved.
-   *  "ephemeral" means login works but sessions reset on server restart.
-   *  Deliberately OUTSIDE `checks`: it never affects the ok/degraded
-   *  verdict and never exposes any secret material. */
-  sessionSecret: SessionSecretMode;
   timestamp: string;
   version: string;
 }
@@ -89,10 +83,8 @@ export async function checkQwen(): Promise<CheckStatus> {
 }
 
 /**
- * Supabase — "not_configured" when unset (Supabase is an optional
- * enhancement; src/utils/supabase/config.ts defines configured as URL +
- * publishable key both present). Otherwise hit the public auth health
- * endpoint; any 2xx counts as ok.
+ * Supabase — "not_configured" when the required auth URL/publishable key is
+ * unset. Otherwise hit the public Auth health endpoint; any 2xx counts as ok.
  */
 export async function checkSupabase(): Promise<CheckStatus> {
   const config = supabaseConfig();
@@ -138,7 +130,6 @@ export async function runHealthChecks(): Promise<HealthReport> {
   return {
     status,
     checks,
-    sessionSecret: sessionSecretMode(),
     timestamp: new Date().toISOString(),
     version: HEALTH_VERSION,
   };

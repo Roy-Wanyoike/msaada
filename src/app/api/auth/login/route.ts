@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import {
-  verifyPassword,
-  setSession,
-  rateLimitIdentifier,
-  logAuthEvent,
-} from "@/lib/auth";
+import { rateLimitIdentifier, logAuthEvent } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { createClient as createSupabaseClient } from "@/utils/supabase/server";
 
 // Cookie-session writes → never static.
 export const dynamic = "force-dynamic";
@@ -21,8 +17,8 @@ export const dynamic = "force-dynamic";
  *  - 403 ACCOUNT_SUSPENDED if creds are valid but authState !== "active"
  *    (covers suspended / deactivated / not-yet-onboarded states)
  *  - 429 RATE_LIMITED after 5 attempts / 60s per (ip, email) pair
- *  - 503 SERVER_NOT_CONFIGURED when the deployment is missing
- *    MSAADA_SESSION_SECRET (production fail-fast guard)
+ * Supabase Auth owns credential verification and the cookie session. The
+ * local ChvUser row remains the authorization/operational profile.
  */
 export async function POST(req: Request) {
   let body: unknown;
@@ -81,16 +77,50 @@ export async function POST(req: Request) {
       { status: 503 }
     );
   }
-  if (!chv || !verifyPassword(password, chv.passwordHash)) {
-    // Audit trail: record the failed attempt (outcome detail is server-side
-    // only — the response below stays identical for unknown accounts and
-    // wrong passwords, so no enumeration leak is introduced).
+  const supabase = await createSupabaseClient();
+  if (!supabase) {
+    return NextResponse.json(
+      {
+        error: "SERVER_NOT_CONFIGURED",
+        message: "Supabase Auth is not configured.",
+      },
+      { status: 503 }
+    );
+  }
+
+  const { data: authData, error: authError } =
+    await supabase.auth.signInWithPassword({
+      email: emailNormalized,
+      password,
+    });
+
+  if (authError || !authData.user || !chv) {
     await logAuthEvent({
       event: "login_failed",
       userId: chv?.id ?? null,
       emailAttempt: emailNormalized,
-      detail: chv ? "invalid_password" : "unknown_account",
+      detail: authError?.code ?? (chv ? "invalid_credentials" : "unknown_account"),
     });
+
+    if (authError?.code === "email_not_confirmed") {
+      return NextResponse.json({ error: "EMAIL_NOT_CONFIRMED" }, { status: 403 });
+    }
+    if (authError?.status === 429) {
+      return NextResponse.json({ error: "RATE_LIMITED" }, { status: 429 });
+    }
+    if (
+      authError &&
+      ((authError.status ?? 0) >= 500 ||
+        authError.name === "AuthRetryableFetchError")
+    ) {
+      return NextResponse.json({ error: "SERVER_ERROR" }, { status: 503 });
+    }
+
+    // If Supabase authenticated an orphaned identity with no local profile,
+    // clear the just-issued cookies and keep the public response generic.
+    if (authData.user && !chv) {
+      await supabase.auth.signOut({ scope: "local" });
+    }
     return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
   }
 
@@ -102,6 +132,7 @@ export async function POST(req: Request) {
   //   invited | verification_pending | verified | credentials_created |
   //   device_registered | active | suspended | deactivated
   if (chv.authState && chv.authState !== "active") {
+    await supabase.auth.signOut({ scope: "local" });
     await logAuthEvent({
       event: "login_failed",
       userId: chv.id,
@@ -111,29 +142,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "ACCOUNT_SUSPENDED" }, { status: 403 });
   }
 
-  // setSession() resolves the session secret. Since MVP-41 the production
-  // fallback for a missing/short MSAADA_SESSION_SECRET is an EPHEMERAL
-  // per-boot secret — login succeeds and this branch only remains as a
-  // safety net for any other unexpected secret-resolution failure. Surface
-  // that as an explicit 503 instead of an opaque 500-with-empty-body. The
-  // message names the env var only — its VALUE is never echoed.
-  try {
-    await setSession(chv.id);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("MSAADA_SESSION_SECRET")) {
-      console.error("[login] server misconfigured:", msg.slice(0, 160));
-      return NextResponse.json(
-        {
-          error: "SERVER_NOT_CONFIGURED",
-          message:
-            "MSAADA_SESSION_SECRET must be set to a >=32 char string in the deployment environment.",
-        },
-        { status: 503 }
-      );
-    }
-    throw err;
-  }
   await logAuthEvent({
     event: "login_succeeded",
     userId: chv.id,

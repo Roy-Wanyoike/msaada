@@ -7,13 +7,12 @@ import { supabaseConfig } from "./config";
  * request).
  *
  * Supabase auth tokens live in cookies (sb-*). When they are expired, calling
- * getUser() triggers a refresh through the Supabase Auth server, and the SDK
+ * getClaims() triggers a refresh when needed, then verifies the JWT, and the SDK
  * hands back the Set-Cookie headers we must forward — otherwise a user with a
  * still-valid refresh token gets logged out mid-session.
  *
- * When Supabase isn't configured this is a strict pass-through: Msaada's own
- * msaada_session cookie auth (src/lib/auth.ts) is fully independent, and the
- * demo works without a Supabase project.
+ * When Supabase isn't configured this is a strict pass-through; auth endpoints
+ * themselves return an explicit SERVER_NOT_CONFIGURED response.
  */
 export async function updateSession(request: NextRequest) {
   const config = supabaseConfig();
@@ -38,17 +37,10 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // IMPORTANT: do not run code between createServerClient and getUser() —
-  // getUser() is what performs the token refresh.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Msaada keeps its own route guard (msaada_session checked per route, see
-  // src/lib/auth.ts). Supabase auth is additive; nothing is redirected here
-  // yet. When Supabase Auth replaces the demo session, gate protected routes
-  // on `user` at this point.
-  void user;
+  // IMPORTANT: keep this immediately after client construction. getClaims()
+  // refreshes near-expiry sessions and cryptographically verifies the JWT;
+  // getSession() alone would trust forgeable cookie contents on the server.
+  await supabase.auth.getClaims();
 
   return supabaseResponse;
 }

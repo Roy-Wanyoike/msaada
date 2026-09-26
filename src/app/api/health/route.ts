@@ -37,7 +37,6 @@ export async function GET() {
     const report: HealthReport = {
       status: "degraded",
       checks,
-      sessionSecret: "demo",
       timestamp: new Date().toISOString(),
       version: HEALTH_VERSION,
     };

@@ -4,8 +4,8 @@ import { supabaseConfig } from "./config";
 
 /**
  * Server-side Supabase client (Server Components, Server Actions, Route
- * Handlers). Returns null when Supabase isn't configured so callers can fall
- * back to Msaada's own cookie-session auth without branching at import time.
+ * Handlers). Returns null when Supabase isn't configured so callers can emit a
+ * controlled configuration response without throwing at import time.
  *
  * Cookie strategy follows the @supabase/ssr docs: read the whole cookie store
  * for the token refresh, and write every Set-Cookie the SDK emits back.

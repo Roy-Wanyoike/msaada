@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { hashPassword, setSession, rateLimitIdentifier } from "@/lib/auth";
+import {
+  SUPABASE_PASSWORD_MARKER,
+  rateLimitIdentifier,
+} from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { COUNTIES, WARDS, type County } from "@/lib/types";
+import { createAdminClient } from "@/utils/supabase/admin";
+import { createClient as createSupabaseClient } from "@/utils/supabase/server";
 
 // Cookie-session writes → never static.
 export const dynamic = "force-dynamic";
@@ -16,8 +21,8 @@ function bad(error: string, field?: string) {
 /**
  * POST /api/auth/signup
  * Body: { email, password, fullName, county, ward? }
- * Creates a ChvUser, issues a session cookie, returns the public profile.
- * Email is stored lowercased so lookups are case-insensitive.
+ * Creates a Supabase identity plus local ChvUser profile. If email confirmation
+ * is enabled, returns 202; otherwise the Supabase SSR client issues cookies.
  *
  * 429 RATE_LIMITED after 5 attempts / 60s per IP — the email may not exist
  * yet (the account is being created), so the rate-limit key is IP-only.
@@ -87,16 +92,81 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "EMAIL_EXISTS" }, { status: 409 });
   }
 
-  const created = await db.chvUser.create({
-    data: {
-      email: emailLower,
-      passwordHash: hashPassword(password),
-      fullName: fullName.trim(),
-      county: countyTyped,
-      ward: wardNormalized,
+  const supabase = await createSupabaseClient();
+  if (!supabase) {
+    return NextResponse.json(
+      { error: "SERVER_NOT_CONFIGURED" },
+      { status: 503 }
+    );
+  }
+
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email: emailLower,
+    password,
+    options: {
+      data: {
+        full_name: fullName.trim(),
+        county: countyTyped,
+        ward: wardNormalized,
+      },
     },
   });
-  await setSession(created.id);
+
+  if (authError) {
+    const duplicate =
+      authError.code === "user_already_exists" ||
+      /already registered/i.test(authError.message);
+    const rateLimited = authError.status === 429;
+    const weakPassword = authError.code === "weak_password";
+    return NextResponse.json(
+      {
+        error: duplicate
+          ? "EMAIL_EXISTS"
+          : rateLimited
+            ? "RATE_LIMITED"
+            : weakPassword
+              ? "WEAK_PASSWORD"
+              : "SIGNUP_FAILED",
+      },
+      { status: duplicate ? 409 : rateLimited ? 429 : 400 }
+    );
+  }
+
+  // With confirmation enabled, Supabase may return an obfuscated user for an
+  // existing account. An empty identities list means no account was created.
+  if (!authData.user || authData.user.identities?.length === 0) {
+    return NextResponse.json({ error: "EMAIL_EXISTS" }, { status: 409 });
+  }
+
+  let created: Awaited<ReturnType<typeof db.chvUser.create>>;
+  try {
+    created = await db.chvUser.create({
+      data: {
+        email: emailLower,
+        passwordHash: SUPABASE_PASSWORD_MARKER,
+        fullName: fullName.trim(),
+        county: countyTyped,
+        ward: wardNormalized,
+      },
+    });
+  } catch {
+    // Best-effort compensation prevents an unusable Supabase-only identity
+    // when the local operational profile cannot be created.
+    const admin = createAdminClient();
+    if (admin) {
+      await admin.auth.admin.deleteUser(authData.user.id).catch(() => undefined);
+    }
+    await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+    console.error("[signup] local profile creation failed");
+    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 503 });
+  }
+
+  if (!authData.session) {
+    return NextResponse.json(
+      { confirmationRequired: true, email: emailLower },
+      { status: 202 }
+    );
+  }
 
   return NextResponse.json(
     {

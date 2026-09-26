@@ -179,12 +179,12 @@ create index if not exists encounter_drafts_synced_idx
   on public.encounter_drafts (synced_at);
 
 -- ---------------------------------------------------------------------------
--- 4. Authentication schema (mirrors the Prisma models in prisma/schema.prisma)
+-- 4. Legacy authentication compatibility tables
 -- ---------------------------------------------------------------------------
--- The app currently signs its own HMAC cookie sessions against the primary
--- Prisma database (see src/lib/auth.ts). These tables provision the SAME
--- auth layer in Supabase so the hosted database has a complete schema for
--- authentication, ready for the moment auth moves to Supabase Auth:
+-- The app now uses Supabase Auth's managed auth.users/auth.sessions records
+-- directly. These public tables are retained for compatibility with projects
+-- that already ran earlier revisions of this schema; current application code
+-- does not use them for credential or session validation:
 --
 --   auth_sessions          one row per issued session — stores ONLY the
 --                          SHA-256 hash of the opaque token (never the raw

@@ -6,16 +6,15 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/auth/logout
- * Revokes the DB-backed session row (server-side kill switch — a replayed
- * cookie is rejected from now on) and clears the msaada_session cookie.
+ * Revokes the current Supabase refresh token and clears its auth cookies.
  * The logout is recorded in the AuthEvent audit trail (best-effort).
  */
 export async function POST() {
-  const revokedUserId = await clearSession();
-  if (revokedUserId) {
+  const signedOutUserId = await clearSession();
+  if (signedOutUserId) {
     await logAuthEvent({
       event: "logout",
-      userId: revokedUserId,
+      userId: signedOutUserId,
       detail: "user_initiated",
     });
   }

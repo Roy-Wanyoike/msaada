@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
-  hashPassword,
+  SUPABASE_PASSWORD_MARKER,
   DEMO_CHV_EMAIL,
-  DEMO_CHV_PASSWORD,
 } from "@/lib/auth";
 import { classifyObservation } from "@/lib/ai/triage";
 import { insertTriageRecord, writeAuditEntry } from "@/lib/triage-store";
@@ -214,7 +213,7 @@ async function ensureDemoChv() {
     chv = await db.chvUser.create({
       data: {
         email: DEMO_CHV_EMAIL,
-        passwordHash: hashPassword(DEMO_CHV_PASSWORD),
+        passwordHash: SUPABASE_PASSWORD_MARKER,
         fullName: "Demo CHV",
         county: "Kilifi",
         ward: "Malindi Town",

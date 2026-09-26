@@ -60,10 +60,16 @@ function authErrorDescription(error: string | undefined): string {
       return "Email or password is incorrect.";
     case "ACCOUNT_SUSPENDED":
       return "This account is not active. Contact your county administrator.";
+    case "EMAIL_NOT_CONFIRMED":
+      return "Confirm your email from the message Supabase sent, then sign in.";
+    case "WEAK_PASSWORD":
+      return "Choose a stronger password with a mix of letters, numbers, and symbols.";
+    case "PROFILE_NOT_FOUND":
+      return "Your sign-in exists, but no Msaada profile is linked to it. Contact an administrator.";
     case "RATE_LIMITED":
       return "Too many attempts. Wait a minute and try again.";
     case "SERVER_NOT_CONFIGURED":
-      return "A server configuration problem blocked sign-in (rare since login now works without MSAADA_SESSION_SECRET). This is not a credentials issue — check /status for the exact probe and redeploy.";
+      return "Supabase Auth is not configured for this deployment. Check /status and the server environment.";
     case "SERVER_ERROR":
       return "Authentication is temporarily unavailable. Try again shortly.";
     default:
@@ -153,6 +159,14 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
         });
         return;
       }
+      if (data.confirmationRequired) {
+        toast.success("Check your email", {
+          description: "Confirm your Supabase account, then return here to sign in.",
+        });
+        setLoginEmail(suEmail.trim().toLowerCase());
+        setView("login");
+        return;
+      }
       toast.success("Account created", { description: data.chv.fullName });
       onAuthed(data.chv as Chv);
     } catch {
@@ -165,7 +179,14 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
   async function handleDemoAccount() {
     setDemoLoading(true);
     try {
-      await fetch("/api/demo-chv", { method: "POST" });
+      const provisionRes = await fetch("/api/demo-chv", { method: "POST" });
+      const provisionData = await provisionRes.json();
+      if (!provisionRes.ok || provisionData.error) {
+        toast.error("Demo login failed", {
+          description: authErrorDescription(provisionData.error),
+        });
+        return;
+      }
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
