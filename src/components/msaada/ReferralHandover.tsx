@@ -2,8 +2,15 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Copy, Loader2, Sparkles } from "lucide-react";
+import { ArrowRight, Copy, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Handover {
   note: string;
@@ -88,6 +95,171 @@ export function ReferralHandover({ referralId }: { referralId: string }) {
       <p className="text-[11px] text-muted-foreground">
         Drafted by {data.model} · review before sending
       </p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Referral status advance (MVP-44) — the lifecycle control on the     */
+/* referral card. Mirrors the server-side state machine in             */
+/* PATCH /api/referrals/[id]; the server remains the authority (any    */
+/* drift surfaces as a mapped 409 toast, never a silent wrong state).  */
+/* ------------------------------------------------------------------ */
+
+/** Forward transition table — mirrors PATCH /api/referrals/[id]. */
+export const REFERRAL_TRANSITIONS: Record<string, string[]> = {
+  created: ["sent"],
+  sent: ["acknowledged", "declined", "cancelled"],
+  acknowledged: ["in_progress", "declined", "cancelled"],
+  in_progress: ["completed", "declined", "cancelled", "expired"],
+  completed: [],
+  declined: [],
+  cancelled: [],
+  expired: [],
+};
+
+const TERMINAL_STATUSES = new Set([
+  "completed",
+  "declined",
+  "cancelled",
+  "expired",
+]);
+
+const STATUS_LABELS: Record<string, string> = {
+  created: "Created",
+  sent: "Sent",
+  acknowledged: "Acknowledged",
+  in_progress: "In progress",
+  completed: "Completed",
+  declined: "Declined",
+  cancelled: "Cancelled",
+  expired: "Expired",
+};
+
+interface AdvanceResult {
+  id: string;
+  status: string;
+  acknowledgedAt: string | null;
+  completedAt: string | null;
+  [key: string]: unknown;
+}
+
+/**
+ * Status-advance control for one referral card. `canAct` is computed by the
+ * page (owner CHV or county admin). On success the updated referral DTO is
+ * handed back via `onUpdated` so the page's KPI strip reflects the new live
+ * state immediately (optimistic refresh — no full reload).
+ */
+export function ReferralStatusAdvance({
+  referralId,
+  status,
+  canAct,
+  onUpdated,
+}: {
+  referralId: string;
+  status: string;
+  canAct: boolean;
+  onUpdated: (updated: AdvanceResult) => void;
+}) {
+  const [next, setNext] = useState<string>("");
+  const [applying, setApplying] = useState(false);
+
+  const terminal = TERMINAL_STATUSES.has(status);
+  const options = REFERRAL_TRANSITIONS[status] ?? [];
+  const blocked = terminal || !canAct;
+
+  const blockedCopy = terminal
+    ? `This referral is ${STATUS_LABELS[status]?.toLowerCase() ?? status} — the lifecycle is closed, no further transitions.`
+    : "Only the CHV who created this referral — or a county admin — can advance it.";
+
+  async function apply() {
+    if (!next || applying) return;
+    setApplying(true);
+    try {
+      const res = await fetch(`/api/referrals/${encodeURIComponent(referralId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: next }),
+      });
+      const body = (await res.json().catch(() => ({}))) as AdvanceResult & {
+        error?: string;
+        from?: string;
+        to?: string[];
+      };
+      if (res.ok) {
+        toast.success(
+          `Referral moved to ${STATUS_LABELS[body.status] ?? body.status}`
+        );
+        setNext("");
+        onUpdated(body);
+        return;
+      }
+      if (res.status === 409) {
+        const allowed = (body.to ?? [])
+          .map((s) => STATUS_LABELS[s] ?? s)
+          .join(", ");
+        toast.error(
+          `Not allowed from ${STATUS_LABELS[body.from ?? ""] ?? body.from ?? "this state"}.${
+            allowed ? ` Allowed next: ${allowed}.` : " This referral is closed."
+          }`
+        );
+      } else if (res.status === 403) {
+        toast.error("You don't have permission to update this referral.");
+      } else if (res.status === 400) {
+        toast.error("Invalid request — pick a valid next status.");
+      } else if (res.status === 401) {
+        toast.error("Please sign in again.");
+      } else {
+        toast.error("Couldn't update the referral. Try again.");
+      }
+    } catch {
+      toast.error("Network error. Try again.");
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap items-center gap-2" title={blocked ? blockedCopy : undefined}>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Advance status
+        </span>
+        <Select
+          value={next}
+          onValueChange={setNext}
+          disabled={blocked || applying}
+        >
+          <SelectTrigger
+            className="h-9 w-44"
+            aria-label={`Next status for this referral (currently ${STATUS_LABELS[status] ?? status})`}
+          >
+            <SelectValue placeholder={terminal ? "Lifecycle closed" : "Choose next state"} />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((s) => (
+              <SelectItem key={s} value={s}>
+                {STATUS_LABELS[s] ?? s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          type="button"
+          size="sm"
+          className="h-9"
+          onClick={() => void apply()}
+          disabled={blocked || applying || !next}
+        >
+          {applying ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <ArrowRight className="size-4" aria-hidden />
+          )}
+          Apply
+        </Button>
+      </div>
+      {blocked && <p className="text-xs text-muted-foreground">{blockedCopy}</p>}
     </div>
   );
 }

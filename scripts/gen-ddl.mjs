@@ -23,6 +23,8 @@ const OUT = "src/lib/db-ddl.ts";
 // Columns added to existing tables after their first CREATE TABLE shipped.
 // Keep newest-first ordering per table; append new entries here on upgrade.
 const SCHEMA_UPGRADES = [
+  'ALTER TABLE "AuditLog" ADD COLUMN "organizationId" TEXT;',
+  'ALTER TABLE "AuditLog" ADD COLUMN "authorizationRole" TEXT;',
   'ALTER TABLE "ResponseCase" ADD COLUMN "outcomeCategory" TEXT;',
   'ALTER TABLE "ResponseCase" ADD COLUMN "outcomeSummary" TEXT;',
 ];

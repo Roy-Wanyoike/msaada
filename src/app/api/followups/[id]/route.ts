@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionChv } from "@/lib/auth";
-import { resolveFollowUp } from "@/lib/triage-store";
+import { resolveFollowUp, writeAuditEntry } from "@/lib/triage-store";
 import { db } from "@/lib/db";
 import { scrubPII } from "@/lib/pii-scrub";
 import { privacyScan } from "@/lib/ai/privacy";
@@ -73,10 +73,18 @@ export async function PATCH(
     // Pre-fetch to split the three conflated null-return cases from
     // resolveFollowUp: not-found (404), not-owned (403), already-resolved (409).
     // Without this pre-check the data-access layer returns null for all three
-    // and the route has no way to distinguish them.
+    // and the route has no way to distinguish them. The triageRecord select
+    // also carries the county/ward context the audit row needs.
     const existing = await db.followUp.findUnique({
       where: { id },
-      select: { id: true, chvId: true, status: true },
+      select: {
+        id: true,
+        chvId: true,
+        status: true,
+        triageRecordId: true,
+        referralId: true,
+        triageRecord: { select: { county: true, ward: true } },
+      },
     });
     if (!existing) {
       return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
@@ -109,6 +117,28 @@ export async function PATCH(
         { status: 409 }
       );
     }
+
+    // Audit trail (MVP-44): every follow-up resolution lands in the log so
+    // the follow-up lifecycle is auditable end-to-end. Event vocabulary:
+    // followup_resolved. The row links to the follow-up through its triage
+    // record (+ referralId when the follow-up was referral-generated) — the
+    // AuditLog model has no dedicated followUpId column. classification
+    // carries the resolution outcome (done | missed) so the audit viewer
+    // shows what happened. Never the resolution note text.
+    await writeAuditEntry({
+      triageRecordId: existing.triageRecordId,
+      referralId: existing.referralId,
+      actorId: chv.id,
+      event: "followup_resolved",
+      county: existing.triageRecord.county,
+      ward: existing.triageRecord.ward,
+      classification: status,
+      organizationId: chv.organizationId ?? null,
+      authorizationRole: chv.role ?? "chv",
+    }).catch((e) => {
+      console.error("[followups PATCH] audit log write failed:", e);
+    });
+
     return NextResponse.json(updated, { status: 200 });
   } catch (err) {
     // Last-resort guard — any unexpected throw (Prisma connectivity, internal

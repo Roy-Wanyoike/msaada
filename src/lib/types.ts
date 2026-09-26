@@ -27,6 +27,13 @@ export interface CrisisResult {
   chp_instruction: string;
   crisis_line: string;
   record_for_reporting: boolean;
+  /**
+   * Optional provenance note for the persisted confidenceNote. Only set when
+   * the crisis verdict was FORCED by the deterministic keyword screen rather
+   * than produced by the model (or the fallback). The crisis screens use the
+   * shared CRISIS_OUTPUT constant — never invent notes there.
+   */
+  confidence_note?: string | null;
 }
 
 /** Shape returned by Qwen (normal classification path). */
@@ -71,6 +78,8 @@ export interface TriageRecordDTO {
   chpNextActionSw: string | null;
   /** Model that produced the verdict, or "fallback"; null on legacy rows. */
   aiModel: string | null;
+  /** Prompt version that produced the verdict; null on legacy rows. */
+  promptVersion: string | null;
 }
 
 /** Payload the client sends to /api/triage. */

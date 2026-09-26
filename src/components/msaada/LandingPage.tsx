@@ -47,7 +47,7 @@ const FEATURES = [
   { icon: ShieldCheck, title: "Deterministic safety engine", desc: "Versioned, auditable routing rules, kept separate from the model, which cannot override them." },
   { icon: Stethoscope, title: "Referral management", desc: "An 8-state lifecycle from created to completed. A referral created is not the same as help received." },
   { icon: ClipboardCheck, title: "Follow-up tracking", desc: "Who needs follow-up, why, when it is due, who owns it, and what happened when they were reached." },
-  { icon: BarChart3, title: "Community intelligence", desc: "Aggregate county and national dashboards: coverage, volumes, follow-up rates and referral completion." },
+  { icon: BarChart3, title: "Community intelligence", desc: "Aggregate county and multi-county dashboards: coverage, volumes, follow-up rates and referral completion." },
   { icon: AlertTriangle, title: "Early-warning signals", desc: "Unusual changes surface as signals for human investigation, never as automatic diagnoses." },
   { icon: Eye, title: "Supervisor command center", desc: "Active CHVs, coverage, pending work, overdue referrals and data-quality issues in one view." },
   { icon: Lock, title: "Privacy by design", desc: "PII scrubbed before the model, raw text never stored, de-identified aggregates for managers." },
@@ -342,7 +342,7 @@ export function LandingPage({ onLogin, onSignup, onDashboard, onDemo, demoLoadin
                 The full community-health workflow, in one platform
               </h2>
               <p className="mt-3 text-base text-muted-foreground">
-                From institutional onboarding to national dashboards, built for
+                From institutional onboarding to multi-county dashboards, built for
                 field conditions and for the people accountable for care.
               </p>
             </div>

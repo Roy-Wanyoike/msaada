@@ -102,7 +102,9 @@ CREATE TABLE "AuditLog" (
     "policyVersion" TEXT,
     "aiModel" TEXT,
     "workflowClass" TEXT,
-    "referralId" TEXT
+    "referralId" TEXT,
+    "organizationId" TEXT,
+    "authorizationRole" TEXT
 );
 
 -- CreateTable

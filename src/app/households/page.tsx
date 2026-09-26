@@ -782,6 +782,14 @@ function AddMemberForm({
         });
         const data = await res.json();
         if (!res.ok) {
+          if (res.status === 409 && data?.error === "DUPLICATE_MEMBER") {
+            // Inform only (issue #45) — nothing destructive, no auto-delete.
+            toast.info("Member already on this roster", {
+              description:
+                "This household already has a member with the same name, role and age band. If this is a different person, adjust the display name and try again.",
+            });
+            return;
+          }
           toast.error("Couldn't add member", {
             description:
               data?.error === "UNAUTHORIZED"
@@ -999,7 +1007,11 @@ function NewHouseholdSheet({
                 ? "You need to be signed in to create a household."
                 : data?.error === "MISSING_FIELDS"
                   ? "County and label are both required."
-                  : `Server returned ${res.status}.`,
+                  : data?.error === "COUNTY_MISMATCH"
+                    ? "Households are registered in your own county — ask your supervisor if the household really sits elsewhere."
+                    : data?.error === "INVALID_COUNTY" || data?.error === "WARD_NOT_IN_COUNTY" || data?.error === "INVALID_WARD"
+                      ? "Choose a county and a ward from the listed options."
+                      : `Server returned ${res.status}.`,
           });
           return;
         }

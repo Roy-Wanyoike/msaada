@@ -51,6 +51,10 @@ export interface AuditEntry {
   classification: string | null;
   escalation: boolean;
   fallbackUsed: boolean;
+  /** AI-transparency columns (null on legacy rows / non-AI events). MVP-44. */
+  policyVersion: string | null;
+  aiModel: string | null;
+  workflowClass: string | null;
 }
 
 /** RBAC scope returned by /api/dashboard. */

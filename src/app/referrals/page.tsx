@@ -37,7 +37,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { AppNav } from "@/components/msaada/AppNav";
-import { ReferralHandover } from "@/components/msaada/ReferralHandover";
+import { ReferralHandover, ReferralStatusAdvance } from "@/components/msaada/ReferralHandover";
 
 /** A referral row as returned by GET /api/referrals. */
 interface ReferralDTO {
@@ -214,6 +214,24 @@ export default function ReferralsPage() {
   const [referrals, setReferrals] = useState<ReferralDTO[]>([]);
   const [state, setState] = useState<LoadState>("loading");
   const [status, setStatus] = useState<"all" | ReferralStatus>("all");
+  // Current session user — decides who may advance a referral (the owner
+  // CHV, or any county admin per the PATCH RBAC).
+  const [me, setMe] = useState<{ id: string; role: string | null } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { chv: { id: string; role: string | null } | null } | null) => {
+        if (!cancelled && d?.chv) setMe({ id: d.chv.id, role: d.chv.role });
+      })
+      .catch(() => {
+        // Anonymous — every control renders in its disabled state.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setState("loading");
@@ -232,6 +250,29 @@ export default function ReferralsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Optimistic refresh: swap the advanced referral into the list so the
+  // summary KPIs (pending/completed/declined) reflect the live state
+  // immediately, without a full reload.
+  const handleUpdated = useCallback(
+    (
+      updated: Pick<
+        ReferralDTO,
+        "id" | "status" | "acknowledgedAt" | "completedAt"
+      >
+    ) => {
+      setReferrals((prev) =>
+        prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r))
+      );
+    },
+    []
+  );
+
+  const canAct = useCallback(
+    (r: ReferralDTO) =>
+      !!me && (r.createdById === me.id || me.role === "county_admin"),
+    [me]
+  );
 
   // Summary strip — computed from the currently-filtered list.
   // When no filter is applied, this is the full ownership-scoped set.
@@ -496,6 +537,13 @@ export default function ReferralsPage() {
                             </span>
                           )}
                         </div>
+
+                        <ReferralStatusAdvance
+                          referralId={r.id}
+                          status={r.status}
+                          canAct={canAct(r)}
+                          onUpdated={handleUpdated}
+                        />
 
                         <ReferralHandover referralId={r.id} />
                       </CardContent>

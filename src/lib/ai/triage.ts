@@ -31,9 +31,12 @@ export const TRIAGE_PROMPT_VERSION = "triage-v1.2";
 export const FALLBACK_MODEL = "fallback";
 
 /**
- * Deterministic crisis screen, used ONLY when the model could not produce a
- * result (unreachable, misconfigured, or unparseable). Without it, the
- * needs_followup fallback would silently under-triage a crisis statement.
+ * Deterministic crisis screen. It guards BOTH paths (issue #45):
+ *  1. the model-failure fallback (below) — without it the needs_followup
+ *     fallback would silently under-triage a crisis statement, and
+ *  2. the model-SUCCESS path (see classifyObservation) — a model that answers
+ *     normally for crisis text must never be trusted with a non-escalation
+ *     verdict; the screen forces the CRISIS output over the model result.
  * Deliberately broad (English, Kiswahili, Sheng): a false positive costs an
  * unnecessary escalation; a false negative can cost a life.
  */
@@ -166,6 +169,14 @@ export interface QwenCallResult {
  * double-call). The retry path is kept only as a safety net for the rare case
  * where the first response still can't be parsed.
  *
+ * SAFETY (issue #45): a successful, non-escalation model verdict is STILL
+ * screened with the deterministic crisisKeywordScreen on the same (scrubbed)
+ * text. If the screen fires, the CRISIS output is forced (workflowClass
+ * crisis_override via the same constants the fallback uses) while aiModel
+ * stays the answering model — the model answered; the screen overrode it —
+ * and the confidence_note records exactly that. The fallback-path crisis
+ * screen is unchanged.
+ *
  * If both attempts fail, the CALLER applies the spec fallback:
  * classification=needs_followup, escalation=false, confidence_note="...".
  * Never silently drops a failed classification.
@@ -206,6 +217,25 @@ export async function classifyObservation(
       });
       const parsed = parseModelOutput(content);
       if (parsed) {
+        // Safety net on the model-SUCCESS path (issue #45): the model's
+        // non-escalation verdict must not be trusted when the deterministic
+        // crisis keyword screen fires on the same scrubbed text. Force the
+        // CRISIS output (same constants the fallback uses → the policy
+        // engine sees workflowClass crisis_override) but keep aiModel —
+        // provenance says the model answered; the screen overrode it.
+        if (!parsed.escalation && crisisKeywordScreen(observationText)) {
+          return {
+            output: {
+              ...CRISIS_OUTPUT,
+              confidence_note:
+                "crisis keyword screen overrode model classification — the model answered; the deterministic safety screen forced the crisis output",
+            },
+            fallbackUsed: false,
+            attempts,
+            model,
+            promptVersion: TRIAGE_PROMPT_VERSION,
+          };
+        }
         return {
           output: parsed,
           fallbackUsed: false,

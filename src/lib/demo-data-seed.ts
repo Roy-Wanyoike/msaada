@@ -563,6 +563,23 @@ export async function seedDemoData(
     await db.chvUser.update({ where: { id: chvId }, data: { organizationId } });
   }
 
+  // Attach the demo admin to the org too (mirrors the CHV attach above,
+  // issue #45). Invitations are created with the INVITER's organizationId —
+  // an org-less admin would send org-null invitations, and accepted invitees
+  // would get county=null (default-deny RBAC → they can see nothing).
+  if (adminId) {
+    const adminRow = await db.chvUser.findUnique({
+      where: { id: adminId },
+      select: { organizationId: true },
+    });
+    if (adminRow && adminRow.organizationId !== organizationId) {
+      await db.chvUser.update({
+        where: { id: adminId },
+        data: { organizationId },
+      });
+    }
+  }
+
   // ---- Households ---------------------------------------------------------
   const householdIds: string[] = [];
   for (const hh of HOUSEHOLDS) {
@@ -812,6 +829,10 @@ export async function seedDemoData(
           aiModel: AI_MODEL,
           workflowClass: v.workflowClass,
           referralId,
+          // MVP-44 org/authz columns: seeded rows belong to the demo org
+          // and the CHV role (nullable columns — old rows stay valid).
+          organizationId: organizationId ?? null,
+          authorizationRole: "chv",
         },
       });
       result.auditLogsCreated += 1;

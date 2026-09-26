@@ -4,7 +4,7 @@
 
 ## Turn frontline voices into actionable health intelligence
 
-**Msaada is an AI-powered, offline-first Community Health Intelligence Platform designed to strengthen the connection between Community Health Volunteers (CHVs), households, health facilities, county health teams, and the Ministry of Health.**
+**Msaada is an AI-powered, offline-ready Community Health Intelligence Platform designed to strengthen the connection between Community Health Volunteers (CHVs), households, health facilities, county health teams, and the Ministry of Health.**
 
 **Voice-first • Qwen-powered • Human-verified • Safety-controlled • Offline-ready**
 
@@ -56,7 +56,7 @@ Msaada creates a complete digital workflow:
 - Simple Android application designed for field environments (production target — the hackathon MVP is a Next.js web app).
 - Assigned household and patient lists.
 - Household profiles and previous encounters.
-- Offline-first operation for areas with poor connectivity.
+- Offline-ready operation for areas with poor connectivity: encounter drafts queue on-device and sync when connectivity returns (durable offline capture is a production target — see the roadmap).
 - Secure synchronization when connectivity returns.
 - Tasks, pending follow-ups, referrals, and urgent actions.
 
@@ -245,7 +245,7 @@ Supabase is an optional enhancement layer. With the two `NEXT_PUBLIC_SUPABASE_*`
 - `src/utils/supabase/server.ts` — server client for Server Components / Route Handlers, wired to `next/headers` cookies: it reads the whole cookie store for token refreshes and writes every `Set-Cookie` the SDK emits back.
 - `src/utils/supabase/config.ts` — lazy, call-time validation of the two public env vars. Nothing throws at module scope (so `next build` never breaks for deploys without Supabase); `requireSupabaseConfig()` throws a clear error only where Supabase is genuinely required.
 - `src/proxy.ts` — implements the Next.js 16 **proxy** convention (the network-boundary file formerly named `middleware.ts` with a `middleware` export) and refreshes Supabase auth sessions via `src/utils/supabase/middleware.ts` before requests hit route handlers or Server Components. It is a strict pass-through when the Supabase env is unset, so local dev and un-configured deploys are unaffected.
-- `supabase/schema.sql` must be run once in the Supabase SQL Editor (Dashboard → SQL Editor → New query). It is idempotent (safe to re-run) and creates the `todos` demo table, the `community_reports` cloud-mirror table, the `encounter_drafts` offline-sync table, and the **authentication schema** (`auth_sessions`, `auth_events`, `password_reset_tokens` — RLS enabled, no client policies: only the server's service-role path may touch them), all protected by row-level security (RLS) policies.
+- `supabase/schema.sql` must be run (and re-run after upgrades) in the Supabase SQL Editor (Dashboard → SQL Editor → New query). It is idempotent (safe to re-run) and creates the `todos` demo table, the `community_reports` cloud-mirror table (written server-side by the community-reports POST handler — scrubbed description, coarse location, category/status and report code only; never reporter identity), the `encounter_drafts` offline-sync queue table (written server-side by `POST /api/encounters/drafts` with client-uuid idempotency — metadata-only payloads), and the **authentication schema** (`auth_sessions`, `auth_events`, `password_reset_tokens` — RLS enabled, no client policies: only the server's service-role path may touch them), all protected by row-level security (RLS) policies.
 
 ### AI provider notes
 

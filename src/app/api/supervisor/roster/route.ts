@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupervisorRoster } from "@/lib/triage-store";
+import { getSupervisorOps, getSupervisorRoster } from "@/lib/triage-store";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +10,11 @@ export const dynamic = "force-dynamic";
  * records by submitting CHV, returning per-CHV aggregate counts (never the
  * email, never observation text). A supervisor sees activity + load +
  * escalation burden per volunteer.
+ *
+ * MVP-44 (additive): the response also carries `ops` — the command-center
+ * signals (overdue referrals, pending work, data-quality issues) from
+ * getSupervisorOps. Existing fields are unchanged; consumers that only know
+ * `rows`/`totals` keep working.
  *
  * Query params:
  *  - county: string (optional filter)
@@ -28,6 +33,9 @@ export async function GET(req: Request) {
       days = Math.min(parsed, 90);
     }
   }
-  const roster = await getSupervisorRoster(county || undefined, days);
-  return NextResponse.json(roster, { status: 200 });
+  const [roster, ops] = await Promise.all([
+    getSupervisorRoster(county || undefined, days),
+    getSupervisorOps(county || undefined),
+  ]);
+  return NextResponse.json({ ...roster, ops }, { status: 200 });
 }

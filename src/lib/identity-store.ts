@@ -222,6 +222,26 @@ export async function getMyReferrals(chwId: string, status?: string): Promise<Re
   return referrals.map(toReferralDTO);
 }
 
+/**
+ * Single referral fetch by id — the DTO shape used by GET /api/referrals.
+ * Used by the PATCH lifecycle route to return the updated referral. Returns
+ * null when the id is unknown.
+ */
+export async function getReferralById(id: string): Promise<ReferralDTO | null> {
+  const referral = await db.referral.findUnique({
+    where: { id },
+    include: {
+      encounter: {
+        include: {
+          household: { select: { label: true } },
+          member: { select: { displayName: true } },
+        },
+      },
+    },
+  });
+  return referral ? toReferralDTO(referral) : null;
+}
+
 function toReferralDTO(row: {
   id: string; referralCode: string; encounterId: string; householdId: string; memberId: string;
   category: string; priority: string; destination: string | null; status: string;

@@ -201,7 +201,22 @@ model AuditLog {
   createdAt      DateTime @default(now())
   triageRecordId String?  // link to the TriageRecord (nullable for non-record events)
   actorId        String   // the CHV who triggered the event
-  event          String   // e.g. "triage_classified", "crisis_override", "fallback_used"
+  // Full event vocabulary (one canonical list — callers must not drift):
+  //  - triage lifecycle:      triage_classified | crisis_override |
+  //                           fallback_used | policy_evaluated
+  //  - referral lifecycle:    referral_sent | referral_acknowledged |
+  //                           referral_in_progress | referral_completed |
+  //                           referral_declined | referral_cancelled |
+  //                           referral_expired
+  //  - follow-up lifecycle:   followup_resolved
+  //  - community reporting:   community_report_created | community_report_triaged |
+  //                           community_response_created | community_response_assigned |
+  //                           community_response_accepted | community_response_started |
+  //                           community_response_attended | community_response_resolved |
+  //                           community_response_unable_to_reach
+  //  - onboarding:            invitation_created | invitation_accepted
+  //  - demo tooling:          demo_seed
+  event          String
   county         String
   ward           String?
   classification String?
@@ -214,6 +229,14 @@ model AuditLog {
   workflowClass  String?  // routine|follow_up_required|referral_required|human_review|crisis_override
   /// Referral created by this triage (if any).
   referralId     String?
+  /// Organization of the acting user at write time (MVP-44). Nullable so
+  /// rows written before the column shipped — and events with no session
+  /// (public reports, token-based onboarding) — stay valid.
+  organizationId String?
+  /// Authorization role of the acting user at write time
+  /// (chv | county_admin | ... — the ChvUser.role value). Nullable for the
+  /// same backward-compatibility reason as organizationId.
+  authorizationRole String?
 
   @@index([createdAt])
   @@index([actorId])

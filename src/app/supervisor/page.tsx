@@ -10,6 +10,9 @@ import {
   Stethoscope,
   AlertTriangle,
   Filter,
+  Hourglass,
+  ListChecks,
+  Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +48,35 @@ interface SupervisorChvRow {
 interface SupervisorRoster {
   rows: SupervisorChvRow[];
   totals: { chvs: number; total: number; escalations: number };
+  /** MVP-44 command-center signals — optional so an older cached payload
+   *  without them still renders. */
+  ops?: SupervisorOps;
+}
+
+/** Overdue referral summary row — codes only, no household addresses. */
+interface OverdueReferralItem {
+  referralCode: string;
+  status: string;
+  category: string;
+  priority: string;
+  ageHours: number;
+}
+
+interface SupervisorOps {
+  overdueReferrals: {
+    count: number;
+    items: OverdueReferralItem[];
+  };
+  pendingWork: {
+    pendingFollowUps: number;
+    overdueFollowUps: number;
+    referralsAwaitingAcknowledgement: number;
+  };
+  dataQuality: {
+    emptyIndicatorEncounters7d: number;
+    chvsWithZeroEncounters14d: { count: number; labels: string[] };
+    missedFollowUps: number;
+  };
 }
 
 type LoadState = "loading" | "ready" | "error";
@@ -198,6 +230,10 @@ export default function SupervisorPage() {
             </div>
           )}
 
+          {/* Command-center ops (MVP-44): pending work, overdue referrals,
+              data quality — aggregate + de-identified (codes only). */}
+          {data?.ops && <OpsBlocks ops={data.ops} />}
+
           {/* Roster table */}
           {state === "loading" ? (
             <div className="space-y-2">
@@ -329,5 +365,103 @@ function SummaryCard({
       </div>
       <p className="mt-1 text-2xl font-bold tabular-nums">{value}</p>
     </Card>
+  );
+}
+
+/**
+ * MVP-44 command-center blocks — overdue referrals, pending work, and data
+ * quality, in one view. Aggregate + de-identified: referral codes and
+ * truncated CHV labels only; no household addresses, no observation text.
+ */
+function OpsBlocks({ ops }: { ops: SupervisorOps }) {
+  const { overdueReferrals, pendingWork, dataQuality } = ops;
+  return (
+    <section
+      aria-label="Pending work and data quality"
+      className="mb-4 grid gap-3 md:grid-cols-3"
+    >
+      {/* Overdue referrals */}
+      <Card
+        className={cn(
+          "border px-4 py-3",
+          overdueReferrals.count > 0
+            ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+            : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+        )}
+      >
+        <div className="flex items-center gap-1.5">
+          <Hourglass className="size-3.5" aria-hidden />
+          <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">
+            Overdue referrals
+          </span>
+        </div>
+        <p className="mt-1 text-2xl font-bold tabular-nums">{overdueReferrals.count}</p>
+        <p className="text-[10px] opacity-80">
+          acknowledged / in progress &gt; 48h
+        </p>
+        {overdueReferrals.items.length > 0 && (
+          <ul className="mt-2 space-y-1 text-xs font-medium">
+            {overdueReferrals.items.map((item) => (
+              <li key={item.referralCode} className="flex items-center justify-between gap-2">
+                <span className="font-mono">{item.referralCode}</span>
+                <span className="opacity-80">
+                  {item.status === "in_progress" ? "in progress" : item.status} · {item.ageHours}h
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {/* Pending work */}
+      <Card className="border border-amber-200 bg-amber-50 px-4 py-3 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+        <div className="flex items-center gap-1.5">
+          <ListChecks className="size-3.5" aria-hidden />
+          <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">
+            Pending work
+          </span>
+        </div>
+        <p className="mt-1 text-2xl font-bold tabular-nums">
+          {pendingWork.pendingFollowUps + pendingWork.referralsAwaitingAcknowledgement}
+        </p>
+        <ul className="mt-1 space-y-0.5 text-[11px] opacity-90">
+          <li>{pendingWork.pendingFollowUps} pending follow-up{pendingWork.pendingFollowUps === 1 ? "" : "s"} ({pendingWork.overdueFollowUps} past due)</li>
+          <li>{pendingWork.referralsAwaitingAcknowledgement} referral{pendingWork.referralsAwaitingAcknowledgement === 1 ? "" : "s"} awaiting acknowledgement</li>
+        </ul>
+      </Card>
+
+      {/* Data quality */}
+      <Card className="border px-4 py-3">
+        <div className="flex items-center gap-1.5 text-foreground">
+          <Gauge className="size-3.5" aria-hidden />
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Data quality
+          </span>
+        </div>
+        <ul className="mt-2 space-y-1 text-xs text-foreground/90">
+          <li className="flex items-center justify-between gap-2">
+            <span>Empty-indicator encounters (7d)</span>
+            <span className={cn("font-bold tabular-nums", dataQuality.emptyIndicatorEncounters7d > 0 && "text-amber-700 dark:text-amber-300")}>
+              {dataQuality.emptyIndicatorEncounters7d}
+            </span>
+          </li>
+          <li className="flex items-center justify-between gap-2">
+            <span>CHVs with 0 encounters (14d)</span>
+            <span className={cn("font-bold tabular-nums", dataQuality.chvsWithZeroEncounters14d.count > 0 && "text-amber-700 dark:text-amber-300")}>
+              {dataQuality.chvsWithZeroEncounters14d.count}
+            </span>
+          </li>
+          <li className="flex items-center justify-between gap-2">
+            <span>Missed follow-ups</span>
+            <span className="font-bold tabular-nums">{dataQuality.missedFollowUps}</span>
+          </li>
+        </ul>
+        {dataQuality.chvsWithZeroEncounters14d.labels.length > 0 && (
+          <p className="mt-1.5 font-mono text-[10px] text-muted-foreground">
+            {dataQuality.chvsWithZeroEncounters14d.labels.join(" · ")}
+          </p>
+        )}
+      </Card>
+    </section>
   );
 }

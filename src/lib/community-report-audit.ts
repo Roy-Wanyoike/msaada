@@ -29,8 +29,10 @@ export const COMMUNITY_REPORT_EVENTS = [
   "community_response_created",   // a ResponseCase was opened from a report
   "community_response_assigned",  // a CHV was assigned (deterministic policy)
   "community_response_accepted",  // the CHV accepted the assignment
+  "community_response_started",   // the CHV began the response (MVP-44)
   "community_response_attended",  // the CHV marked attendance (encounter link)
   "community_response_resolved",  // the case reached a resolution
+  "community_response_unable_to_reach", // the CHV could not reach the subject (MVP-44)
 ] as const;
 
 export type CommunityReportEvent = (typeof COMMUNITY_REPORT_EVENTS)[number];
@@ -54,6 +56,10 @@ export interface WriteCommunityReportAuditArgs {
   policyVersion?: string | null;
   /** Referral created from this report's response case, if any. */
   referralId?: string | null;
+  /** Acting user's organization (MVP-44) — from the session when available. */
+  organizationId?: string | null;
+  /** Acting user's authorization role (MVP-44) — from the session when available. */
+  authorizationRole?: string | null;
 }
 
 /**
@@ -90,6 +96,8 @@ export async function writeCommunityReportAudit(
         // the audit log only records the event + escalation flag.
         workflowClass: null,
         referralId: args.referralId ?? null,
+        organizationId: args.organizationId ?? null,
+        authorizationRole: args.authorizationRole ?? null,
       },
     });
   } catch (err) {
