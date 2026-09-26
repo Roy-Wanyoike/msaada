@@ -218,6 +218,27 @@ export default async function StatusPage() {
             </div>
           </section>
 
+          {/* Session-secret mode (informational, MVP-41) — login works in all
+              three modes; "ephemeral" means sessions reset on restart. */}
+          {report.sessionSecret === "ephemeral" && (
+            <section
+              aria-label="Session mode"
+              className="mt-3 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/30"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">
+                  Login is running in ephemeral-session mode
+                </p>
+                <p className="mt-0.5 text-xs text-foreground/70 sm:text-sm">
+                  Authentication works right now, but sessions reset whenever
+                  the server restarts. Set the MSAADA_SESSION_SECRET
+                  environment variable (any random string of 32+ characters)
+                  for sessions that survive restarts.
+                </p>
+              </div>
+            </section>
+          )}
+
           {/* Per-probe cards */}
           <div className="mt-5 grid gap-4 sm:grid-cols-3" role="list">
             {PROBES.map((probe) => {

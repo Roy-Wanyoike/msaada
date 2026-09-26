@@ -111,12 +111,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "ACCOUNT_SUSPENDED" }, { status: 403 });
   }
 
-  // setSession() resolves the session secret, which fails fast in production
-  // when MSAADA_SESSION_SECRET is missing/too short (deliberate P0 guard).
-  // Surface that as an explicit 503 instead of an opaque 500-with-empty-body,
-  // so an operator testing a fresh deployment immediately knows it is a
-  // configuration problem, not a code or credential problem. The message
-  // names the env var only — its VALUE is never echoed.
+  // setSession() resolves the session secret. Since MVP-41 the production
+  // fallback for a missing/short MSAADA_SESSION_SECRET is an EPHEMERAL
+  // per-boot secret — login succeeds and this branch only remains as a
+  // safety net for any other unexpected secret-resolution failure. Surface
+  // that as an explicit 503 instead of an opaque 500-with-empty-body. The
+  // message names the env var only — its VALUE is never echoed.
   try {
     await setSession(chv.id);
   } catch (err) {
