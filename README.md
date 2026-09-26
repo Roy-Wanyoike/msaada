@@ -194,7 +194,7 @@ The app deploys to Vercel as-is (`next build` with Turbopack). Configure the env
 | Variable | Scope | Purpose |
 |---|---|---|
 | `DATABASE_URL` | Server | Prisma connection string. **Optional on Vercel**: when unset (or pointing at a non-`/tmp` `file:` path), the app self-provisions an ephemeral SQLite database in `/tmp` at cold start — schema DDL + demo seed run automatically via the `instrumentation.ts` bootstrap (see "Vercel demo mode" below). Local default is `file:./db/custom.db`. |
-| `MSAADA_SESSION_SECRET` | Server | HMAC key that signs the `msaada_session` cookie. **Must be ≥ 32 chars** in production (e.g. `openssl rand -base64 48`). |
+| `MSAADA_SESSION_SECRET` | Server | **Required.** HMAC key that signs the `msaada_session` cookie — must be ≥ 32 chars (e.g. `openssl rand -base64 48`). Needed for login even in demo mode; without it every login returns `503 SERVER_NOT_CONFIGURED`. |
 | `QWEN_API_KEY` | Server | ModelScope API key for the Qwen chat-completions endpoint. Powers AI triage, report intake, dashboard summaries and follow-up suggestions. |
 | `QWEN_BASE_URL` | Server | Optional. Defaults to `https://api-inference.modelscope.ai/v1`; override for DashScope/Model Studio accounts. |
 | `QWEN_MODEL` | Server | Optional. Defaults to `Qwen-Ambassador/Qwen3.8-Max`. |
@@ -208,7 +208,7 @@ Set the variables in **Vercel → Settings → Environment Variables**, then tri
 The Prisma layer uses SQLite and the database file is not tracked in git (repo hygiene, #14) — so a fresh Vercel deployment starts with **no database** and the function bundle is read-only. `src/instrumentation.ts` solves this: on every serverless cold start (before the first request is served) it pins `DATABASE_URL` to `file:/tmp/msaada-demo.db`, applies the full schema DDL (`src/lib/db-ddl.ts`, generated from `prisma/schema.prisma`), and seeds the demo accounts, community reports and the full demo identity chain (households → encounters → triage → referrals → follow-ups). All idempotent, with a fast path that skips DDL when the schema is already present **and current** — the probe checks a table introduced by the latest schema (the auth tables), so databases created by older deploys are upgraded in place on the next cold start.
 
 Consequences for judges / demos:
-- The deployed site works immediately — demo login (`demo@msaada.health` / `msaada123`), triage, reports and the dashboard all function without any `DATABASE_URL` configuration.
+- The deployed site works immediately once **`MSAADA_SESSION_SECRET`** is set — a ≥32-char random string (`openssl rand -base64 48`). It is **required for login even in demo mode** (a Vercel deployment runs `NODE_ENV=production`, and the session-signing guard refuses to issue cookies without it — every login attempt returns `503 SERVER_NOT_CONFIGURED` until the variable exists). `DATABASE_URL` is the only optional variable: demo login (`demo@msaada.health` / `msaada123`), triage, reports and the dashboard all function against the self-provisioned SQLite database.
 - `/tmp` storage is **per-lambda-instance and ephemeral**: writes survive while the instance is warm, then reset on the next cold start. Do not treat the Vercel deployment as durable storage.
 - Durable data belongs in the **Supabase layer** (encounter drafts + community report mirror), which activates once the two `NEXT_PUBLIC_SUPABASE_*` variables are set and `supabase/schema.sql` has been run in the SQL editor.
 

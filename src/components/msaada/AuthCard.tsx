@@ -44,6 +44,33 @@ const DEMO_PASSWORD = "msaada123";
 
 type View = "hero" | "login" | "signup";
 
+/**
+ * Map a typed API error code to operator/CHV-actionable guidance.
+ *
+ * The login endpoint returns shaped `{ error: CODE }` bodies precisely so the
+ * UI can react (see src/app/api/auth/login/route.ts). Without this mapping a
+ * deployment misconfiguration (503 SERVER_NOT_CONFIGURED) surfaced as the raw
+ * code or a generic "Please try again." — a dead end for whoever is setting
+ * the demo up. Only the env-var NAME is ever mentioned; values are never
+ * echoed by the API and never invented here.
+ */
+function authErrorDescription(error: string | undefined): string {
+  switch (error) {
+    case "INVALID_CREDENTIALS":
+      return "Email or password is incorrect.";
+    case "ACCOUNT_SUSPENDED":
+      return "This account is not active. Contact your county administrator.";
+    case "RATE_LIMITED":
+      return "Too many attempts. Wait a minute and try again.";
+    case "SERVER_NOT_CONFIGURED":
+      return "Server configuration problem: the deployment is missing MSAADA_SESSION_SECRET (a ≥32-char secret). This is not a credentials issue — set the env var and redeploy.";
+    case "SERVER_ERROR":
+      return "Authentication is temporarily unavailable. Try again shortly.";
+    default:
+      return "Please try again.";
+  }
+}
+
 export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
   const [view, setView] = useState<View>("hero");
 
@@ -74,10 +101,7 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
       const data = await res.json();
       if (!res.ok || data.error) {
         toast.error("Login failed", {
-          description:
-            data.error === "INVALID_CREDENTIALS"
-              ? "Email or password is incorrect."
-              : "Please try again.",
+          description: authErrorDescription(data.error),
         });
         return;
       }
@@ -121,7 +145,11 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
           description:
             data.error === "EMAIL_EXISTS"
               ? "That email is already registered. Log in instead."
-              : "Please try again.",
+              : data.error === "PASSWORD_TOO_SHORT"
+                ? "Password must be at least 6 characters."
+                : data.error === "INVALID_COUNTY"
+                  ? "Select a valid county."
+                  : authErrorDescription(data.error),
         });
         return;
       }
@@ -145,7 +173,9 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
       });
       const data = await res.json();
       if (!res.ok || data.error) {
-        toast.error("Demo login failed", { description: data.error });
+        toast.error("Demo login failed", {
+          description: authErrorDescription(data.error),
+        });
         return;
       }
       toast.success("Signed in with the demo account");
