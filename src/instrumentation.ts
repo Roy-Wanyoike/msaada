@@ -18,7 +18,7 @@ export async function register() {
       const dbFile =
         (result.databaseUrl ?? "?").split("/").pop() || "?";
       console.log(
-        `[db-bootstrap] ready — db=${dbFile}, ddl=${result.appliedStatements ?? 0}, demoChv=${result.createdDemoChv ? "created" : "present"}, demoAdmin=${result.createdDemoAdmin ? "created" : "present"}, seedReports=${result.createdSeedReports ?? 0}, demoData=hh:${d?.households ?? 0}/m:${d?.members ?? 0}/enc:${d?.encounters ?? 0}/tri:${d?.triageRecords ?? 0}/ref:${d?.referrals ?? 0}/fu:${d?.followUps ?? 0}/audit:${d?.auditLogs ?? 0}`
+        `[db-bootstrap] ready — db=${dbFile}, ddl=${result.appliedStatements ?? 0}, demoChv=${result.createdDemoChv ? "created" : "present"}, demoAdmin=${result.createdDemoAdmin ? "created" : "present"}, seedReports=${result.createdSeedReports ?? 0}, demoData=hh:${d?.households ?? 0}/m:${d?.members ?? 0}/enc:${d?.encounters ?? 0}/tri:${d?.triageRecords ?? 0}/ref:${d?.referrals ?? 0}/fu:${d?.followUps ?? 0}/audit:${d?.auditLogs ?? 0}/inv:${d?.invitations ?? 0}/ai:${d?.aiActivities ?? 0}`
       );
     }
   } catch (err) {

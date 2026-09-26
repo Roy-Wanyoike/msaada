@@ -44,6 +44,8 @@ export type BootstrapResult = {
     referrals: number;
     followUps: number;
     auditLogs: number;
+    invitations: number;
+    aiActivities: number;
   };
   error?: string;
 };
@@ -99,15 +101,16 @@ async function run(): Promise<BootstrapResult> {
   const { seedDemoData } = await import("@/lib/demo-data-seed");
 
   // Fast path: is the schema present AND current? Probe a table that only
-  // exists in the LATEST schema version (AuthSession shipped with the auth
-  // schema). Probing ChvUser would pass on pre-auth-schema databases — both
-  // here and on long-lived Vercel /tmp files — and wrongly skip the DDL
-  // that creates the new auth tables. The DDL is fully idempotent
-  // (CREATE ... IF NOT EXISTS), so re-applying it to a partial schema is
-  // always safe.
+  // exists in the LATEST schema version (AiActivity shipped with the impact
+  // meter — the newest schema addition). Probing an older table would pass
+  // on databases created before the latest schema change — both here and on
+  // long-lived Vercel /tmp files — and wrongly skip the DDL that creates the
+  // new table and the ALTER TABLE column upgrades. The DDL is idempotent in
+  // practice (CREATE ... IF NOT EXISTS; ALTER failures on duplicate columns
+  // are tolerated), so re-applying it to a partial schema is always safe.
   let schemaReady = false;
   try {
-    await db.authSession.findFirst({ select: { id: true } });
+    await db.aiActivity.findFirst({ select: { id: true } });
     schemaReady = true;
   } catch {
     schemaReady = false;
@@ -116,14 +119,17 @@ async function run(): Promise<BootstrapResult> {
   let appliedStatements = 0;
   if (!schemaReady) {
     // Schema missing or an older version: apply the full DDL. Individual
-    // "already exists" failures are tolerated for belt-and-braces safety.
+    // "already exists" / "duplicate column" failures are tolerated — the
+    // former from IF NOT EXISTS belt-and-braces, the latter from the ALTER
+    // TABLE column upgrades applied to databases that already have the
+    // column. Any other failure is fatal (surfaced via /api/health).
     for (const stmt of SQLITE_DDL) {
       try {
         await db.$executeRawUnsafe(stmt);
         appliedStatements += 1;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if (/already exists/i.test(msg)) continue;
+        if (/already exists|duplicate column/i.test(msg)) continue;
         throw new Error(`DDL failed: ${msg.slice(0, 160)}`);
       }
     }
@@ -192,6 +198,8 @@ async function run(): Promise<BootstrapResult> {
       referrals: demo.referralsCreated,
       followUps: demo.followUpsCreated,
       auditLogs: demo.auditLogsCreated,
+      invitations: demo.invitationsCreated,
+      aiActivities: demo.aiActivitiesCreated,
     },
   };
 }
