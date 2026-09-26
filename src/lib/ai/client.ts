@@ -25,6 +25,22 @@
  * followup.ts (follow-up visit questions).
  */
 
+import { db } from "@/lib/db";
+
+/** Every Qwen use in the app, logged per call for the impact meter. */
+export type AiTask =
+  | "triage"
+  | "report_intake"
+  | "transcribe"
+  | "privacy_scan"
+  | "assignment"
+  | "referral_handover"
+  | "case_outcome"
+  | "chv_weekly"
+  | "supervisor_briefing"
+  | "dashboard_summary"
+  | "followup_questions";
+
 const DEFAULT_BASE_URL = "https://api-inference.modelscope.ai/v1";
 const DEFAULT_MODEL = "Qwen-Ambassador/Qwen3.8-Max";
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -34,7 +50,7 @@ export type ChatRole = "system" | "user" | "assistant";
 /** Multimodal content part (OpenAI-compatible). Audio is a data: URI or URL. */
 export type ContentPart =
   | { type: "text"; text: string }
-  | { type: "input_audio"; input_audio: { data: string } };
+  | { type: "input_audio"; input_audio: { data: string; format?: string } };
 
 export interface ChatMessage {
   role: ChatRole;
@@ -42,6 +58,8 @@ export interface ChatMessage {
 }
 
 export interface QwenChatOptions {
+  /** Which feature is calling; recorded in AiActivity (metadata only). */
+  task: AiTask;
   messages: ChatMessage[];
   /** Ask the API to return a single JSON object (response_format json_object). */
   json?: boolean;
@@ -94,6 +112,35 @@ export function qwenModel(): string {
 }
 
 export async function qwenChat(opts: QwenChatOptions): Promise<QwenChatResult> {
+  const started = Date.now();
+  try {
+    const result = await qwenChatOnce(opts);
+    logActivity(opts.task, result.model, true, Date.now() - started, null);
+    return result;
+  } catch (err) {
+    if (err instanceof QwenError && err.kind !== "not_configured") {
+      logActivity(opts.task, opts.model ?? qwenModel(), false, Date.now() - started, err.kind);
+    }
+    throw err;
+  }
+}
+
+/** Fire-and-forget: the meter must never slow down or break a request. */
+function logActivity(
+  task: AiTask,
+  model: string,
+  ok: boolean,
+  latencyMs: number,
+  errorKind: string | null
+) {
+  void db.aiActivity
+    .create({ data: { task, model, ok, latencyMs, errorKind } })
+    .catch((e: unknown) => {
+      console.error("[qwen] activity log failed:", e instanceof Error ? e.message : e);
+    });
+}
+
+async function qwenChatOnce(opts: QwenChatOptions): Promise<QwenChatResult> {
   const apiKey = process.env.QWEN_API_KEY?.trim();
   if (!apiKey) {
     throw new QwenError("QWEN_API_KEY is not set", "not_configured");

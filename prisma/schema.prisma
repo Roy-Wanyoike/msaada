@@ -161,6 +161,10 @@ model TriageRecord {
   // this classification. Nullable for records created before tracking.
   aiModel           String?
   promptVersion     String?
+  // Qwen guidance for the CHV (normal path only): why this classification,
+  // and the next action in Kiswahili. Describes behaviours, never text.
+  aiReasoning       String?
+  chpNextActionSw   String?
 
   // Submission audit / ownership (mirrors the `submitted_by` RLS column)
   submittedById     String
@@ -496,11 +500,34 @@ model ResponseCase {
   // ---- Resolution ----
   resolvedAt      DateTime?
   resolutionNote  String?  // de-identified — what happened during the response
+  // Qwen-structured outcome of the resolution note (advisory, for reporting):
+  // reached_doing_well | reached_needs_support | referred_to_facility | not_reached | other
+  outcomeCategory String?
+  outcomeSummary  String?
 
   @@index([reportId])
   @@index([assignedChvId, status])
   @@index([status])
   @@index([encounterId])
+}
+
+/// One row per Qwen API call, for the "Qwen at work" impact meter.
+/// Metadata only: NEVER the prompt, the observation text, audio or output.
+model AiActivity {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  /// triage | report_intake | transcribe | privacy_scan | guidance | assignment |
+  /// referral_handover | case_outcome | chv_weekly | supervisor_briefing |
+  /// dashboard_summary | followup_questions
+  task          String
+  model         String
+  ok            Boolean
+  latencyMs     Int
+  /// timeout | http | network | empty (null when ok)
+  errorKind     String?
+
+  @@index([createdAt])
+  @@index([task])
 }
 
 // =====================================================================

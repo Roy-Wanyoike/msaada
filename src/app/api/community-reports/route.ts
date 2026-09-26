@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionChv } from "@/lib/auth";
 import { scrubPII, scrubNote } from "@/lib/pii-scrub";
+import { privacyScan } from "@/lib/ai/privacy";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createReport, getReports } from "@/lib/community-report-store";
 import { writeCommunityReportAudit } from "@/lib/community-report-audit";
@@ -189,7 +190,9 @@ export async function POST(req: Request) {
     // never-persist-raw-PII invariant from the triage flow). The scrubbed
     // text IS the persisted "raw fact" -- the de-identification is done at
     // the data-access boundary, not at the read boundary.
-    const { redacted: scrubbedDescription } = scrubPII(description.trim());
+    // Then Qwen's second pass catches names/places the patterns miss.
+    const { redacted: regexScrubbed } = scrubPII(description.trim());
+    const { text: scrubbedDescription } = await privacyScan(regexScrubbed);
 
     const report = await createReport({
       description: scrubbedDescription,

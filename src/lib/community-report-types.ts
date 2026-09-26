@@ -76,4 +76,25 @@ export interface ResponseCaseDTO {
     questionsForVisit: string[];
     missingInformation: string[];
   } | null;
+  /** Qwen-structured outcome of the resolution note (null if not resolved). */
+  aiOutcome: { category: string; summary: string } | null;
 }
+
+/** Roles allowed to assign response cases to CHVs (and see unassigned ones). */
+export const CASE_ASSIGNER_ROLES = [
+  "county_admin",
+  "cho_supervisor",
+  "moh_admin",
+  "system_admin",
+];
+
+/** Roles that may see and assign across all counties. */
+export const NATIONAL_ROLES = ["moh_admin", "system_admin"];
+
+/** Case statuses that are finished and no longer count as open workload. */
+export const CLOSED_CASE_STATUSES = [
+  "resolved",
+  "unable_to_reach",
+  "duplicate",
+  "cancelled",
+];

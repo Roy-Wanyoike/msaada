@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionChv } from "@/lib/auth";
 import { assignChvToCase } from "@/lib/community-report-store";
 import { db } from "@/lib/db";
+import { CASE_ASSIGNER_ROLES } from "@/lib/community-report-types";
 
 export const dynamic = "force-dynamic";
 
@@ -10,12 +11,7 @@ export const dynamic = "force-dynamic";
 // (field-level supervisor), moh_admin / system_admin (system-wide). A CHV
 // cannot self-assign — the assignment decision is institutional, not
 // individual (CR-008 §8: deterministic + explainable + auditable).
-const ASSIGNER_ROLES = [
-  "county_admin",
-  "cho_supervisor",
-  "moh_admin",
-  "system_admin",
-];
+const ASSIGNER_ROLES = CASE_ASSIGNER_ROLES;
 
 const ASSIGNMENT_RULE_VERSION = "1.0.0";
 const ASSIGNMENT_REASON = "manual assignment";
@@ -68,7 +64,16 @@ export async function POST(
     } catch {
       return NextResponse.json({ error: "INVALID_JSON" }, { status: 400 });
     }
-    const { chvId } = (body ?? {}) as { chvId?: unknown };
+    const { chvId, reason: bodyReason } = (body ?? {}) as {
+      chvId?: unknown;
+      reason?: unknown;
+    };
+    // Optional explanation shown to the CHV (e.g. the Qwen suggestion the
+    // supervisor confirmed). Staff-written context, capped.
+    const reason =
+      typeof bodyReason === "string" && bodyReason.trim()
+        ? bodyReason.trim().slice(0, 300)
+        : ASSIGNMENT_REASON;
 
     if (typeof chvId !== "string" || !chvId.trim()) {
       return NextResponse.json(
@@ -142,7 +147,7 @@ export async function POST(
       caseId,
       chvId: targetChvId,
       supervisorId: supervisor.id,
-      reason: ASSIGNMENT_REASON,
+      reason,
       ruleVersion: ASSIGNMENT_RULE_VERSION,
     });
 
@@ -159,7 +164,7 @@ export async function POST(
         assignment: {
           chvId: targetChvId,
           supervisorId: supervisor.id,
-          reason: ASSIGNMENT_REASON,
+          reason,
           ruleVersion: ASSIGNMENT_RULE_VERSION,
           isReassignment,
         },

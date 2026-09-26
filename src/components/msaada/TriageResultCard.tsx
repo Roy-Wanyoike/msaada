@@ -8,6 +8,7 @@ import {
   Info,
   RefreshCw,
   ShieldAlert,
+  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -97,7 +98,22 @@ export function TriageResultCard({
         <p className="mt-1.5 text-base font-semibold leading-relaxed text-foreground">
           {record.chpNextAction ?? "No action provided."}
         </p>
+        {record.chpNextActionSw && (
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground" lang="sw">
+            <span className="font-medium">Kiswahili:</span> {record.chpNextActionSw}
+          </p>
+        )}
       </div>
+
+      {record.aiReasoning && (
+        <div className="mt-4 rounded-lg border border-border bg-white/70 p-3">
+          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+            Why this result
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-foreground">{record.aiReasoning}</p>
+        </div>
+      )}
 
       {record.observedIndicators.length > 0 && (
         <div className="mt-4">
@@ -136,7 +152,11 @@ export function TriageResultCard({
         <span>
           Record <span className="font-mono">{record.id}</span> · saved
           de-identified (county: {record.county}
-          {record.ward ? `, ward: ${record.ward}` : ""}).
+          {record.ward ? `, ward: ${record.ward}` : ""})
+          {record.aiModel && record.aiModel !== "fallback"
+            ? ` · interpreted by ${record.aiModel}`
+            : ""}
+          .
         </span>
       </div>
 

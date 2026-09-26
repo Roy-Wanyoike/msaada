@@ -107,6 +107,7 @@ export async function analyzeCommunityReport(
     attempts++;
     try {
       const { content, model } = await qwenChat({
+        task: "report_intake",
         messages,
         json: true,
         temperature: 0.1,

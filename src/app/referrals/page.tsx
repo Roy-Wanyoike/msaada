@@ -37,6 +37,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { AppNav } from "@/components/msaada/AppNav";
+import { ReferralHandover } from "@/components/msaada/ReferralHandover";
 
 /** A referral row as returned by GET /api/referrals. */
 interface ReferralDTO {
@@ -495,6 +496,8 @@ export default function ReferralsPage() {
                             </span>
                           )}
                         </div>
+
+                        <ReferralHandover referralId={r.id} />
                       </CardContent>
                     </Card>
                   </motion.li>

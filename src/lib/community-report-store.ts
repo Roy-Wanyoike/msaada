@@ -247,15 +247,28 @@ export async function updateCaseStatus(args: {
   status: string;
   resolutionNote?: string;
   encounterId?: string;
+  /** Qwen-structured outcome of the resolution note (resolve only). */
+  outcome?: { category: string; summary: string } | null;
 }): Promise<ResponseCaseDTO | null> {
   // Ownership check.
   const existing = await db.responseCase.findUnique({ where: { id: args.caseId } });
   if (!existing || existing.assignedChvId !== args.chvId) return null;
 
-  const data: { status: string; resolutionNote?: string; encounterId?: string; resolvedAt?: Date } = {
+  const data: {
+    status: string;
+    resolutionNote?: string;
+    encounterId?: string;
+    resolvedAt?: Date;
+    outcomeCategory?: string;
+    outcomeSummary?: string;
+  } = {
     status: args.status,
   };
   if (args.resolutionNote) data.resolutionNote = args.resolutionNote;
+  if (args.outcome) {
+    data.outcomeCategory = args.outcome.category;
+    data.outcomeSummary = args.outcome.summary;
+  }
   if (args.encounterId) data.encounterId = args.encounterId;
   if (args.status === "resolved" || args.status === "unable_to_reach") {
     data.resolvedAt = new Date();
@@ -316,6 +329,7 @@ export function toCaseDTO(row: {
   assignmentReason: string | null; assignedAt: Date | null; acceptedAt: Date | null;
   reassignedAt: Date | null; status: string; encounterId: string | null;
   resolvedAt: Date | null; resolutionNote: string | null;
+  outcomeCategory?: string | null; outcomeSummary?: string | null;
   report: {
     reportCode: string; description: string; category: string; county: string;
     ward: string | null; landmark: string | null; directions: string | null;
@@ -346,6 +360,9 @@ export function toCaseDTO(row: {
     landmark: r?.landmark ?? null,
     directions: r?.directions ?? null,
     aiIntake: parseIntake(r?.aiInterpretation ?? null),
+    aiOutcome: row.outcomeCategory
+      ? { category: row.outcomeCategory, summary: row.outcomeSummary ?? "" }
+      : null,
   };
 }
 

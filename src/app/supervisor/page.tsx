@@ -26,6 +26,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { COUNTIES } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { AppNav } from "@/components/msaada/AppNav";
+import { AiSummaryCard } from "@/components/msaada/AiSummaryCard";
+import { UnassignedCasesPanel } from "@/components/msaada/UnassignedCasesPanel";
 
 interface SupervisorChvRow {
   chvLabel: string;
@@ -121,6 +123,18 @@ export default function SupervisorPage() {
             </div>
             <Separator className="mt-6" />
           </header>
+
+          {/* Qwen: cases waiting for a CHV, with suggested assignments. */}
+          <UnassignedCasesPanel />
+
+          <div className="mb-6">
+            <AiSummaryCard
+              key={`${days}-${county}`}
+              endpoint={`/api/supervisor/briefing?days=${days}${county !== "all" ? `&county=${encodeURIComponent(county)}` : ""}`}
+              title="Qwen workload briefing"
+              description="Written from the roster below (anonymised CHV labels, counts only)."
+            />
+          </div>
 
           {/* Filters */}
           <Card className="mb-4 px-4 py-3 sm:px-6">

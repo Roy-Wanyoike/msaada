@@ -3,6 +3,7 @@ import { getSessionChv } from "@/lib/auth";
 import { resolveFollowUp } from "@/lib/triage-store";
 import { db } from "@/lib/db";
 import { scrubPII } from "@/lib/pii-scrub";
+import { privacyScan } from "@/lib/ai/privacy";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,8 @@ export async function PATCH(
       if (trimmed) {
         // Cap before scrubbing so the regex passes run on bounded input.
         const capped = trimmed.slice(0, MAX_RESOLUTION_NOTE_LEN);
+        // Regex scrub now; Qwen's second pass runs after the ownership
+        // checks below, so rejected requests never reach the model.
         note = scrubPII(capped).redacted;
       }
     }
@@ -87,6 +90,9 @@ export async function PATCH(
         { status: 409 }
       );
     }
+
+    // Qwen's second de-identification pass, after the ownership checks.
+    if (note) note = (await privacyScan(note)).text;
 
     const updated = await resolveFollowUp({
       followUpId: id,

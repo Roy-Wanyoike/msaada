@@ -37,6 +37,10 @@ export interface NormalResult {
   chp_next_action: string;
   confidence_note: string | null;
   aggregate_tag: string;
+  /** Qwen's plain-language reason for the classification (optional). */
+  reasoning?: string | null;
+  /** chp_next_action in Kiswahili (optional). */
+  chp_next_action_sw?: string | null;
 }
 
 export type TriageModelOutput = CrisisResult | NormalResult;
@@ -61,6 +65,12 @@ export interface TriageRecordDTO {
   fallbackUsed: boolean;
   /** Links to the Encounter that generated this observation (section 6, 15). */
   encounterId: string | null;
+  /** Qwen's explanation of the classification (null on fallback / crisis). */
+  aiReasoning: string | null;
+  /** Next action in Kiswahili (null on fallback / crisis). */
+  chpNextActionSw: string | null;
+  /** Model that produced the verdict, or "fallback"; null on legacy rows. */
+  aiModel: string | null;
 }
 
 /** Payload the client sends to /api/triage. */
