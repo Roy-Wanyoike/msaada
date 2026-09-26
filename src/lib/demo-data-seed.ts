@@ -6,12 +6,14 @@ import { db } from "@/lib/db";
  * lived-in product instead of empty lists:
  *
  *   Organization → Community Health Unit
- *     → Household (×4) → HouseholdMember (×6)
- *       → Encounter (×5, backdated 9d…today, mixed capture/connectivity)
- *         → TriageRecord (×5: routine / follow-up / referral / crisis)
- *           → Referral (×2: completed, in_progress)
- *           → FollowUp (×3: done, pending×2)
+ *     → Household (×8, one inactive) → HouseholdMember (×14)
+ *       → Encounter (×16, backdated 0…9d, mixed capture/connectivity)
+ *         → TriageRecord (×16: routine / follow-up / referral / crisis)
+ *           → Referral (×5: completed / in_progress / acknowledged / sent / created)
+ *           → FollowUp (×6: done / pending / missed)
  *         → AuditLog (one entry per seeded triage)
+ *     → Invitation (×2: pending + accepted — admin onboarding demo)
+ *     → AiActivity (×12, seeded once when the table is empty — impact meter)
  *
  * Design rules (mirrors community-report-seed.ts):
  *  - NO Qwen calls: triage outputs are hardcoded to exactly what the live
@@ -51,6 +53,8 @@ export interface DemoDataSeedResult {
   referralsCreated: number;
   followUpsCreated: number;
   auditLogsCreated: number;
+  invitationsCreated: number;
+  aiActivitiesCreated: number;
   skippedCount: number;
 }
 
@@ -78,7 +82,9 @@ interface VisitSpec {
     category: string;
     priority: "routine" | "urgent" | "emergency";
     destination: string;
-    status: "acknowledged" | "in_progress" | "completed";
+    // Lifecycle states the seed exercises (subset of the model's full
+    // created|sent|acknowledged|in_progress|completed|declined|cancelled|expired).
+    status: "created" | "sent" | "acknowledged" | "in_progress" | "completed";
   };
   followUp?: {
     status: "pending" | "done" | "missed";
@@ -91,10 +97,15 @@ interface VisitSpec {
 
 // ---- Households (Kilifi · Malindi Town — the demo CHV's catchment) --------
 const HOUSEHOLDS = [
-  { code: "MSD-HH-SEED-1", label: "Household 12 · Shella", ward: "Malindi Town" },
-  { code: "MSD-HH-SEED-2", label: "Household 27 · Kizingoni", ward: "Malindi Town" },
-  { code: "MSD-HH-SEED-3", label: "Household 8 · Maweni", ward: "Malindi Town" },
-  { code: "MSD-HH-SEED-4", label: "Household 31 · Scorpion", ward: "Malindi Town" },
+  { code: "MSD-HH-SEED-1", label: "Household 12 · Shella", ward: "Malindi Town", status: "active" },
+  { code: "MSD-HH-SEED-2", label: "Household 27 · Kizingoni", ward: "Malindi Town", status: "active" },
+  { code: "MSD-HH-SEED-3", label: "Household 8 · Maweni", ward: "Malindi Town", status: "active" },
+  { code: "MSD-HH-SEED-4", label: "Household 31 · Scorpion", ward: "Malindi Town", status: "active" },
+  { code: "MSD-HH-SEED-5", label: "Household 19 · Shella", ward: "Malindi Town", status: "active" },
+  { code: "MSD-HH-SEED-6", label: "Household 44 · Kizingoni", ward: "Malindi Town", status: "active" },
+  { code: "MSD-HH-SEED-7", label: "Household 7 · Maweni", ward: "Malindi Town", status: "active" },
+  // One inactive household exercises the roster's inactive state + filters.
+  { code: "MSD-HH-SEED-8", label: "Household 52 · Scorpion (relocated)", ward: "Malindi Town", status: "inactive" },
 ] as const;
 
 // ---- Members (kinship labels, never names — data minimization) ------------
@@ -105,6 +116,14 @@ const MEMBERS = [
   { code: "MSD-M-SEED-4", hh: 1, displayName: "Bibi", role: "grandparent", ageBand: "50+" },
   { code: "MSD-M-SEED-5", hh: 2, displayName: "Mama", role: "mother", ageBand: "25-49" },
   { code: "MSD-M-SEED-6", hh: 3, displayName: "Mtoto — age 3", role: "child", ageBand: "<5" },
+  { code: "MSD-M-SEED-7", hh: 4, displayName: "Mama", role: "mother", ageBand: "25-49" },
+  { code: "MSD-M-SEED-8", hh: 4, displayName: "Mtoto — age 11", role: "child", ageBand: "5-14" },
+  { code: "MSD-M-SEED-9", hh: 5, displayName: "Baba", role: "father", ageBand: "50+" },
+  { code: "MSD-M-SEED-10", hh: 5, displayName: "Mama", role: "mother", ageBand: "25-49" },
+  { code: "MSD-M-SEED-11", hh: 6, displayName: "Kijana — age 17", role: "other", ageBand: "15-24" },
+  { code: "MSD-M-SEED-12", hh: 6, displayName: "Bibi", role: "grandparent", ageBand: "50+" },
+  { code: "MSD-M-SEED-13", hh: 7, displayName: "Baba", role: "father", ageBand: "25-49" },
+  { code: "MSD-M-SEED-14", hh: 7, displayName: "Mtoto — age 9", role: "child", ageBand: "5-14" },
 ] as const;
 
 // ---- Visit specs (5 encounters, one triage verdict each) -------------------
@@ -229,6 +248,217 @@ const VISITS: VisitSpec[] = [
       dueHoursFromNow: 24,
     },
   },
+
+  // ---- Extended roster visits (10 more, 14-day window) ---------------------
+  // Routine-heavy mix so the county dashboard daily chart shows a realistic
+  // baseline with occasional spikes; every workflow class + referral state
+  // gets at least one representative.
+  {
+    encounterCode: "MSD-ENC-SEED-6",
+    householdIndex: 4,
+    memberIndex: 6,
+    daysAgo: 8,
+    captureMethod: "text",
+    connectivity: "online",
+    classification: "routine",
+    observedIndicators: ["mood stable", "sleeping well", "adherence good"],
+    aggregateTag: "routine_wellbeing",
+    chpNextAction: "Continue routine monthly visits.",
+    confidenceNote: null as unknown as string,
+    workflowClass: "routine",
+  },
+  {
+    encounterCode: "MSD-ENC-SEED-7",
+    householdIndex: 5,
+    memberIndex: 8,
+    daysAgo: 7,
+    captureMethod: "voice",
+    connectivity: "offline",
+    classification: "routine",
+    observedIndicators: ["managing well", "socializing again", "appetite back"],
+    aggregateTag: "routine_recovery",
+    chpNextAction: "Sync when connectivity returns; no action needed.",
+    confidenceNote: null as unknown as string,
+    workflowClass: "routine",
+  },
+  {
+    encounterCode: "MSD-ENC-SEED-8",
+    householdIndex: 1,
+    memberIndex: 2,
+    daysAgo: 6,
+    captureMethod: "mixed",
+    connectivity: "intermittent",
+    classification: "needs_followup",
+    observedIndicators: ["sleep disruption returning", "mild withdrawal"],
+    aggregateTag: "early_relapse_signals",
+    chpNextAction: "Revisit within 48h to confirm the trend before escalating.",
+    confidenceNote: "Early signals — below referral threshold but above routine.",
+    workflowClass: "follow_up_required",
+    followUp: {
+      status: "done",
+      dueDaysAgo: 5,
+      resolvedDaysAgo: 5,
+      resolutionNote: "Revisited: sleeping better, back to normal routine.",
+    },
+  },
+  {
+    encounterCode: "MSD-ENC-SEED-9",
+    householdIndex: 6,
+    memberIndex: 10,
+    daysAgo: 5,
+    captureMethod: "text",
+    connectivity: "online",
+    classification: "routine",
+    observedIndicators: ["school attendance steady", "no reported concerns"],
+    aggregateTag: "adolescent_routine",
+    chpNextAction: "Continue routine monitoring.",
+    confidenceNote: null as unknown as string,
+    workflowClass: "routine",
+  },
+  {
+    encounterCode: "MSD-ENC-SEED-10",
+    householdIndex: 2,
+    memberIndex: 4,
+    daysAgo: 4,
+    captureMethod: "voice",
+    connectivity: "online",
+    classification: "needs_facility_referral",
+    observedIndicators: [
+      "persistent anxiety symptoms (3 weeks)",
+      "unable to attend work",
+      "panic episodes described",
+    ],
+    aggregateTag: "anxiety_functional_impairment",
+    chpNextAction: "Refer for clinical assessment; accompany to facility intake.",
+    confidenceNote: "Functional impairment meets facility-referral threshold.",
+    workflowClass: "referral_required",
+    referral: {
+      code: "MSD-REF-SEED-3",
+      category: "mental_health",
+      priority: "urgent",
+      destination: "Malindi Sub-County Hospital",
+      status: "acknowledged",
+    },
+  },
+  {
+    encounterCode: "MSD-ENC-SEED-11",
+    householdIndex: 0,
+    memberIndex: 0,
+    daysAgo: 3,
+    captureMethod: "text",
+    connectivity: "online",
+    classification: "routine",
+    observedIndicators: ["recovering well", "no medication complaints"],
+    aggregateTag: "post_referral_recovery",
+    chpNextAction: "Routine follow-up only.",
+    confidenceNote: null as unknown as string,
+    workflowClass: "routine",
+  },
+  {
+    encounterCode: "MSD-ENC-SEED-12",
+    householdIndex: 7,
+    memberIndex: 13,
+    daysAgo: 2,
+    captureMethod: "mixed",
+    connectivity: "offline",
+    classification: "needs_followup",
+    observedIndicators: ["night terrors reported", "declining school performance"],
+    aggregateTag: "child_distress_signals",
+    chpNextAction: "Revisit within 48h; engage guardian on sleep hygiene.",
+    confidenceNote: "Child indicators need one more data point before routing.",
+    workflowClass: "follow_up_required",
+    followUp: {
+      status: "missed",
+      dueDaysAgo: 1,
+      resolvedDaysAgo: 0,
+      resolutionNote: "Household away (relocated relative) — retry scheduled.",
+    },
+  },
+  {
+    encounterCode: "MSD-ENC-SEED-13",
+    householdIndex: 6,
+    memberIndex: 11,
+    daysAgo: 2,
+    captureMethod: "text",
+    connectivity: "intermittent",
+    classification: "routine",
+    observedIndicators: ["mobility stable", "carer support consistent"],
+    aggregateTag: "elderly_routine",
+    chpNextAction: "Continue welfare visits per eCHIS schedule.",
+    confidenceNote: null as unknown as string,
+    workflowClass: "routine",
+  },
+  {
+    encounterCode: "MSD-ENC-SEED-14",
+    householdIndex: 5,
+    memberIndex: 9,
+    daysAgo: 1,
+    captureMethod: "voice",
+    connectivity: "online",
+    classification: "needs_facility_referral",
+    observedIndicators: [
+      "postpartum low mood (4 weeks)",
+      "difficulty bonding with infant",
+      "sleep deprivation beyond newborn norm",
+    ],
+    aggregateTag: "postpartum_mental_health",
+    chpNextAction: "Refer to maternal mental health program; revisit in 48h.",
+    confidenceNote: "Postpartum indicators meet referral threshold (policy v1.0.0).",
+    workflowClass: "referral_required",
+    referral: {
+      code: "MSD-REF-SEED-4",
+      category: "maternal",
+      priority: "urgent",
+      destination: "Kilifi County Referral Hospital",
+      status: "sent",
+    },
+    followUp: {
+      status: "pending",
+      dueHoursFromNow: 40,
+    },
+  },
+  {
+    encounterCode: "MSD-ENC-SEED-15",
+    householdIndex: 3,
+    memberIndex: 5,
+    daysAgo: 0,
+    captureMethod: "text",
+    connectivity: "online",
+    classification: "routine",
+    observedIndicators: ["stabilizing on treatment", "guardian engaged", "attending school half-days"],
+    aggregateTag: "crisis_aftercare",
+    chpNextAction: "Aftercare: keep weekly visits; escalation line stays open.",
+    confidenceNote: null as unknown as string,
+    workflowClass: "routine",
+  },
+  {
+    // A referral freshly created and not yet sent — exercises the very
+    // start of the 8-state referral lifecycle (the state every UI-created
+    // referral begins in).
+    encounterCode: "MSD-ENC-SEED-16",
+    householdIndex: 4,
+    memberIndex: 7,
+    daysAgo: 0,
+    captureMethod: "text",
+    connectivity: "online",
+    classification: "needs_facility_referral",
+    observedIndicators: [
+      "acute distress on waking",
+      "refusing food and drink today",
+      "guardian requesting facility care",
+    ],
+    aggregateTag: "acute_child_distress",
+    chpNextAction: "Complete referral to the county facility; confirm transport.",
+    confidenceNote: "Acute presentation — referral created, dispatch pending.",
+    workflowClass: "referral_required",
+    referral: {
+      code: "MSD-REF-SEED-5",
+      category: "child_health",
+      priority: "urgent",
+      destination: "Malindi Sub-County Hospital",
+      status: "created",
+    },
+  },
 ];
 
 /**
@@ -250,6 +480,8 @@ export async function seedDemoData(
     referralsCreated: 0,
     followUpsCreated: 0,
     auditLogsCreated: 0,
+    invitationsCreated: 0,
+    aiActivitiesCreated: 0,
     skippedCount: 0,
   };
 
@@ -320,6 +552,7 @@ export async function seedDemoData(
         county: "Kilifi",
         ward: hh.ward,
         label: hh.label,
+        status: hh.status,
         createdAt: daysAgo(30),
         updatedAt: daysAgo(30),
       },
@@ -453,16 +686,22 @@ export async function seedDemoData(
             createdBy: "Demo CHV",
             createdById: chvId,
             createdAt: when,
-            acknowledgedBy:
-              v.referral.status === "completed"
+            acknowledgedBy: ["acknowledged", "in_progress", "completed"].includes(
+              v.referral.status
+            )
+              ? v.referral.status === "completed"
                 ? "Malindi Sub-County Hospital"
-                : "Kilifi County Referral Hospital",
-            acknowledgedAt:
-              v.referral.status === "completed"
+                : "Kilifi County Referral Hospital"
+              : null,
+            acknowledgedAt: ["acknowledged", "in_progress", "completed"].includes(
+              v.referral.status
+            )
+              ? v.referral.status === "completed"
                 ? daysAgo(v.daysAgo - 0.2)
                 : v.daysAgo === 0
                   ? hoursFromNow(-2)
-                  : daysAgo(v.daysAgo - 0.2),
+                  : daysAgo(v.daysAgo - 0.2)
+              : null,
             completedAt:
               v.referral.status === "completed" ? daysAgo(v.daysAgo - 3) : null,
             followUpRequired: true,
@@ -530,6 +769,91 @@ export async function seedDemoData(
         },
       });
       result.auditLogsCreated += 1;
+    }
+  }
+
+  // ---- Invitations (admin onboarding demo data) ----------------------------
+  // Two rows so the /admin onboarding view has both states: a pending invite
+  // the admin can act on, and an accepted one showing the happy path.
+  // Idempotent by stable token (the token column is @unique).
+  const INVITATIONS = [
+    {
+      token: "MSD-INV-SEED-1",
+      email: "chv.candidate@msaada.health",
+      fullName: "CHV Candidate (Demo)",
+      status: "pending",
+      expiresAt: hoursFromNow(7 * 24),
+      acceptedAt: null as Date | null,
+    },
+    {
+      token: "MSD-INV-SEED-2",
+      email: "chv.joined@msaada.health",
+      fullName: "CHV Joined (Demo)",
+      status: "accepted",
+      expiresAt: daysAgo(20),
+      acceptedAt: daysAgo(21) as Date | null,
+    },
+  ];
+  if (adminId) {
+    for (const inv of INVITATIONS) {
+      const existing = await db.invitation.findUnique({
+        where: { token: inv.token },
+        select: { id: true },
+      });
+      if (existing) continue;
+      await db.invitation.create({
+        data: {
+          token: inv.token,
+          email: inv.email,
+          fullName: inv.fullName,
+          role: "chv",
+          organizationId,
+          invitedById: adminId,
+          status: inv.status,
+          expiresAt: inv.expiresAt,
+          acceptedAt: inv.acceptedAt,
+          createdAt: daysAgo(22),
+        },
+      });
+      result.invitationsCreated += 1;
+    }
+  }
+
+  // ---- AiActivity (the "Qwen at work" impact meter) -------------------------
+  // The impact card reads AiActivity; without rows it renders empty on every
+  // fresh demo. Seed a small synthetic history ONCE (guarded by an empty-table
+  // check — never appended to on re-runs, never mixed with real rows). The
+  // model string is the flagged non-real seed model so provenance stays
+  // honest: this is demo data, not actual API traffic. Metadata only — the
+  // table never stores prompts, observation text or outputs.
+  const existingAi = await db.aiActivity.findFirst({ select: { id: true } });
+  if (!existingAi) {
+    const AI_TASKS: Array<{ task: string; ok: boolean; latencyMs: number; errorKind?: string; daysAgo: number; hour: number }> = [
+      { task: "triage", ok: true, latencyMs: 1420, daysAgo: 9, hour: 3 },
+      { task: "triage", ok: true, latencyMs: 1180, daysAgo: 8, hour: 5 },
+      { task: "report_intake", ok: true, latencyMs: 990, daysAgo: 8, hour: 8 },
+      { task: "privacy_scan", ok: true, latencyMs: 240, daysAgo: 7, hour: 4 },
+      { task: "triage", ok: true, latencyMs: 1670, daysAgo: 7, hour: 6 },
+      { task: "dashboard_summary", ok: true, latencyMs: 2100, daysAgo: 6, hour: 7 },
+      { task: "transcribe", ok: true, latencyMs: 3120, daysAgo: 5, hour: 2 },
+      { task: "triage", ok: false, latencyMs: 15000, errorKind: "timeout", daysAgo: 4, hour: 5 },
+      { task: "assignment", ok: true, latencyMs: 860, daysAgo: 4, hour: 9 },
+      { task: "referral_handover", ok: true, latencyMs: 1340, daysAgo: 2, hour: 6 },
+      { task: "followup_questions", ok: true, latencyMs: 1120, daysAgo: 1, hour: 4 },
+      { task: "triage", ok: true, latencyMs: 1250, daysAgo: 0, hour: 2 },
+    ];
+    for (const a of AI_TASKS) {
+      await db.aiActivity.create({
+        data: {
+          createdAt: daysAgo(a.daysAgo, a.hour),
+          task: a.task,
+          model: AI_MODEL,
+          ok: a.ok,
+          latencyMs: a.latencyMs,
+          errorKind: a.errorKind ?? null,
+        },
+      });
+      result.aiActivitiesCreated += 1;
     }
   }
 

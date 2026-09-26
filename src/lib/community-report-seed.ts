@@ -16,15 +16,18 @@ import { generateCode } from "@/lib/identity-types";
  *  2. needs_followup        — workflowClass: follow_up_required     — no case
  *  3. needs_facility_referral — workflowClass: referral_required    — ResponseCase (ready_for_assignment)
  *  4. crisis                 — workflowClass: crisis_override       — ResponseCase (ready_for_assignment)
+ *  5. referral_required     — youth mental-health                   — ResponseCase (response_started)
+ *  6. referral_required     — child welfare                         — ResponseCase (resolved + outcome)
  *
  * Per the CR-011-SEED task spec:
  *  - Each report's status is set to "triaged" (pre-processed).
  *  - For the crisis + needs_facility_referral reports, a ResponseCase is
- *    created with status="ready_for_assignment" (so the assignment flow
- *    can pick them up and trigger the CaseNotifications toast pipeline).
+ *    created; seeded cases may carry a deeper lifecycle (assigned →
+ *    accepted → response_started, or fully resolved with an outcome) so
+ *    the /cases board shows a lived-in pipeline.
  *
  * Idempotency: each seed report uses a STABLE reportCode
- * (MSD-RPT-SEED-{1..4}). Before any insert, the function checks whether a
+ * (MSD-RPT-SEED-{1..6}). Before any insert, the function checks whether a
  * report with that exact code already exists; if so, the report (and its
  * case, if applicable) is left untouched. Re-running `seedCommunityReports`
  * therefore never duplicates rows — it's safe to call from /api/seed,
@@ -77,6 +80,8 @@ interface SeedReportSpec {
   policyDecision: Record<string, unknown>;
   /** Whether this report should produce a ResponseCase (crisis + facility). */
   createCase: boolean;
+  /** Optional deeper case lifecycle for seeded cases (default: ready_for_assignment). */
+  caseLifecycle?: "ready_for_assignment" | "response_started" | "resolved";
 }
 
 const SEED_REPORTS: SeedReportSpec[] = [
@@ -246,6 +251,90 @@ const SEED_REPORTS: SeedReportSpec[] = [
     },
     createCase: true,
   },
+
+  // ---- 5. REFERRAL → CASE ASSIGNED + ACCEPTED (CHV responding) ------------
+  {
+    reportCode: `${SEED_REPORT_CODE_PREFIX}5`,
+    description:
+      "Kijana anasema yuko na huzuni nzito kwa muda mrefu, hataendi kazini, " +
+      "amefunga ndani mara nyingi. Mama yake ndiye aliyeomba msaada.",
+    category: "mental_health",
+    county: "Kilifi",
+    ward: "Malindi Town",
+    landmark: "karibu na barabara kuu",
+    workflowClass: "referral_required",
+    aiConfidence: 0.88,
+    aiInterpretation: {
+      escalation: false,
+      classification: "needs_facility_referral",
+      observed_indicators: [
+        "persistent heavy sadness",
+        "not attending work",
+        "self-isolation behind closed door",
+      ],
+      chp_next_action:
+        "CHV assigned: visit within 24h, assess in person, accompany to facility intake if confirmed.",
+      confidence_note: "Third-party report — in-person assessment required.",
+      aggregate_tag: "youth_depression_signals",
+    },
+    policyDecision: {
+      policyVersion: POLICY_VERSION,
+      workflowClass: "referral_required",
+      isEscalation: false,
+      referralPriority: "urgent",
+      referralCategory: "mental_health",
+      followUpRequired: true,
+      followUpDueHours: 24,
+      reasoning:
+        "Facility referral: sustained functional impairment reported. Urgent CHV " +
+        "in-person assessment before clinical intake.",
+      confidenceDisposition: "accepted",
+    },
+    createCase: true,
+    caseLifecycle: "response_started",
+  },
+
+  // ---- 6. REFERRAL → CASE RESOLVED (full loop closed) ---------------------
+  {
+    reportCode: `${SEED_REPORT_CODE_PREFIX}6`,
+    description:
+      "Mtoto hakiendi shule wiki tatu, hali anapokaa peke yake nyumbani, " +
+      "wananchi wanaogopa hali yake ya nyumbani.",
+    category: "child_health",
+    county: "Kilifi",
+    ward: "Malindi Town",
+    landmark: "pale kanisa la pentekoste",
+    workflowClass: "referral_required",
+    aiConfidence: 0.84,
+    aiInterpretation: {
+      escalation: false,
+      classification: "needs_facility_referral",
+      observed_indicators: [
+        "school non-attendance (3 weeks)",
+        "left unattended at home",
+        "community concern for welfare",
+      ],
+      chp_next_action:
+        "CHV visit completed; link family to child-protection and school re-entry support.",
+      confidence_note: "Welfare signals — resolved after referral chain completed.",
+      aggregate_tag: "child_welfare_referral",
+    },
+    policyDecision: {
+      policyVersion: POLICY_VERSION,
+      workflowClass: "referral_required",
+      isEscalation: false,
+      referralPriority: "routine",
+      referralCategory: "child_health",
+      followUpRequired: true,
+      followUpDueHours: 48,
+      reasoning:
+        "Facility/welfare referral: child welfare concerns warrant a coordinated " +
+        "CHV + school + protection response.",
+      confidenceDisposition: "accepted",
+    },
+    createCase: true,
+    caseLifecycle: "resolved",
+  },
 ];
 
 export interface SeededReport {
@@ -270,7 +359,7 @@ export interface SeedCommunityReportsResult {
 }
 
 /**
- * Idempotently creates 4 demo CommunityReports (and 2 ResponseCases) for
+ * Idempotently creates 6 demo CommunityReports for
  * the given CHV. The CHV is recorded as the `assistedById` (an assisted
  * submission) so the demo data ties back to a real onboarding record.
  *
@@ -348,17 +437,39 @@ export async function seedCommunityReports(
     let caseCode: string | null = null;
 
     // For the crisis + needs_facility_referral reports, also create a
-    // ResponseCase (status="ready_for_assignment") so the assignment
-    // flow can pick it up and the CaseNotifications component has
-    // realistic data to surface toasts for once a CHV is assigned.
-    if (spec.createCase) {
-      const responseCase = await db.responseCase.create({
-        data: {
-          caseCode: generateCode("MSD-CASE"),
-          reportId: report.id,
-          status: "ready_for_assignment",
-        },
-      });
+    // ResponseCase so the assignment flow can pick it up and the
+    // CaseNotifications component has realistic data to surface toasts for
+    // once a CHV is assigned. Seeded cases may carry a deeper lifecycle
+    // (response_started / resolved) so the /cases board and the county
+    // intelligence widget show a lived-in pipeline, not an always-empty one.
+    if (spec.createCase || spec.caseLifecycle) {
+      const lifecycle = spec.caseLifecycle ?? "ready_for_assignment";
+      const caseData: Parameters<typeof db.responseCase.create>[0]["data"] = {
+        caseCode: generateCode("MSD-CASE"),
+        reportId: report.id,
+        status: lifecycle,
+      };
+      if (lifecycle !== "ready_for_assignment") {
+        // The assisting CHV is the assignee — deterministic, seeded demo
+        // assignment (same row shape the live assignment flow writes).
+        const assignedAt = new Date(Date.now() - 26 * 3600 * 1000);
+        caseData.assignedChvId = chvId;
+        caseData.assignmentReason =
+          "nearest-active-CHV (seeded demo assignment)";
+        caseData.assignmentRuleVersion = "seed-v1";
+        caseData.assignedAt = assignedAt;
+        caseData.acceptedAt = new Date(assignedAt.getTime() + 2 * 3600 * 1000);
+      }
+      if (lifecycle === "resolved") {
+        caseData.resolvedAt = new Date(Date.now() - 20 * 3600 * 1000);
+        caseData.resolutionNote =
+          "Visited, family engaged; child linked to school re-entry support " +
+          "and county social worker. Follow-up scheduled.";
+        caseData.outcomeCategory = "reached_doing_well";
+        caseData.outcomeSummary =
+          "Family reached and cooperating; supports activated; monitoring continues.";
+      }
+      const responseCase = await db.responseCase.create({ data: caseData });
       caseId = responseCase.id;
       caseCode = responseCase.caseCode;
     }
