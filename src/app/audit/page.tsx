@@ -42,6 +42,27 @@ const EVENT_LABEL: Record<string, string> = {
   triage_classified: "Triage classified",
   crisis_override: "Crisis override",
   fallback_used: "Model fallback",
+  policy_evaluated: "Policy evaluated",
+  followup_resolved: "Follow-up resolved",
+  referral_sent: "Referral sent",
+  referral_acknowledged: "Referral acknowledged",
+  referral_in_progress: "Referral in progress",
+  referral_completed: "Referral completed",
+  referral_declined: "Referral declined",
+  referral_cancelled: "Referral cancelled",
+  referral_expired: "Referral expired",
+  community_report_created: "Report created",
+  community_report_triaged: "Report triaged",
+  community_response_created: "Case opened",
+  community_response_assigned: "Case assigned",
+  community_response_accepted: "Case accepted",
+  community_response_started: "Response started",
+  community_response_attended: "Case attended",
+  community_response_resolved: "Case resolved",
+  community_response_unable_to_reach: "Unable to reach",
+  invitation_created: "Invitation created",
+  invitation_accepted: "Invitation accepted",
+  demo_seed: "Demo data load",
 };
 
 const EVENT_OPTIONS = [
@@ -49,6 +70,14 @@ const EVENT_OPTIONS = [
   { value: "triage_classified", label: "Triage classified" },
   { value: "crisis_override", label: "Crisis override" },
   { value: "fallback_used", label: "Model fallback" },
+  { value: "followup_resolved", label: "Follow-up resolved" },
+  { value: "referral_acknowledged", label: "Referral acknowledged" },
+  { value: "referral_completed", label: "Referral completed" },
+  { value: "referral_declined", label: "Referral declined" },
+  { value: "community_report_created", label: "Report created" },
+  { value: "community_response_resolved", label: "Case resolved" },
+  { value: "invitation_created", label: "Invitation created" },
+  { value: "invitation_accepted", label: "Invitation accepted" },
 ];
 
 function toneKey(e: AuditEntry) {
@@ -234,12 +263,13 @@ export default function AuditPage() {
           ) : (
             <>
               {/* Header row (desktop) */}
-              <div className="hidden gap-3 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground md:grid md:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_0.8fr]">
+              <div className="hidden gap-3 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground md:grid md:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1.1fr_0.8fr]">
                 <span>When</span>
                 <span>Actor</span>
                 <span>Event</span>
                 <span>County · Ward</span>
                 <span>Verdict</span>
+                <span>AI · Policy</span>
                 <span className="text-right">Flags</span>
               </div>
               <Separator className="mb-1" />
@@ -254,7 +284,7 @@ export default function AuditPage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.18, delay: Math.min(i * 0.03, 0.25) }}
                     >
-                      <div className="grid items-center gap-3 rounded-lg border border-border/50 bg-card px-3 py-2.5 transition-colors hover:bg-muted/30 md:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_0.8fr]">
+                      <div className="grid items-center gap-3 rounded-lg border border-border/50 bg-card px-3 py-2.5 transition-colors hover:bg-muted/30 md:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1.1fr_0.8fr]">
                         <span className="font-mono text-xs text-muted-foreground">
                           <span className="inline md:hidden text-muted-foreground mr-1">When:</span>
                           {fmtTime(e.createdAt)}
@@ -287,6 +317,39 @@ export default function AuditPage() {
                               ? "Crisis"
                               : (e.classification ?? "—").replace(/_/g, " ")}
                           </Badge>
+                        </span>
+                        <span className="flex flex-wrap items-center gap-1">
+                          <span className="inline md:hidden text-muted-foreground mr-1">AI · Policy:</span>
+                          {e.aiModel ? (
+                            <Badge
+                              variant="outline"
+                              className="h-5 border-current/20 bg-muted/60 px-1.5 py-0 font-mono text-[9px] font-medium text-muted-foreground"
+                              title={`Model: ${e.aiModel}`}
+                            >
+                              {e.aiModel}
+                            </Badge>
+                          ) : null}
+                          {e.policyVersion ? (
+                            <Badge
+                              variant="outline"
+                              className="h-5 border-current/20 px-1.5 py-0 font-mono text-[9px] font-medium text-muted-foreground"
+                              title={`Policy version: ${e.policyVersion}`}
+                            >
+                              policy v{e.policyVersion}
+                            </Badge>
+                          ) : null}
+                          {e.workflowClass ? (
+                            <Badge
+                              variant="outline"
+                              className="h-5 border-current/20 px-1.5 py-0 text-[9px] font-medium text-muted-foreground"
+                              title={`Workflow class: ${e.workflowClass}`}
+                            >
+                              {e.workflowClass.replace(/_/g, " ")}
+                            </Badge>
+                          ) : null}
+                          {!e.aiModel && !e.policyVersion && !e.workflowClass && (
+                            <span className="text-xs text-muted-foreground/60">—</span>
+                          )}
                         </span>
                         <span className="flex items-center justify-start gap-1 md:justify-end">
                           <span className="inline md:hidden text-muted-foreground mr-1">Flags:</span>

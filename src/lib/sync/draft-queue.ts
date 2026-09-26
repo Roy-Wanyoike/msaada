@@ -1,26 +1,26 @@
 /**
- * Offline-first encounter draft queue — framework-neutral browser module.
+ * Offline-ready encounter draft queue — framework-neutral browser module.
  *
  * CHVs work in the field where connectivity is intermittent. Every encounter
  * observation is queued here (localStorage) BEFORE the network attempt; the
  * entry is removed once the server confirms the write. Anything still queued
- * is mirrored into the Supabase `encounter_drafts` table (see
- * supabase/schema.sql) by flushDrafts(), which callers run on component mount
- * and on the window "online" event.
+ * is flushed by flushDrafts() (run on component mount and on the window
+ * "online" event) to the first-party endpoint POST /api/encounters/drafts,
+ * which authenticates via the app's own session cookie and mirrors the drafts
+ * into the Supabase `encounter_drafts` cloud table server-side (see
+ * supabase/schema.sql §3).
  *
  * Guarantees / constraints:
  *  - Never throws. Sync is best-effort; the primary Msaada app (cookie auth +
- *    SQLite) must keep working when Supabase is unconfigured, the user is
- *    signed out of Supabase Auth, or the network is down.
+ *    SQLite) must keep working when Supabase is unconfigured (server answers
+ *    503 → "not_configured"), the app session is expired (401 →
+ *    "not_signed_in"), or the network is down.
  *  - SSR-safe: without `window` every function is a strict no-op.
- *  - No auth tokens are ever stored in the queue — Supabase manages session
- *    tokens in its own cookie storage; entries hold only caller payloads.
+ *  - No auth tokens are ever stored in the queue — the browser sends the
+ *    HttpOnly session cookie; entries hold only caller payloads.
  *  - Payloads are structured metadata only (no raw observation free-text —
- *    project de-identification rule; the caller enforces this).
+ *    project de-identification rule; the caller and the endpoint enforce it).
  */
-
-import { createClient } from "@/utils/supabase/client";
-import { supabaseConfig } from "@/utils/supabase/config";
 
 /** localStorage bucket for queued drafts. Bump the version suffix to migrate. */
 const STORAGE_KEY = "msaada.draft-queue.v1";
@@ -162,18 +162,23 @@ export function removeDraft(clientUuid: string): void {
 }
 
 /**
- * Push every queued draft into the Supabase `encounter_drafts` table.
+ * Push every queued draft to POST /api/encounters/drafts (first-party,
+ * cookie-authed). The endpoint upserts them into the Supabase
+ * `encounter_drafts` mirror server-side with client_uuid idempotency and
+ * answers {flushed: n} counting ONLY newly inserted rows.
  *
  * Order of guards (each short-circuits with an honest reason):
- *  1. offline (navigator.onLine)  → "offline"
- *  2. Supabase env not configured → "not_configured"
- *  3. no Supabase Auth session    → "not_signed_in"
- *  4. per-row upsert failure      → "error" (a partial flush still dequeues
- *     the rows that succeeded)
+ *  1. SSR (no window)             → silent no-op
+ *  2. empty queue                 → {flushed: 0, remaining: 0}
+ *  3. offline (navigator.onLine)  → "offline"
+ *  4. 401 (no/expired app session)→ "not_signed_in"
+ *  5. 503 (Supabase env unset)    → "not_configured"
+ *  6. any other failure           → "error"
  *
- * Only successfully flushed entries are removed from the queue, and the queue
- * is re-read at removal time so drafts queued while the flush was in flight
- * are never clobbered.
+ * On success the whole sent batch is dequeued: rows were either newly
+ * flushed or were already present in the cloud (idempotent skip) — in both
+ * cases the draft is synced. The queue is re-read at removal time so drafts
+ * queued while the flush was in flight are never clobbered.
  */
 export async function flushDrafts(): Promise<FlushDraftsResult> {
   // SSR guard: no window → strict no-op.
@@ -182,77 +187,52 @@ export async function flushDrafts(): Promise<FlushDraftsResult> {
   }
 
   const queue = readQueue();
+  if (queue.length === 0) {
+    return { flushed: 0, remaining: 0 };
+  }
 
-  // 1. Offline — nothing to do, keep everything queued for the next flush.
+  // 1. Offline — keep everything queued for the next flush.
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     return { flushed: 0, remaining: queue.length, reason: "offline" };
   }
 
-  // 2. Supabase not configured on this deploy — drafts stay local.
-  if (!supabaseConfig()) {
-    return { flushed: 0, remaining: queue.length, reason: "not_configured" };
-  }
-
   try {
-    const client = createClient();
-    if (!client) {
-      return { flushed: 0, remaining: queue.length, reason: "not_configured" };
-    }
+    const res = await fetch("/api/encounters/drafts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // Same-origin cookie auth (the app's own HMAC session) — explicit so
+      // the contract survives future cross-port/dev-server changes.
+      credentials: "include",
+      body: JSON.stringify({
+        drafts: queue.map((d) => ({
+          clientUuid: d.clientUuid,
+          ...(typeof d.payload === "object" && d.payload !== null
+            ? (d.payload as Record<string, unknown>)
+            : {}),
+        })),
+      }),
+      cache: "no-store",
+    });
 
-    // 3. RLS scopes every row to the signed-in user — no session, no sync.
-    const { data, error: sessionError } = await client.auth.getSession();
-    if (sessionError) {
-      return { flushed: 0, remaining: queue.length, reason: "error" };
-    }
-    const session = data.session;
-    if (!session) {
+    if (res.status === 401) {
       return { flushed: 0, remaining: queue.length, reason: "not_signed_in" };
     }
-
-    if (queue.length === 0) {
-      return { flushed: 0, remaining: 0 };
+    if (res.status === 503) {
+      return { flushed: 0, remaining: queue.length, reason: "not_configured" };
+    }
+    if (!res.ok) {
+      return { flushed: 0, remaining: queue.length, reason: "error" };
     }
 
-    // 4. Upsert each draft. ignoreDuplicates keeps retries idempotent: a
-    // client_uuid already present in the cloud is skipped, never duplicated.
-    const flushedUuids: string[] = [];
-    let hadError = false;
-    for (const draft of queue) {
-      try {
-        const { error } = await client
-          .from("encounter_drafts")
-          .upsert(
-            {
-              client_uuid: draft.clientUuid,
-              user_id: session.user.id,
-              payload: draft.payload,
-              synced_at: new Date().toISOString(),
-            },
-            { onConflict: "client_uuid", ignoreDuplicates: true }
-          );
-        if (error) {
-          hadError = true;
-        } else {
-          flushedUuids.push(draft.clientUuid);
-        }
-      } catch {
-        hadError = true;
-      }
-    }
+    const data = (await res.json().catch(() => ({}))) as { flushed?: number };
 
-    // 5. Dequeue only what made it; re-read first so concurrently queued
-    // drafts are preserved.
-    if (flushedUuids.length > 0) {
-      const flushed = new Set(flushedUuids);
-      writeQueue(readQueue().filter((d) => !flushed.has(d.clientUuid)));
-    }
+    // Success: everything we sent is synced (newly flushed OR already in the
+    // cloud). Dequeue the exact batch we sent; re-read first so concurrently
+    // queued drafts are preserved.
+    const sent = new Set(queue.map((d) => d.clientUuid));
+    writeQueue(readQueue().filter((d) => !sent.has(d.clientUuid)));
 
-    const remaining = readQueue().length;
-    return {
-      flushed: flushedUuids.length,
-      remaining,
-      ...(hadError ? { reason: "error" as const } : {}),
-    };
+    return { flushed: data.flushed ?? 0, remaining: readQueue().length };
   } catch {
     // Never throw — sync is best-effort by design.
     return { flushed: 0, remaining: readQueue().length, reason: "error" };

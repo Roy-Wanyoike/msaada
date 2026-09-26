@@ -122,7 +122,9 @@ export async function POST(req: Request) {
       chpNextAction: output.escalation === true ? null : output.chp_next_action,
       chpInstruction: output.escalation === true ? output.chp_instruction : null,
       crisisLine: output.escalation === true ? output.crisis_line : null,
-      confidenceNote: output.escalation === true ? "Crisis override triggered" : (output.confidence_note ?? null),
+      confidenceNote: output.escalation === true
+        ? (output.confidence_note ?? "Crisis override triggered")
+        : (output.confidence_note ?? null),
       fallbackUsed,
     };
     const policyDecision = evaluatePolicy(interpretation);
@@ -214,6 +216,8 @@ export async function POST(req: Request) {
       aiModel,
       workflowClass: policyDecision.workflowClass,
       referralId,
+      organizationId: chv.organizationId ?? null,
+      authorizationRole: chv.role ?? "chv",
     }).catch((e) => {
       console.error("[triage] audit log write failed:", e);
     });

@@ -5,6 +5,7 @@ import { privacyScan } from "@/lib/ai/privacy";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createReport, getReports } from "@/lib/community-report-store";
 import { writeCommunityReportAudit } from "@/lib/community-report-audit";
+import { mirrorCommunityReport } from "@/lib/supabase-mirror";
 import { REPORT_CATEGORIES } from "@/lib/community-report-types";
 import { COUNTIES, WARDS, type County } from "@/lib/types";
 
@@ -228,6 +229,43 @@ export async function POST(req: Request) {
       policyVersion: report.policyVersion,
     }).catch(() => {});
 
+    // Durable cloud mirror (supabase/schema.sql §2) — fire-and-forget: the
+    // 201 response below must NEVER wait on (or fail because of) the mirror.
+    // The payload is exactly the columns schema.sql defines: the ALREADY
+    // PII-scrubbed description + coarse location/category/status/report code.
+    // No reporter identity is mirrored (no name, no contact, no IP).
+    void mirrorCommunityReport({
+      reportCode: report.reportCode,
+      idempotencyKey: idempotencyKeyTyped ?? null,
+      county: report.county,
+      ward: report.ward ?? null,
+      category: report.category,
+      status: report.status,
+      description: report.description,
+      workflowClass: report.policyWorkflowClass ?? null,
+      policyVersion: report.policyVersion ?? null,
+    })
+      .then((outcome) => {
+        if (outcome === "skipped") {
+          console.log(
+            "[supabase-mirror] community_reports skipped (supabase not configured)"
+          );
+        } else {
+          console.log(
+            `[supabase-mirror] community_reports mirrored code=${report.reportCode}`
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        // Static mirror error text (message is a fixed string + status) —
+        // the report itself is already safely persisted in the primary store.
+        console.error(
+          `[supabase-mirror] community_reports insert failed, primary store unaffected: ${
+            err instanceof Error ? err.message : "unknown error"
+          }`
+        );
+      });
+
     return NextResponse.json(report, { status: 201 });
   } catch (err) {
     // Idempotency conflict (unique constraint) -- if the store did not catch
@@ -278,6 +316,15 @@ export async function GET(req: Request) {
   // reading the query string so the role decision is authoritative.
   const isAdmin = ADMIN_ROLES.has(chv.role ?? "chv");
   const sessionCounty = chv.county ?? undefined;
+
+  // Least-privilege county guard (issue #45): a non-admin session with NO
+  // county cannot be scoped to anything, so it must not fall through to an
+  // unfiltered query (that would leak every county's reports — the exact
+  // bypass the single-fetch path denies with 403 COUNTY_MISMATCH).
+  // Default-deny: return an honest empty result set instead of the world.
+  if (!isAdmin && !sessionCounty) {
+    return NextResponse.json({ reports: [], total: 0 });
+  }
 
   const url = new URL(req.url);
   const status = url.searchParams.get("status") ?? undefined;

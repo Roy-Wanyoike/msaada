@@ -5,6 +5,7 @@ import {
   toCaseDTO,
   updateCaseStatus,
 } from "@/lib/community-report-store";
+import { writeCommunityReportAudit } from "@/lib/community-report-audit";
 import { db } from "@/lib/db";
 import { scrubPII } from "@/lib/pii-scrub";
 import { privacyScan } from "@/lib/ai/privacy";
@@ -49,6 +50,18 @@ const ACTION_TO_STATUS: Record<Exclude<PatchAction, "accept">, string> = {
   attend: "attended",
   resolve: "resolved",
   unable_to_reach: "unable_to_reach",
+};
+
+// Maps the PATCH `action` to its audit event, using the canonical
+// community_response_* vocabulary (COMMUNITY_REPORT_EVENTS). `start` and
+// `unable_to_reach` use the vocabulary entries added in MVP-44 so every
+// lifecycle transition is auditable.
+const ACTION_TO_EVENT: Record<PatchAction, string> = {
+  accept: "community_response_accepted",
+  start: "community_response_started",
+  attend: "community_response_attended",
+  resolve: "community_response_resolved",
+  unable_to_reach: "community_response_unable_to_reach",
 };
 
 /**
@@ -212,13 +225,22 @@ export async function PATCH(
     // Pre-fetch to split the conflated null-return cases from the store:
     // not-found (404), not-owned (403), terminal-state (409), and — for
     // accept — wrong-source-state (409). Without this pre-check the route
-    // has no way to distinguish them.
+    // has no way to distinguish them. The report select carries the
+    // county/ward + policy context the audit row needs.
     const existing = await db.responseCase.findUnique({
       where: { id },
       select: {
         id: true,
         assignedChvId: true,
         status: true,
+        report: {
+          select: {
+            county: true,
+            ward: true,
+            policyVersion: true,
+            policyWorkflowClass: true,
+          },
+        },
       },
     });
     if (!existing) {
@@ -278,6 +300,24 @@ export async function PATCH(
         { status: 409 }
       );
     }
+
+    // Audit trail (MVP-44): one row per lifecycle transition, from the
+    // canonical community_response_* vocabulary (CR-014). De-identified:
+    // event + county/ward + the report's policy verdict — never the note
+    // text. Non-fatal (the writeCommunityReportAudit helper swallows and
+    // logs DB errors so the user-facing response is never affected).
+    await writeCommunityReportAudit({
+      actorId: chv.id,
+      event: ACTION_TO_EVENT[action],
+      county: existing.report.county,
+      ward: existing.report.ward,
+      classification: existing.report.policyWorkflowClass,
+      escalation: existing.report.policyWorkflowClass === "crisis_override",
+      policyVersion: existing.report.policyVersion,
+      organizationId: chv.organizationId ?? null,
+      authorizationRole: chv.role ?? "chv",
+    });
+
     return NextResponse.json(updated, { status: 200 });
   } catch (err) {
     // Last-resort guard — any unexpected throw (Prisma connectivity, internal

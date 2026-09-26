@@ -49,7 +49,10 @@ export async function insertTriageRecord(args: {
       chpInstruction: isCrisis ? output.chp_instruction : null,
       crisisLine: isCrisis ? output.crisis_line : null,
       confidenceNote: isCrisis
-        ? "Crisis override triggered"
+        ? // Issue #45: when the crisis verdict was forced by the keyword
+          // screen (model-success override), the output carries a provenance
+          // note — persist it; otherwise the default crisis label stands.
+          (output.confidence_note ?? "Crisis override triggered")
         : fallbackUsed
           ? output.confidence_note
           : (output.confidence_note ?? null),
@@ -78,6 +81,7 @@ function toDTO(
     aiReasoning?: string | null;
     chpNextActionSw?: string | null;
     aiModel?: string | null;
+    promptVersion?: string | null;
   }
 ): TriageRecordDTO {
   let indicators: string[] = [];
@@ -105,6 +109,7 @@ function toDTO(
     aiReasoning: row.aiReasoning ?? null,
     chpNextActionSw: row.chpNextActionSw ?? null,
     aiModel: row.aiModel ?? null,
+    promptVersion: row.promptVersion ?? null,
   };
 }
 
@@ -583,6 +588,19 @@ export interface AuditEntry {
   classification: string | null;
   escalation: boolean;
   fallbackUsed: boolean;
+  /** AI-transparency columns (null on legacy rows / non-AI events). */
+  policyVersion: string | null;
+  aiModel: string | null;
+  workflowClass: string | null;
+}
+
+/**
+ * De-identified actor label for audit rows. Public (unauthenticated) report
+ * submissions use actorId "public" — those render as "public·report" instead
+ * of the chv·xxxx truncation (which would leak a meaningless "chv·blic").
+ */
+function actorLabelFor(actorId: string): string {
+  return actorId === "public" ? "public·report" : `chv·${actorId.slice(-4)}`;
 }
 
 export async function writeAuditEntry(args: {
@@ -601,6 +619,10 @@ export async function writeAuditEntry(args: {
   aiModel?: string;
   workflowClass?: string;
   referralId?: string | null;
+  /** Acting user's organization (MVP-44) — from the session when available. */
+  organizationId?: string | null;
+  /** Acting user's authorization role (MVP-44) — from the session when available. */
+  authorizationRole?: string | null;
 }): Promise<void> {
   await db.auditLog.create({
     data: {
@@ -619,6 +641,8 @@ export async function writeAuditEntry(args: {
       aiModel: args.aiModel ?? null,
       workflowClass: args.workflowClass ?? null,
       referralId: args.referralId ?? null,
+      organizationId: args.organizationId ?? null,
+      authorizationRole: args.authorizationRole ?? null,
     },
   });
 }
@@ -647,6 +671,9 @@ export async function getRecentAudit(
       classification: true,
       escalation: true,
       fallbackUsed: true,
+      policyVersion: true,
+      aiModel: true,
+      workflowClass: true,
     },
   });
   return rows.map((r) => ({
@@ -655,13 +682,16 @@ export async function getRecentAudit(
     triageRecordId: r.triageRecordId,
     // Truncated actor id — never the email. For the demo activity feed this
     // is enough to distinguish "chv A" vs "chv B" without identifying them.
-    actorLabel: `chv·${r.actorId.slice(-4)}`,
+    actorLabel: actorLabelFor(r.actorId),
     event: r.event,
     county: r.county,
     ward: r.ward,
     classification: r.classification,
     escalation: r.escalation,
     fallbackUsed: r.fallbackUsed,
+    policyVersion: r.policyVersion,
+    aiModel: r.aiModel,
+    workflowClass: r.workflowClass,
   }));
 }
 
@@ -697,6 +727,9 @@ export async function getAuditPage(opts: {
         classification: true,
         escalation: true,
         fallbackUsed: true,
+        policyVersion: true,
+        aiModel: true,
+        workflowClass: true,
       },
     }),
     db.auditLog.count({ where }),
@@ -707,13 +740,16 @@ export async function getAuditPage(opts: {
       id: r.id,
       createdAt: r.createdAt.toISOString(),
       triageRecordId: r.triageRecordId,
-      actorLabel: `chv·${r.actorId.slice(-4)}`,
+      actorLabel: actorLabelFor(r.actorId),
       event: r.event,
       county: r.county,
       ward: r.ward,
       classification: r.classification,
       escalation: r.escalation,
       fallbackUsed: r.fallbackUsed,
+      policyVersion: r.policyVersion,
+      aiModel: r.aiModel,
+      workflowClass: r.workflowClass,
     })),
     total,
     page,
@@ -926,6 +962,180 @@ export async function getSupervisorRoster(
   return {
     rows,
     totals: { chvs: rows.length, total: totalAll, escalations: totalEsc },
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Supervisor command-center ops — pending work, overdue referrals,    */
+/* and data-quality signals (MVP-44). Aggregate + de-identified:       */
+/* counts and stable codes only — never household addresses, member    */
+/* names, or observation text.                                         */
+/* ------------------------------------------------------------------ */
+
+export interface OverdueReferralItem {
+  referralCode: string;
+  status: string;
+  category: string;
+  priority: string;
+  /** Whole hours since the referral was acknowledged (its state clock). */
+  ageHours: number;
+}
+
+export interface SupervisorOps {
+  /** Acknowledged/in_progress referrals whose state clock is >48h old. */
+  overdueReferrals: {
+    count: number;
+    /** Oldest first, capped — a summary, not the full worklist. */
+    items: OverdueReferralItem[];
+  };
+  /** Work waiting on someone: pending follow-ups + created/sent referrals. */
+  pendingWork: {
+    pendingFollowUps: number;
+    overdueFollowUps: number;
+    referralsAwaitingAcknowledgement: number;
+  };
+  /** Data-quality signals (counts + de-identified labels only). */
+  dataQuality: {
+    /** Encounters (last 7d) whose triage stored an empty indicator list. */
+    emptyIndicatorEncounters7d: number;
+    /** CHVs with zero encounters in the last 14 days. */
+    chvsWithZeroEncounters14d: {
+      count: number;
+      labels: string[];
+    };
+    /** Follow-ups marked missed (all time in scope). */
+    missedFollowUps: number;
+  };
+}
+
+/**
+ * Aggregate operational signals for the supervisor command center. Additive
+ * to getSupervisorRoster (the roster API merges both responses). Every query
+ * is count/list-of-codes scoped; when `county` is given, referrals and
+ * encounters filter through their household's county and follow-ups through
+ * the triage record's county.
+ */
+export async function getSupervisorOps(county?: string): Promise<SupervisorOps> {
+  const now = Date.now();
+  const overdueCutoff = new Date(now - 48 * 3600_000);
+  const daysAgoStart = (days: number) => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - (days - 1));
+    return d;
+  };
+  const last7d = daysAgoStart(7);
+  const last14d = daysAgoStart(14);
+
+  // County scoping per table: Referral/Encounter reach county through the
+  // household; FollowUp/TriageRecord carry it directly (via the record).
+  const referralWhere = county
+    ? { encounter: { household: { county } } }
+    : {};
+  const followUpWhere = county ? { triageRecord: { county } } : {};
+  const encounterWhere = county ? { household: { county } } : {};
+
+  const [
+    overdueRows,
+    overdueCount,
+    awaitingAck,
+    pendingFollowUps,
+    overdueFollowUps,
+    missedFollowUps,
+    emptyIndicatorRows,
+    chvs,
+    encounterGroups,
+  ] = await Promise.all([
+    // Overdue = acknowledged/in_progress AND stuck >48h since acknowledgement
+    // (both states require acknowledgement, so acknowledgedAt is the state
+    // clock). List is capped and sorted oldest-first.
+    db.referral.findMany({
+      where: {
+        ...referralWhere,
+        status: { in: ["acknowledged", "in_progress"] },
+        acknowledgedAt: { lt: overdueCutoff },
+      },
+      orderBy: { acknowledgedAt: "asc" },
+      take: 5,
+      select: {
+        referralCode: true,
+        status: true,
+        category: true,
+        priority: true,
+        acknowledgedAt: true,
+      },
+    }),
+    db.referral.count({
+      where: {
+        ...referralWhere,
+        status: { in: ["acknowledged", "in_progress"] },
+        acknowledgedAt: { lt: overdueCutoff },
+      },
+    }),
+    // Created/sent referrals awaiting acknowledgement.
+    db.referral.count({
+      where: {
+        ...referralWhere,
+        status: { in: ["created", "sent"] },
+      },
+    }),
+    db.followUp.count({ where: { ...followUpWhere, status: "pending" } }),
+    db.followUp.count({
+      where: { ...followUpWhere, status: "pending", dueAt: { lt: new Date() } },
+    }),
+    db.followUp.count({ where: { ...followUpWhere, status: "missed" } }),
+    // Empty-indicator triage records in the last 7 days (data-quality:
+    // the structured output came back with nothing observable). SQLite
+    // stores the JSON array as TEXT — "[]" (or "" on malformed legacy rows).
+    db.triageRecord.count({
+      where: {
+        ...(county ? { county } : {}),
+        createdAt: { gte: last7d },
+        observedIndicators: { in: ["[]", ""] },
+      },
+    }),
+    db.chvUser.findMany({
+      where: county ? { county } : undefined,
+      select: { id: true },
+    }),
+    db.encounter.groupBy({
+      by: ["chwId"],
+      _count: true,
+      where: { ...encounterWhere, createdAt: { gte: last14d } },
+    }),
+  ]);
+
+  const activeChvIds = new Set(encounterGroups.map((g) => g.chwId));
+  const idleChvLabels = chvs
+    .filter((c) => !activeChvIds.has(c.id))
+    .map((c) => `chv·${c.id.slice(-4)}`);
+
+  return {
+    overdueReferrals: {
+      count: overdueCount,
+      items: overdueRows.map((r) => ({
+        referralCode: r.referralCode,
+        status: r.status,
+        category: r.category,
+        priority: r.priority,
+        ageHours: r.acknowledgedAt
+          ? Math.max(0, Math.floor((now - r.acknowledgedAt.getTime()) / 3600_000))
+          : 0,
+      })),
+    },
+    pendingWork: {
+      pendingFollowUps,
+      overdueFollowUps,
+      referralsAwaitingAcknowledgement: awaitingAck,
+    },
+    dataQuality: {
+      emptyIndicatorEncounters7d: emptyIndicatorRows,
+      chvsWithZeroEncounters14d: {
+        count: idleChvLabels.length,
+        labels: idleChvLabels.slice(0, 12),
+      },
+      missedFollowUps,
+    },
   };
 }
 

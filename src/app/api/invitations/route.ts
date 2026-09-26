@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionChv } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { randomBytes } from "crypto";
+import { writeAuditEntry } from "@/lib/triage-store";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +95,20 @@ export async function POST(req: Request) {
       expiresAt,
       chuId: chuId ?? null,
     },
+  });
+
+  // Audit trail (MVP-44): onboarding is a compliance-relevant lifecycle —
+  // every invitation issued is logged (event vocabulary: invitation_created).
+  // De-identified: never the invitee email, only the acting admin's context.
+  await writeAuditEntry({
+    actorId: chv.id,
+    event: "invitation_created",
+    county: chv.county ?? "unknown",
+    ward: chv.ward ?? null,
+    organizationId: chv.organizationId ?? null,
+    authorizationRole: chv.role ?? "chv",
+  }).catch((e) => {
+    console.error("[invitations POST] audit log write failed:", e);
   });
 
   return NextResponse.json(

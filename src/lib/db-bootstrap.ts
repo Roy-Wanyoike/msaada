@@ -100,17 +100,28 @@ async function run(): Promise<BootstrapResult> {
   const { seedCommunityReports } = await import("@/lib/community-report-seed");
   const { seedDemoData } = await import("@/lib/demo-data-seed");
 
-  // Fast path: is the schema present AND current? Probe a table that only
-  // exists in the LATEST schema version (AiActivity shipped with the impact
-  // meter — the newest schema addition). Probing an older table would pass
-  // on databases created before the latest schema change — both here and on
-  // long-lived Vercel /tmp files — and wrongly skip the DDL that creates the
-  // new table and the ALTER TABLE column upgrades. The DDL is idempotent in
-  // practice (CREATE ... IF NOT EXISTS; ALTER failures on duplicate columns
-  // are tolerated), so re-applying it to a partial schema is always safe.
+  // Fast path: is the schema present AND current? Probe the schema artifacts
+  // that only exist in the LATEST schema version. Probing an older table
+  // would pass on databases created before the latest schema change — both
+  // here and on long-lived Vercel /tmp files — and wrongly skip the DDL that
+  // creates the new table and the ALTER TABLE column upgrades. The DDL is
+  // idempotent in practice (CREATE ... IF NOT EXISTS; ALTER failures on
+  // duplicate columns are tolerated), so re-applying it to a partial schema
+  // is always safe.
+  // Probes (keep newest-first as columns ship):
+  //  - AiActivity table (shipped with the impact meter, MVP-31), and
+  //  - AuditLog.organizationId + authorizationRole columns (MVP-44 audit
+  //    org/authz upgrade). findFirst always projects the selected columns,
+  //    so a pre-MVP-44 AuditLog fails this query even when empty — which is
+  //    exactly what forces the ALTER TABLE upgrade path on old databases.
   let schemaReady = false;
   try {
-    await db.aiActivity.findFirst({ select: { id: true } });
+    await Promise.all([
+      db.aiActivity.findFirst({ select: { id: true } }),
+      db.auditLog.findFirst({
+        select: { id: true, organizationId: true, authorizationRole: true },
+      }),
+    ]);
     schemaReady = true;
   } catch {
     schemaReady = false;

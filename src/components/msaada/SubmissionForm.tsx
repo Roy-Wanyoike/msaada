@@ -237,11 +237,13 @@ export function SubmissionForm({
     };
   }, [loadHouseholdDetail, onLogout]);
 
-  // --- Offline draft sync (#18) ------------------------------------------
+  // --- Offline draft sync (#18, rewired by #45) ---------------------------
   // On mount and whenever the device comes back online, push anything still
-  // in the offline draft queue into the Supabase `encounter_drafts` mirror.
-  // Silent unless something actually synced — a false "synced" message when
-  // Supabase is unconfigured or the CHV is signed out would be dishonest.
+  // in the offline draft queue to POST /api/encounters/drafts — the app's
+  // own cookie-authed endpoint, which mirrors the drafts into the Supabase
+  // `encounter_drafts` cloud table server-side. Silent unless something
+  // actually synced — a false "synced" message when the session expired or
+  // Supabase is unconfigured would be dishonest.
   useEffect(() => {
     let cancelled = false;
     const sync = async () => {
@@ -387,12 +389,12 @@ export function SubmissionForm({
       .filter(Boolean)
       .join("\n\n");
 
-    // --- Offline-first draft queue (#18) ---------------------------------
+    // --- Offline-ready draft queue (#18, #45) -----------------------------
     // Write-ahead: queue the draft BEFORE the network attempt. The payload
     // is structured metadata only — raw observation free-text is never
     // persisted (project de-identification rule, on-device or in the cloud).
     // On success the entry is removed; on any failure it stays queued and is
-    // synced by flushDrafts() on mount / window "online".
+    // synced via POST /api/encounters/drafts on mount / window "online".
     setOfflineDraftSaved(false);
     const draftEntry = queueDraft({
       encounterId: encounter.id,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword, setSession } from "@/lib/auth";
 import { generateCode } from "@/lib/identity-types";
+import { writeAuditEntry } from "@/lib/triage-store";
 
 export const dynamic = "force-dynamic";
 
@@ -105,6 +106,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     ? await db.organization.findUnique({ where: { id: invitation.organizationId } })
     : null;
 
+  // County resolution (issue #45): org county first; when the invitation's
+  // org is null or county-less, fall back to the INVITER's county so an
+  // accepted invitation can never yield a county=null user (county-null
+  // non-admins are default-deny in RBAC — they would be locked out of
+  // every county-scoped list). Only a genuinely county-less inviter +
+  // org produces county:null.
+  let resolvedCounty = org?.county ?? null;
+  if (!resolvedCounty && invitation.invitedById) {
+    const inviter = await db.chvUser.findUnique({
+      where: { id: invitation.invitedById },
+      select: { county: true },
+    });
+    resolvedCounty = inviter?.county ?? null;
+  }
+
   const user = await db.chvUser.create({
     data: {
       email: invitation.email,
@@ -114,7 +130,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       authState: "active", // skips verification + device steps for the demo
       organizationId: invitation.organizationId ?? null,
       invitedById: invitation.invitedById,
-      county: org?.county ?? null,
+      county: resolvedCounty,
     },
   });
 
@@ -122,6 +138,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   await db.invitation.update({
     where: { id: invitation.id },
     data: { status: "accepted", acceptedAt: new Date() },
+  });
+
+  // Audit trail (MVP-44): the invitee's account now exists, so the event is
+  // attributed to the NEW user id (no session exists at this point — the
+  // accept link is a public, token-scoped flow). Event vocabulary:
+  // invitation_accepted. Never the invitee email in the audit row.
+  await writeAuditEntry({
+    actorId: user.id,
+    event: "invitation_accepted",
+    county: resolvedCounty ?? "unknown",
+    organizationId: invitation.organizationId ?? null,
+    authorizationRole: user.role ?? "chv",
+  }).catch((e) => {
+    console.error("[invitations accept] audit log write failed:", e);
   });
 
   // Set session.

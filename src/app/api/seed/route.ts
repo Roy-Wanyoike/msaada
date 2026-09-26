@@ -6,7 +6,7 @@ import {
   DEMO_CHV_PASSWORD,
 } from "@/lib/auth";
 import { classifyObservation } from "@/lib/ai/triage";
-import { insertTriageRecord } from "@/lib/triage-store";
+import { insertTriageRecord, writeAuditEntry } from "@/lib/triage-store";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { generateCode } from "@/lib/identity-types";
 import {
@@ -544,6 +544,21 @@ export async function POST(req: Request) {
       } dayOffset=${t.dayOffset}`
     );
   }
+
+  // ---- Audit: ONE row per seed call (MVP-44) — not per row. The seed is
+  // a demo-data load, not a clinical event; a single demo_seed entry keeps
+  // the audit trail honest about provenance without flooding it.
+  await writeAuditEntry({
+    actorId: demoChv.id,
+    event: "demo_seed",
+    county: demoChv.county ?? "Kilifi",
+    ward: demoChv.ward ?? null,
+    classification: `batch:${records.length}`,
+    organizationId: demoChv.organizationId ?? null,
+    authorizationRole: demoChv.role ?? "chv",
+  }).catch((e) => {
+    console.error("[seed] audit log write failed:", e);
+  });
 
   return NextResponse.json(
     {
