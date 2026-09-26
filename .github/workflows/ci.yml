@@ -29,5 +29,8 @@ jobs:
       - name: Typecheck (tsc --noEmit)
         run: bunx tsc --noEmit
 
+      - name: Lint (eslint)
+        run: bunx eslint .
+
       - name: Build (next build, Turbopack)
         run: bun run build
