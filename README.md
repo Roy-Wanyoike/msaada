@@ -197,7 +197,8 @@ The app deploys to Vercel as-is (`next build` with Turbopack). Configure the env
 | `MSAADA_SESSION_SECRET` | Server | **Required.** HMAC key that signs the `msaada_session` cookie — must be ≥ 32 chars (e.g. `openssl rand -base64 48`). Needed for login even in demo mode; without it every login returns `503 SERVER_NOT_CONFIGURED`. |
 | `QWEN_API_KEY` | Server | ModelScope API key for the Qwen chat-completions endpoint. Powers AI triage, report intake, dashboard summaries and follow-up suggestions. |
 | `QWEN_BASE_URL` | Server | Optional. Defaults to `https://api-inference.modelscope.ai/v1`; override for DashScope/Model Studio accounts. |
-| `QWEN_MODEL` | Server | Optional. Defaults to `Qwen-Ambassador/Qwen3.8-Max`. |
+| `QWEN_MODEL` | Server | Optional. Preferred (primary) model. Defaults to `Qwen-Ambassador/Qwen3.8-Max`. |
+| `QWEN_MODEL_CHAIN` | Server | Optional. Comma-separated failover chain, tried in order after the primary. Default: the four Qwen Ambassador chat models (`Qwen3.8-Max`, `Qwen3.8-plus`, `Qwen3.7-Max`, `Qwen3.7-Plus`). On any per-model failure (timeout, 429, 5xx, invalid id, empty) the next model answers; if the whole chain fails, the task's deterministic fallback responds — the user always gets a result in bounded time. `QWEN_TIMEOUT_MS` is the TOTAL budget across the chain. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Client+Server | Supabase project URL (public by design, e.g. `https://mwpyllhgjihvbtmhbbjl.supabase.co`). Unset = the Supabase layer stays off. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Client+Server | Supabase publishable (anon) key — safe to expose in the browser. Never use the `service_role` key here. |
 
@@ -224,7 +225,8 @@ Supabase is an optional enhancement layer. With the two `NEXT_PUBLIC_SUPABASE_*`
 
 ### AI provider notes
 
-- The single model client (`src/lib/ai/client.ts`) talks to the **ModelScope OpenAI-compatible inference API** (Hack for Humanity with Qwen) over plain `fetch` — no SDK dependency. Default model: `Qwen-Ambassador/Qwen3.8-Max` (override with `QWEN_MODEL`).
+- The single model client (`src/lib/ai/client.ts`) talks to the **ModelScope OpenAI-compatible inference API** (Hack for Humanity with Qwen) over plain `fetch` — no SDK dependency. Primary model: `Qwen-Ambassador/Qwen3.8-Max` (override with `QWEN_MODEL`).
+- **Multi-model failover**: unpinned chat calls walk the Ambassador chain (3.8-Max → 3.8-plus → 3.7-Max → 3.7-Plus) inside one time budget — if a model is down, rate-limited or slow, the next answers; every attempt is logged to `AiActivity`, so ok-rate, p50/p95 latency and fallback share per model are measurable on the dashboard's impact meter. When the whole chain fails, the deterministic policy fallback answers — the CHV always gets a result.
 - ModelScope hosts **chat models only** — there is no ASR (speech-to-text) model on that endpoint. `/api/transcribe` therefore returns `501 ASR_NOT_AVAILABLE` and the UI asks the CHV to type the observation instead.
 - Escape hatch for voice notes: point `QWEN_ASR_BASE_URL` (ASR calls only) at DashScope — e.g. `https://dashscope.aliyuncs.com/compatible-mode/v1` with `QWEN_ASR_MODEL=qwen3-asr-flash` — so chat stays on ModelScope while speech-to-text runs on DashScope.
 
