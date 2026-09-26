@@ -186,7 +186,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<anon key>  # community-report mirror
 - CHV: `demo@msaada.health` / `msaada123`
 - County Admin (powers the `/admin` onboarding demo): `county.admin@msaada.health` / `msaada123`
 
-**Demo data** (also seeded automatically, idempotent by stable codes — safe on every cold start): a Kilifi County organization + Malindi Town CHU, 4 households with 6 members for the demo CHV, 5 backdated encounters (9 days → today, mixed text/voice capture, online/offline/intermittent connectivity) with structured triage verdicts covering every workflow class (routine, needs_followup, needs_facility_referral, crisis_override), 2 referrals (one completed, one in-progress emergency), 3 follow-ups, audit-log entries, and 4 community reports with response cases. Dashboards, households, referrals, follow-ups and the audit page are all populated the moment you sign in — no Qwen calls needed. `POST /api/seed` remains available for extra Qwen-generated synthetic transcripts.
+**Demo data** (also seeded automatically, idempotent by stable codes — safe on every cold start): a Kilifi County organization + Malindi Town CHU, 8 households with 14 members for the demo CHV, 16 backdated encounters (9 days → today, mixed text/voice capture, online/offline/intermittent connectivity) with structured triage verdicts covering every workflow class (routine, needs_followup, needs_facility_referral, crisis_override) — each with its English next action **and its Kiswahili equivalent** — 5 referrals across the referral lifecycle, 6 follow-ups, audit-log entries, and 4 community reports with response cases. Dashboards, households, referrals, follow-ups and the audit page are all populated the moment you sign in — no Qwen calls needed. `POST /api/seed` remains available for extra Qwen-generated synthetic transcripts.
 
 **Tech Stack:** Next.js 16 (App Router, TypeScript) + Qwen (ModelScope OpenAI-compatible API) + Supabase (client helpers + session proxy) + Prisma + Tailwind CSS 4 + shadcn/ui + Recharts
 
@@ -251,8 +251,8 @@ Supabase is an optional enhancement layer. With the two `NEXT_PUBLIC_SUPABASE_*`
 
 - The single model client (`src/lib/ai/client.ts`) talks to the **ModelScope OpenAI-compatible inference API** (Hack for Humanity with Qwen) over plain `fetch` — no SDK dependency. Primary model: `Qwen-Ambassador/Qwen3.8-Max` (override with `QWEN_MODEL`).
 - **Multi-model failover**: unpinned chat calls walk the Ambassador chain (3.8-Max → 3.8-plus → 3.7-Max → 3.7-Plus) inside one time budget — if a model is down, rate-limited or slow, the next answers; every attempt is logged to `AiActivity`, so ok-rate, p50/p95 latency and fallback share per model are measurable on the dashboard's impact meter. When the whole chain fails, the deterministic policy fallback answers — the CHV always gets a result.
-- ModelScope hosts **chat models only** — there is no ASR (speech-to-text) model on that endpoint. `/api/transcribe` therefore returns `501 ASR_NOT_AVAILABLE` and the UI asks the CHV to type the observation instead.
-- Escape hatch for voice notes: point `QWEN_ASR_BASE_URL` (ASR calls only) at DashScope — e.g. `https://dashscope.aliyuncs.com/compatible-mode/v1` with `QWEN_ASR_MODEL=qwen3-asr-flash` — so chat stays on ModelScope while speech-to-text runs on DashScope.
+- **Voice-first capture works on ModelScope today**: set `QWEN_ASR_MODEL=Qwen-Ambassador/Qwen3.8-Omni-Flash` (same key, same endpoint as chat — `QWEN_ASR_BASE_URL` stays empty) and `/api/transcribe` runs live speech-to-text, verified end-to-end (Kiswahili/Sheng/English, code-switch aware). Audio and transcripts are never persisted.
+- Alternative: dedicated ASR models (e.g. `qwen3-asr-flash`) via DashScope — point `QWEN_ASR_BASE_URL` at `https://dashscope.aliyuncs.com/compatible-mode/v1`. On ModelScope, omni models are the supported route.
 
 ---
 
