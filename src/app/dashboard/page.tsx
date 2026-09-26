@@ -30,6 +30,7 @@ import { CountyTable } from "@/components/msaada/county-table";
 import { AuditStrip } from "@/components/msaada/AuditStrip";
 import { AppNav } from "@/components/msaada/AppNav";
 import { AiSummaryCard } from "@/components/msaada/AiSummaryCard";
+import { QwenImpactCard } from "@/components/msaada/QwenImpactCard";
 import { FollowUpKpiCard } from "@/components/msaada/FollowUpKpiCard";
 import { CommunityIntelligenceWidget } from "@/components/msaada/CommunityIntelligenceWidget";
 
@@ -644,7 +645,14 @@ function DashboardView({
       ) : null}
 
       {/* AI briefing (on demand) — resets when the range or scope changes. */}
-      <AiSummaryCard key={`${days}-${scope.mode}`} days={days} scope={scope.mode} />
+      <AiSummaryCard
+        key={`${days}-${scope.mode}`}
+        endpoint={`/api/dashboard/summary?days=${days}&scope=${scope.mode}`}
+        title="Qwen county briefing"
+      />
+
+      {/* How much of the workflow Qwen performs, with live evidence. */}
+      <QwenImpactCard days={days} />
 
       {/* Insights */}
       <section aria-label="Insight callouts" aria-live="polite">

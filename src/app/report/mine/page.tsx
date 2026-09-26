@@ -21,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { AppNav } from "@/components/msaada/AppNav";
+import { AiSummaryCard } from "@/components/msaada/AiSummaryCard";
 import type { TriageRecordDTO, Classification } from "@/lib/types";
 
 interface ChvStats {
@@ -222,6 +223,13 @@ export default function ReportPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Qwen-written narrative of the week (prints with the report). */}
+              <AiSummaryCard
+                endpoint="/api/stats/mine/weekly"
+                title="Your week, written by Qwen"
+                description="A short summary of your own numbers, ready to share with your supervisor."
+              />
 
               {/* Breakdown bar */}
               <Card className="px-4 py-4 sm:px-6">

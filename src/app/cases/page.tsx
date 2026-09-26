@@ -56,7 +56,7 @@ import { AppNav } from "@/components/msaada/AppNav";
  *
  * All mutations go through the REST API (no server actions):
  *   GET   /api/response-cases           — list (auth-scoped to the CHV)
- *   PATCH /api/response-cases/[id]?action=accept|start|attend|resolve|unable_to_reach
+ *   PATCH /api/response-cases/[id]   body: { action: accept|start|attend|resolve|unable_to_reach, resolutionNote? }
  *
  * The "resolve" action opens an inline resolution-note textarea (the note
  * is PII-scrubbed server-side before persistence — same invariant as
@@ -99,6 +99,7 @@ interface ResponseCaseDTO {
     questionsForVisit: string[];
     missingInformation: string[];
   } | null;
+  aiOutcome: { category: string; summary: string } | null;
 }
 
 type StatusFilter =
@@ -314,12 +315,14 @@ export default function CasesPage() {
   ) {
     setActioningId(c.id);
     try {
-      const body =
+      // The API reads the action from the JSON body (not the query string).
+      const body = JSON.stringify(
         action === "resolve"
-          ? JSON.stringify({ resolutionNote: note?.trim() || undefined })
-          : "{}";
+          ? { action, resolutionNote: note?.trim() || undefined }
+          : { action }
+      );
       const res = await fetch(
-        `/api/response-cases/${c.id}?action=${action}`,
+        `/api/response-cases/${encodeURIComponent(c.id)}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -823,6 +826,15 @@ function CaseCard({
               <p className="mt-0.5 text-xs text-foreground/90">
                 {c.resolutionNote}
               </p>
+              {c.aiOutcome && (
+                <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                  <Sparkles className="size-3 text-primary" aria-hidden />
+                  <span className="rounded bg-accent px-1.5 py-0.5 font-medium text-accent-foreground">
+                    {c.aiOutcome.category.replace(/_/g, " ")}
+                  </span>
+                  {c.aiOutcome.summary}
+                </p>
+              )}
             </div>
           )}
 

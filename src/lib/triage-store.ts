@@ -44,6 +44,8 @@ export async function insertTriageRecord(args: {
       encounterId: encounterId ?? null,
       aiModel: aiModel ?? null,
       promptVersion: promptVersion ?? null,
+      aiReasoning: isCrisis ? null : output.reasoning ?? null,
+      chpNextActionSw: isCrisis ? null : output.chp_next_action_sw ?? null,
       chpInstruction: isCrisis ? output.chp_instruction : null,
       crisisLine: isCrisis ? output.crisis_line : null,
       confidenceNote: isCrisis
@@ -73,6 +75,9 @@ function toDTO(
     crisisLine: string | null;
     confidenceNote: string | null;
     encounterId: string | null;
+    aiReasoning?: string | null;
+    chpNextActionSw?: string | null;
+    aiModel?: string | null;
   }
 ): TriageRecordDTO {
   let indicators: string[] = [];
@@ -97,6 +102,9 @@ function toDTO(
     confidenceNote: row.confidenceNote,
     fallbackUsed: row.fallbackUsed,
     encounterId: row.encounterId,
+    aiReasoning: row.aiReasoning ?? null,
+    chpNextActionSw: row.chpNextActionSw ?? null,
+    aiModel: row.aiModel ?? null,
   };
 }
 

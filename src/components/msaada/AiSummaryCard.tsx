@@ -15,17 +15,27 @@ interface Summary {
 
 const ERROR_MESSAGES: Record<string, string> = {
   AI_NOT_CONFIGURED: "AI summaries aren't set up on this server yet.",
+  FORBIDDEN: "Your role can't generate this briefing.",
   NO_DATA: "There's no data in this period to summarise.",
   RATE_LIMITED: "Too many requests. Try again in a minute.",
   UNAUTHORIZED: "Sign in to generate a summary.",
 };
 
 /**
- * On-demand AI briefing of the dashboard's aggregate numbers. Generated only
- * when asked (each call costs model tokens); the server caches for 10 min.
- * Keyed by the parent on days + scope so a filter change resets it.
+ * On-demand Qwen briefing card. Generated only when asked (each call costs
+ * model tokens). `endpoint` must return { summary: {headline, points,
+ * watch, model, generatedAt} }; a `refresh=1` param is added on Regenerate.
+ * Parents key it on their filters so a filter change resets it.
  */
-export function AiSummaryCard({ days, scope }: { days: number; scope: "mine" | "all" }) {
+export function AiSummaryCard({
+  endpoint,
+  title = "AI summary",
+  description = "Written from the aggregate numbers on this page. Check against the charts.",
+}: {
+  endpoint: string;
+  title?: string;
+  description?: string;
+}) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,9 +44,9 @@ export function AiSummaryCard({ days, scope }: { days: number; scope: "mine" | "
     setLoading(true);
     setError(null);
     try {
-      const qs = new URLSearchParams({ days: String(days), scope });
-      if (refresh) qs.set("refresh", "1");
-      const res = await fetch(`/api/dashboard/summary?${qs}`, { cache: "no-store" });
+      const url = new URL(endpoint, window.location.origin);
+      if (refresh) url.searchParams.set("refresh", "1");
+      const res = await fetch(url, { cache: "no-store" });
       const data = (await res.json().catch(() => ({}))) as { summary?: Summary; error?: string };
       if (!res.ok || !data.summary) {
         setError((data.error && ERROR_MESSAGES[data.error]) ?? "Couldn't generate a summary. Try again.");
@@ -58,10 +68,8 @@ export function AiSummaryCard({ days, scope }: { days: number; scope: "mine" | "
             <Sparkles className="size-4" aria-hidden />
           </span>
           <div>
-            <p className="text-sm font-semibold text-foreground">AI summary</p>
-            <p className="text-xs text-muted-foreground">
-              Written from the aggregate numbers on this page. Check against the charts.
-            </p>
+            <p className="text-sm font-semibold text-foreground">{title}</p>
+            <p className="text-xs text-muted-foreground">{description}</p>
           </div>
         </div>
         <Button

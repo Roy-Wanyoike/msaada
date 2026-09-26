@@ -79,6 +79,7 @@ export async function suggestFollowUpQuestions(
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const { content, model } = await qwenChat({
+        task: "followup_questions",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: JSON.stringify(data) },

@@ -7,6 +7,8 @@ import {
 } from "@/lib/community-report-store";
 import { db } from "@/lib/db";
 import { scrubPII } from "@/lib/pii-scrub";
+import { privacyScan } from "@/lib/ai/privacy";
+import { structureCaseOutcome, type CaseOutcome } from "@/lib/ai/case-ops";
 import type { ResponseCaseDTO } from "@/lib/community-report-types";
 
 export const dynamic = "force-dynamic";
@@ -164,6 +166,8 @@ export async function PATCH(
       const trimmed = resolutionNote.trim();
       if (trimmed) {
         const capped = trimmed.slice(0, MAX_RESOLUTION_NOTE_LEN);
+        // Regex scrub now; Qwen's second pass runs after the ownership
+        // checks below, so rejected requests never reach the model.
         note = scrubPII(capped).redacted;
       }
     }
@@ -239,6 +243,14 @@ export async function PATCH(
       );
     }
 
+    // Qwen: catch names/places the regex missed, and (on resolve) turn the
+    // free-text note into a structured outcome for reporting.
+    let outcome: CaseOutcome | null = null;
+    if (note) {
+      note = (await privacyScan(note)).text;
+      if (action === "resolve") outcome = await structureCaseOutcome(note);
+    }
+
     let updated: ResponseCaseDTO | null;
     if (action === "accept") {
       updated = await acceptCaseAssignment(id, chv.id);
@@ -250,6 +262,7 @@ export async function PATCH(
         status: targetStatus,
         resolutionNote: note,
         encounterId: encounter,
+        outcome,
       });
     }
 

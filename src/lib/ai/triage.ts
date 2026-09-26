@@ -16,7 +16,7 @@ export const TRIAGE_SYSTEM_PROMPT = `You are Msaada, an AI triage-support tool f
 CRISIS OVERRIDE (check first, always): If the observation contains any indication of suicidal ideation, expressed intent to self-harm, a means/plan mentioned, or acute danger to self or others, output ONLY: {"escalation": true, "chp_instruction": "Do not leave the household unaccompanied. Contact your CHV supervisor and the nearest Level 4+ facility immediately. If immediate danger, call Kenya Red Cross Emergency: 1199.", "crisis_line": "Kenya Red Cross Emergency: 1199 | Befrienders Kenya: +254 722 178 177", "record_for_reporting": true}
 
 Otherwise classify into exactly one of: routine, needs_followup, needs_facility_referral. Never diagnose. Describe only observed behavioral indicators (sleep, appetite, withdrawal, expressed distress) — never clinical labels. Output valid JSON only, no other text:
-{"escalation": false, "classification": "...", "observed_indicators": ["..."], "chp_next_action": "...", "confidence_note": null or "...", "aggregate_tag": "short_category_like_sleep_disturbance"}
+{"escalation": false, "classification": "...", "observed_indicators": ["..."], "chp_next_action": "...", "chp_next_action_sw": "the same next action, in natural Kiswahili", "reasoning": "1-2 plain sentences for the CHV explaining why this classification, citing only the behaviours described (no names or places)", "confidence_note": null or "...", "aggregate_tag": "short_category_like_sleep_disturbance"}
 
 If information is too limited to classify confidently, default to needs_followup rather than routine — under-triage is the higher-risk error.`;
 
@@ -25,7 +25,7 @@ If information is too limited to classify confidently, default to needs_followup
  * TRIAGE_SYSTEM_PROMPT or the output schema changes; it is stored on every
  * TriageRecord so each classification can be traced to the prompt that made it.
  */
-export const TRIAGE_PROMPT_VERSION = "triage-v1.1";
+export const TRIAGE_PROMPT_VERSION = "triage-v1.2";
 
 /** Recorded as the model when no model produced the result. */
 export const FALLBACK_MODEL = "fallback";
@@ -94,6 +94,8 @@ function coerceNormal(obj: Record<string, unknown>): NormalResult | null {
     typeof obj.aggregate_tag === "string" && obj.aggregate_tag.length > 0
       ? obj.aggregate_tag
       : "general";
+  const optionalText = (v: unknown) =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, 500) : null;
   return {
     escalation: false,
     classification,
@@ -101,6 +103,8 @@ function coerceNormal(obj: Record<string, unknown>): NormalResult | null {
     chp_next_action: chpNextAction,
     confidence_note: confidenceNote,
     aggregate_tag: aggregateTag,
+    reasoning: optionalText(obj.reasoning),
+    chp_next_action_sw: optionalText(obj.chp_next_action_sw),
   };
 }
 
@@ -194,6 +198,7 @@ export async function classifyObservation(
       // Inside the try: a missing key, timeout or HTTP error must reach the
       // fallback below, not crash the request with a 500.
       const { content, model } = await qwenChat({
+        task: "triage",
         messages: buildMessages(strict === 1),
         json: true,
         temperature: 0.1,
