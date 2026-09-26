@@ -176,6 +176,14 @@ export async function setSession(chvId: string) {
     store.set(SESSION_COOKIE, token, {
       httpOnly: true,
       sameSite: "lax",
+      // Secure in production: Vercel serves HTTPS at the edge, so the session
+      // cookie must never transit a plaintext connection there. Local dev
+      // (NODE_ENV=development) keeps the flag off so plain http://localhost
+      // works. The smoke gate (scripts/verify.sh) runs NODE_ENV=production
+      // against http://localhost:3311 — unaffected, because curl treats
+      // localhost as a secure context and still replays Secure cookies
+      // (verified with curl 8.x; CI ubuntu-latest ships ≥ 8.x).
+      secure: process.env.NODE_ENV === "production",
       path: "/",
       maxAge: SESSION_TTL,
     });
