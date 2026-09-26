@@ -335,7 +335,7 @@ export default function SupervisorPage() {
       <footer className="mt-auto border-t bg-background/80 backdrop-blur" role="contentinfo">
         <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-6 lg:px-8">
           <p className="text-center text-xs text-muted-foreground sm:text-left">
-            Msaada supervisor roster · De-identified per-CHV aggregates · TODO: supervisor RBAC role for production
+            Msaada supervisor roster · De-identified per-CHV aggregates · Supervisor RBAC: production roadmap
           </p>
         </div>
       </footer>

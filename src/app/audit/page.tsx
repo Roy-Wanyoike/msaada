@@ -408,7 +408,7 @@ export default function AuditPage() {
         <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-6 lg:px-8">
           <p className="text-center text-xs text-muted-foreground sm:text-left">
             Msaada audit log · Compliance trail · De-identified (truncated CHV
-            labels, no observation text) · TODO: RBAC for compliance-officer role
+            labels, no observation text) · Compliance-officer RBAC: production roadmap
           </p>
         </div>
       </footer>

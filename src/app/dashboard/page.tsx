@@ -571,7 +571,7 @@ function DashboardView({
           <span>
             <span className="font-medium text-foreground">Demo mode:</span>{" "}
             showing all counties. Production would require a county-official
-            role for this view (RBAC TODO).
+            role for this view (planned county-official RBAC).
           </span>
         </div>
       )}
