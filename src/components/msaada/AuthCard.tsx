@@ -63,7 +63,7 @@ function authErrorDescription(error: string | undefined): string {
     case "RATE_LIMITED":
       return "Too many attempts. Wait a minute and try again.";
     case "SERVER_NOT_CONFIGURED":
-      return "Server configuration problem: the deployment is missing MSAADA_SESSION_SECRET (a ≥32-char secret). This is not a credentials issue — set the env var and redeploy.";
+      return "A server configuration problem blocked sign-in (rare since login now works without MSAADA_SESSION_SECRET). This is not a credentials issue — check /status for the exact probe and redeploy.";
     case "SERVER_ERROR":
       return "Authentication is temporarily unavailable. Try again shortly.";
     default:

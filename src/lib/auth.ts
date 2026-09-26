@@ -19,28 +19,45 @@ import {
 const SESSION_COOKIE = "msaada_session";
 const SESSION_TTL = 60 * 60 * 24 * 7; // 7 days
 
-// Demo-only fallback secret. NEVER rely on this in production — anyone who
-// reads the source could mint session tokens. Production MUST set
-// MSAADA_SESSION_SECRET to a high-entropy random value (>= 32 chars) and
-// rotate it as part of standard secret management.
+// Demo-only fallback secret (development only). Production never uses this —
+// see resolveSessionSecret: a production boot without MSAADA_SESSION_SECRET
+// mints its own high-entropy EPHEMERAL secret instead of falling back to a
+// forgeable constant.
 const DEFAULT_SESSION_SECRET =
   "msaada-demo-session-secret-do-not-use-in-production-8f3a9c2b7e1d";
 
-function resolveSessionSecret(): string {
+export type SessionSecretMode = "configured" | "ephemeral" | "demo";
+
+function resolveSessionSecret(): {
+  secret: string;
+  mode: SessionSecretMode;
+} {
   const envSecret = process.env.MSAADA_SESSION_SECRET;
-  if (envSecret && envSecret.length >= 32) return envSecret;
-  if (process.env.NODE_ENV === "production") {
-    // Production MUST set a strong secret — anyone with the source can
-    // otherwise compute HMAC-SHA256(DEFAULT_SESSION_SECRET, payload) and
-    // mint a valid session token for any CHV/supervisor/admin id (the token
-    // is just base64url(payload).base64url(hmac)). Fail fast so a deployed
-    // instance without the env var refuses to boot, rather than silently
-    // running with a forgeable secret.
-    throw new Error(
-      "FATAL: MSAADA_SESSION_SECRET must be set to a >=32 char string in production."
-    );
+  if (envSecret && envSecret.length >= 32) {
+    return { secret: envSecret, mode: "configured" };
   }
-  return DEFAULT_SESSION_SECRET;
+  if (process.env.NODE_ENV === "production") {
+    // Production without a usable MSAADA_SESSION_SECRET: mint a fresh,
+    // high-entropy (384-bit) EPHEMERAL secret for this process instead of
+    // failing every login with 503 SERVER_NOT_CONFIGURED (the old behavior,
+    // which wall-locked the deployed demo behind a single env var for its
+    // whole lifetime). Trade-off, deliberately accepted and surfaced on
+    // /status + /api/health: sessions are only valid for THIS process — a
+    // cold start or redeploy rotates the secret, so users simply sign in
+    // again. Nothing is weakened against attackers: the secret is random,
+    // never persisted, never logged; password hashing, rate limiting, and
+    // DB-backed revocation are unchanged. Set MSAADA_SESSION_SECRET to a
+    // >=32 char string for sessions that survive restarts.
+    const ephemeral = randomBytes(48).toString("base64");
+    console.warn(
+      "[msaada] MSAADA_SESSION_SECRET is not set (or shorter than 32 chars) — " +
+        "using an EPHEMERAL per-boot session secret. Login works, but sessions " +
+        "reset when this instance restarts. Set MSAADA_SESSION_SECRET (>=32 " +
+        "chars) for stable sessions."
+    );
+    return { secret: ephemeral, mode: "ephemeral" };
+  }
+  return { secret: DEFAULT_SESSION_SECRET, mode: "demo" };
 }
 
 // Lazy, memoized resolution. This module is imported by API routes that Next
@@ -51,12 +68,26 @@ function resolveSessionSecret(): string {
 // builds succeed, and a production instance that actually handles a session
 // request without the env var still fails fast (the guard is unchanged).
 let cachedSecret: string | null = null;
+let cachedMode: SessionSecretMode | null = null;
 
 function sessionSecret(): string {
   if (cachedSecret === null) {
-    cachedSecret = resolveSessionSecret();
+    const resolved = resolveSessionSecret();
+    cachedSecret = resolved.secret;
+    cachedMode = resolved.mode;
   }
   return cachedSecret;
+}
+
+/**
+ * How the signing secret was resolved — "configured" (env var, stable
+ * across restarts), "ephemeral" (production fallback: random per boot,
+ * login works but sessions reset on restart) or "demo" (development
+ * fallback). Informational only: never expose the secret itself.
+ */
+export function sessionSecretMode(): SessionSecretMode {
+  sessionSecret(); // ensure resolution
+  return cachedMode!;
 }
 
 /**

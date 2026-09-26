@@ -22,8 +22,9 @@
 import { db } from "@/lib/db";
 import { qwenConfigured } from "@/lib/ai/client";
 import { supabaseConfig } from "@/utils/supabase/config";
+import { sessionSecretMode, type SessionSecretMode } from "@/lib/auth";
 
-export const HEALTH_VERSION = "1.0.0";
+export const HEALTH_VERSION = "1.1.0";
 
 export type CheckStatus = "ok" | "error" | "not_configured";
 
@@ -36,6 +37,11 @@ export interface Checks {
 export interface HealthReport {
   status: "ok" | "degraded";
   checks: Checks;
+  /** Informational only — how the session-signing secret was resolved.
+   *  "ephemeral" means login works but sessions reset on server restart.
+   *  Deliberately OUTSIDE `checks`: it never affects the ok/degraded
+   *  verdict and never exposes any secret material. */
+  sessionSecret: SessionSecretMode;
   timestamp: string;
   version: string;
 }
@@ -132,6 +138,7 @@ export async function runHealthChecks(): Promise<HealthReport> {
   return {
     status,
     checks,
+    sessionSecret: sessionSecretMode(),
     timestamp: new Date().toISOString(),
     version: HEALTH_VERSION,
   };
