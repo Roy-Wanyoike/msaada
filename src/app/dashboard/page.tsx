@@ -33,6 +33,7 @@ import { AiSummaryCard } from "@/components/msaada/AiSummaryCard";
 import { QwenImpactCard } from "@/components/msaada/QwenImpactCard";
 import { FollowUpKpiCard } from "@/components/msaada/FollowUpKpiCard";
 import { CommunityIntelligenceWidget } from "@/components/msaada/CommunityIntelligenceWidget";
+import { EarlyWarningPanel } from "@/components/msaada/EarlyWarningPanel";
 
 // Code-split the Recharts chart components — the dashboard's heavy bundle
 // (4 charts + table + KPIs in one client component) was OOM-crashing
@@ -666,6 +667,10 @@ function DashboardView({
           }
         />
       </section>
+
+      {/* Early-warning signals (MVP-43) — deterministic aggregate change
+          detection; flags unusual shifts for human investigation only. */}
+      <EarlyWarningPanel scopeMode={scope.mode} />
 
       {/* Charts — 1-col mobile, 2-col lg */}
       <section aria-label="Aggregate charts" className="space-y-4">
