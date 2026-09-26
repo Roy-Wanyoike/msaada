@@ -8,6 +8,7 @@ import {
   DEMO_ADMIN_PASSWORD,
 } from "@/lib/auth";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { isDemoMode } from "@/lib/deployment-mode";
 
 // Cookie/DB writes → never static.
 export const dynamic = "force-dynamic";
@@ -20,6 +21,10 @@ export const dynamic = "force-dynamic";
  * TODO (production): remove this route or gate behind a feature flag.
  */
 export async function POST() {
+  if (!isDemoMode()) {
+    return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  }
+
   const supabase = createAdminClient();
   if (!supabase) {
     return NextResponse.json(

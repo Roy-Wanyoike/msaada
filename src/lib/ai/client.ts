@@ -26,8 +26,8 @@
  *                  (all chain attempts), default 15000. Each attempt gets a
  *                  fraction of the remaining budget; the last attempt gets
  *                  what's left (min 2s).
- *   QWEN_ASR_MODEL optional. Speech-to-text model, default "qwen3-asr-flash"
- *                  (NOT hosted on ModelScope — see transcribe.ts).
+ *   QWEN_ASR_MODEL optional. Speech-to-text model, default
+ *                  "Qwen-Ambassador/Qwen3.8-Omni-Flash" on ModelScope.
  *   QWEN_ASR_BASE_URL optional. Endpoint override for ASR calls only, so a
  *                  DashScope key can be used for speech-to-text while chat
  *                  runs on ModelScope.

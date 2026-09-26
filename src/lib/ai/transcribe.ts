@@ -22,7 +22,9 @@ import { qwenChat, type ChatMessage } from "@/lib/ai/client";
  * written instruction and may answer NO_SPEECH.
  */
 
-const DEFAULT_ASR_MODEL = "qwen3-asr-flash";
+// ModelScope-compatible default. Dedicated qwen3-asr-flash deployments still
+// work by setting QWEN_ASR_MODEL + QWEN_ASR_BASE_URL explicitly.
+const DEFAULT_ASR_MODEL = "Qwen-Ambassador/Qwen3.8-Omni-Flash";
 
 /** Max upload size accepted by /api/transcribe (base64 inflates by ~33%). */
 export const MAX_AUDIO_BYTES = 8 * 1024 * 1024;

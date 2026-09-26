@@ -5,11 +5,9 @@
  *   - community_reports   durable mirror of accepted public reports
  *   - encounter_drafts    cloud copy of queued offline encounter drafts
  *
- * SECURITY POSTURE (repo policy): these calls run server-side with the
- * publishable (anon) key ONLY — the same two NEXT_PUBLIC_SUPABASE_* vars the
- * browser uses. The service/secret role key NEVER appears in app code. The
- * anon role is allowed to INSERT these rows by the RLS policies in
- * supabase/schema.sql; it can never read them back.
+ * SECURITY POSTURE: these calls run server-side with the secret/service-role
+ * key. The mirror tables expose no anon/authenticated policies, so callers
+ * cannot bypass the first-party API's validation, PII scrubber or rate limit.
  *
  * Reliability contract: every mirror write is best-effort. Callers run these
  * fire-and-forget — a Supabase outage, misconfiguration or timeout must never
@@ -20,10 +18,20 @@
  * Raw error bodies are never logged (they can embed URLs or auth details).
  */
 
+import "server-only";
+
 import { supabaseConfig } from "@/utils/supabase/config";
 
 /** Bounded so a hung Supabase can never pin a request slot or timer. */
 const MIRROR_TIMEOUT_MS = 5_000;
+
+function mirrorConfig(): { url: string; secretKey: string } | null {
+  const config = supabaseConfig();
+  const secretKey =
+    process.env.SUPABASE_SECRET_KEY?.trim() ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  return config && secretKey ? { url: config.url, secretKey } : null;
+}
 
 /** Columns of supabase/schema.sql §2 (community_reports) we write. */
 export interface CommunityReportMirrorRow {
@@ -50,7 +58,7 @@ export interface CommunityReportMirrorRow {
 export async function mirrorCommunityReport(
   row: CommunityReportMirrorRow
 ): Promise<"inserted" | "skipped"> {
-  const config = supabaseConfig();
+  const config = mirrorConfig();
   if (!config) return "skipped";
 
   const res = await fetch(
@@ -58,8 +66,8 @@ export async function mirrorCommunityReport(
     {
       method: "POST",
       headers: {
-        apikey: config.publishableKey,
-        Authorization: `Bearer ${config.publishableKey}`,
+        apikey: config.secretKey,
+        Authorization: `Bearer ${config.secretKey}`,
         "Content-Type": "application/json",
         Prefer: "return=minimal,resolution=ignore-duplicates",
       },
@@ -108,7 +116,7 @@ export interface EncounterDraftMirrorRow {
 export async function mirrorEncounterDrafts(
   drafts: EncounterDraftMirrorRow[]
 ): Promise<number | null> {
-  const config = supabaseConfig();
+  const config = mirrorConfig();
   if (!config) return null;
   if (drafts.length === 0) return 0;
 
@@ -117,8 +125,8 @@ export async function mirrorEncounterDrafts(
     {
       method: "POST",
       headers: {
-        apikey: config.publishableKey,
-        Authorization: `Bearer ${config.publishableKey}`,
+        apikey: config.secretKey,
+        Authorization: `Bearer ${config.secretKey}`,
         "Content-Type": "application/json",
         Prefer: "return=representation,resolution=ignore-duplicates",
       },

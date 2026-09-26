@@ -7,6 +7,7 @@ import {
 import { classifyObservation } from "@/lib/ai/triage";
 import { insertTriageRecord, writeAuditEntry } from "@/lib/triage-store";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { isDemoMode } from "@/lib/deployment-mode";
 import { generateCode } from "@/lib/identity-types";
 import {
   evaluatePolicy,
@@ -347,6 +348,10 @@ function toInterpretation(
 }
 
 export async function POST(req: Request) {
+  if (!isDemoMode()) {
+    return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  }
+
   // Rate-limit per request IP. Each seed call spawns 9 Qwen LLM calls
   // (~12-15s each = ~2+ minutes of LLM compute) + 9 encounter/record/
   // referral writes + 9 raw-SQL backdates. Without a limit a single

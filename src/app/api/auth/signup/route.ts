@@ -8,6 +8,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { COUNTIES, WARDS, type County } from "@/lib/types";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { createClient as createSupabaseClient } from "@/utils/supabase/server";
+import { isDemoMode } from "@/lib/deployment-mode";
 
 // Cookie-session writes → never static.
 export const dynamic = "force-dynamic";
@@ -28,6 +29,12 @@ function bad(error: string, field?: string) {
  * yet (the account is being created), so the rate-limit key is IP-only.
  */
 export async function POST(req: Request) {
+  // Production onboarding is invitation-only. Direct self-signup exists only
+  // for the local/demo experience and is closed by default in production.
+  if (!isDemoMode()) {
+    return NextResponse.json({ error: "SIGNUP_DISABLED" }, { status: 403 });
+  }
+
   // Rate-limit BEFORE any DB query. Email may not exist yet (the account is
   // being created), so key on IP alone. See src/lib/auth.ts →
   // rateLimitIdentifier for the rationale.
