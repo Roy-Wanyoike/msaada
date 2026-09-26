@@ -2,7 +2,31 @@
 
 > *Msaada* — "help" / "assistance" in Swahili.
 
+## Turn frontline voices into actionable health intelligence
+
 **Msaada is an AI-powered, offline-first Community Health Intelligence Platform designed to strengthen the connection between Community Health Volunteers (CHVs), households, health facilities, county health teams, and the Ministry of Health.**
+
+**Voice-first • Qwen-powered • Human-verified • Safety-controlled • Offline-ready**
+
+Every visit follows the same loop — from a spoken sentence in the field to a signal a county team can act on:
+
+**Community → CHV voice → Qwen → structured signal → human confirmation → safe action → referral / follow-up → population intelligence**
+
+The AI never makes the final safety decision. Qwen structures what the CHV observed — in **Kiswahili, Sheng, English or code-switched speech** — and Msaada's deterministic safety engine decides what operational action is permitted, with a human confirming the AI-generated record. Qwen demonstrates the AI innovation; Msaada demonstrates why that AI matters.
+
+---
+
+## The one-minute pitch
+
+> Across Kenya, Community Health Volunteers are already visiting households every day. They hear things that matter — but much of that information is captured manually, inconsistently, or too late for supervisors to act on. **Msaada changes that.**
+>
+> A CHV can simply speak after a household visit — in Kiswahili, Sheng, English or a mixture of them. Msaada uses Qwen AI to turn that natural conversation into structured observations, identify missing information and surface operational follow-up signals.
+>
+> But AI doesn't make the final safety decision. Msaada's deterministic safety and workflow engine controls escalation, while a human confirms the AI-generated record.
+>
+> That turns a frontline conversation into an actionable workflow: observation, triage, assignment, referral, follow-up — and eventually population-level intelligence.
+>
+> The result is a system that doesn't replace community health workers — it gives them an intelligent field layer and gives health teams visibility into what is happening across their communities. Our vision is simple: **turn frontline voices into actionable community health intelligence.**
 
 ---
 
