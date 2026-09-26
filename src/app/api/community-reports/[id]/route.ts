@@ -36,8 +36,8 @@ const ADMIN_ROLES = new Set([
  * filed in their own session county. A cross-county single-fetch
  * returns 403 (`COUNTY_MISMATCH`). The store-level `getReport(id)`
  * returns any row by ID — the scoping MUST happen at this route
- * boundary (mirrors the Postgres-RLS-equivalent promise in the worklog
- * and matches the list-route treatment in `route.ts`).
+ * boundary (mirrors the Postgres-RLS-equivalent promise documented in the
+ * README and matches the list-route treatment in `route.ts`).
  *
  * Returns 401 if no session, 400 if id is empty, 404 if the report does
  * not exist, 403 if the report exists but is outside the caller's county

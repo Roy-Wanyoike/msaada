@@ -143,7 +143,7 @@ Working hackathon MVP built with Next.js + Qwen AI. End-to-end functional with s
 **Prerequisites:** Node.js 20+ (`node -v`). On Windows, run npm scripts from a **Git Bash** terminal in VS Code (they use `tee`/`cp`).
 
 ```bash
-npm install            # or: bun install
+bun install            # canonical — bun.lock is committed; npm is NOT pinned (package-lock.json is intentionally ignored) and may drift on transitive dev deps (e.g. newer lint plugins can fail `npm run lint` until realigned with bun.lock)
 npx prisma generate
 npm run dev            # → http://localhost:3000
 ```
