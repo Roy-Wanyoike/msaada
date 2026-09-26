@@ -9,11 +9,23 @@
  * Configuration (server-only env vars — put secrets in .env.local, which is
  * git-ignored):
  *   QWEN_API_KEY   required. ModelScope API key.
- *   QWEN_MODEL     optional. Default "Qwen-Ambassador/Qwen3.8-Max".
+ *   QWEN_MODEL     optional. Preferred (primary) model. Default
+ *                  "Qwen-Ambassador/Qwen3.8-Max".
+ *   QWEN_MODEL_CHAIN optional. Comma-separated failover chain, tried in
+ *                  order after the primary. Default: the four Qwen
+ *                  Ambassador chat models (3.8-Max, 3.8-plus, 3.7-Max,
+ *                  3.7-Plus). Unpinned chat calls walk the chain on ANY
+ *                  per-model failure (timeout/network/empty/invalid id/
+ *                  429/5xx) so the user always gets a response in time;
+ *                  when the chain is exhausted the caller's deterministic
+ *                  fallback answers. Pinned-model calls (ASR) are exempt.
  *   QWEN_BASE_URL  optional. Default https://api-inference.modelscope.ai/v1.
  *                  For DashScope/Model Studio accounts use
  *                  https://dashscope-intl.aliyuncs.com/compatible-mode/v1.
- *   QWEN_TIMEOUT_MS optional. Per-request timeout, default 15000.
+ *   QWEN_TIMEOUT_MS optional. TOTAL budget for one qwenChat invocation
+ *                  (all chain attempts), default 15000. Each attempt gets a
+ *                  fraction of the remaining budget; the last attempt gets
+ *                  what's left (min 2s).
  *   QWEN_ASR_MODEL optional. Speech-to-text model, default "qwen3-asr-flash"
  *                  (NOT hosted on ModelScope — see transcribe.ts).
  *   QWEN_ASR_BASE_URL optional. Endpoint override for ASR calls only, so a
@@ -42,7 +54,29 @@ export type AiTask =
   | "followup_questions";
 
 const DEFAULT_BASE_URL = "https://api-inference.modelscope.ai/v1";
+/** Primary model — also the first entry of the default failover chain. */
 const DEFAULT_MODEL = "Qwen-Ambassador/Qwen3.8-Max";
+/**
+ * Default failover chain (Qwen Ambassador program models, strongest first).
+ * If every model in the chain fails, the CALLER's deterministic fallback
+ * answers — the product never stalls on the model. Overridable with
+ * QWEN_MODEL_CHAIN (comma-separated, tried in order).
+ */
+const DEFAULT_MODEL_CHAIN = [
+  "Qwen-Ambassador/Qwen3.8-Max",
+  "Qwen-Ambassador/Qwen3.8-plus",
+  "Qwen-Ambassador/Qwen3.7-Max",
+  "Qwen-Ambassador/Qwen3.7-Plus",
+];
+/**
+ * Failover timing: attempt i (except the last) gets this fraction of the
+ * REMAINING chain budget, so a healthy primary keeps most of the budget
+ * while a dead primary still leaves room for the rest. The last attempt
+ * gets whatever remains, floored at MIN_LAST_ATTEMPT_MS so the final model
+ * always gets a real chance (worst-case overshoot ≈ that floor).
+ */
+const FAILOVER_BUDGET_FRACTION = 0.6;
+const MIN_LAST_ATTEMPT_MS = 2_000;
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 export type ChatRole = "system" | "user" | "assistant";
@@ -79,10 +113,21 @@ export interface QwenChatOptions {
   extraBody?: Record<string, unknown>;
 }
 
+export interface QwenAttempt {
+  model: string;
+  ok: boolean;
+  latencyMs: number;
+  errorKind?: string;
+}
+
 export interface QwenChatResult {
   content: string;
   /** Model id reported by the API (falls back to the requested model). */
   model: string;
+  /** One entry per API call actually made (failover attempts included). */
+  attempts: QwenAttempt[];
+  /** True when a non-primary model answered (primary failed or was skipped). */
+  degraded: boolean;
 }
 
 /** Raised for any failure talking to the model; callers apply their fallback. */
@@ -111,18 +156,88 @@ export function qwenModel(): string {
   return process.env.QWEN_MODEL?.trim() || DEFAULT_MODEL;
 }
 
-export async function qwenChat(opts: QwenChatOptions): Promise<QwenChatResult> {
-  const started = Date.now();
-  try {
-    const result = await qwenChatOnce(opts);
-    logActivity(opts.task, result.model, true, Date.now() - started, null);
-    return result;
-  } catch (err) {
-    if (err instanceof QwenError && err.kind !== "not_configured") {
-      logActivity(opts.task, opts.model ?? qwenModel(), false, Date.now() - started, err.kind);
-    }
-    throw err;
+/**
+ * The failover chain for unpinned chat calls: QWEN_MODEL (if set) first,
+ * then QWEN_MODEL_CHAIN entries if configured, else the default Ambassador
+ * chain as backup. Deduplicated, order preserved — so an explicitly pinned
+ * primary is ALWAYS backed up by the rest of the chain unless the operator
+ * provides their own.
+ */
+export function qwenModelChain(): string[] {
+  const chain: string[] = [];
+  const primary = process.env.QWEN_MODEL?.trim();
+  if (primary) chain.push(primary);
+  const configured = (process.env.QWEN_MODEL_CHAIN ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  for (const m of [...DEFAULT_MODEL_CHAIN, ...configured]) {
+    if (!chain.includes(m)) chain.push(m);
   }
+  return chain.length > 0 ? chain : [DEFAULT_MODEL];
+}
+
+/**
+ * Chat with failover: try each model in the chain until one answers, inside
+ * a total time budget so the caller always gets an answer in bounded time
+ * (or a QwenError, on which every task's deterministic fallback takes over).
+ *
+ * - Calls that pin opts.model (e.g. ASR) make a SINGLE attempt — failover
+ *   only applies to unpinned chat calls.
+ * - Any per-model failure except a missing API key moves to the next model:
+ *   timeout, network, empty, invalid_model, 429, 5xx, other 4xx.
+ * - Every attempt is logged to AiActivity (each attempt IS an API call),
+ *   which is what makes fallback rates measurable.
+ */
+export async function qwenChat(opts: QwenChatOptions): Promise<QwenChatResult> {
+  const attempts: QwenAttempt[] = [];
+
+  // Pinned-model calls (ASR, experiments): one attempt, existing contract.
+  const chain = opts.model ? [opts.model] : qwenModelChain();
+
+  const totalBudgetMs =
+    opts.timeoutMs ?? (Number(process.env.QWEN_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS);
+  let remaining = totalBudgetMs;
+
+  for (let i = 0; i < chain.length; i++) {
+    const model = chain[i];
+    const isLast = i === chain.length - 1;
+    const timeoutMs = isLast
+      ? Math.max(remaining, MIN_LAST_ATTEMPT_MS)
+      : Math.max(
+          Math.min(remaining, Math.round(remaining * FAILOVER_BUDGET_FRACTION)),
+          1,
+        );
+
+    const started = Date.now();
+    try {
+      const result = await qwenChatOnce(opts, model, timeoutMs);
+      const latencyMs = Date.now() - started;
+      attempts.push({ model, ok: true, latencyMs });
+      logActivity(opts.task, model, true, latencyMs, null);
+      return {
+        content: result.content,
+        model: result.model,
+        attempts,
+        degraded: model !== chain[0],
+      };
+    } catch (err) {
+      const latencyMs = Date.now() - started;
+      if (err instanceof QwenError && err.kind === "not_configured") {
+        // No key — nothing to fail over to; callers handle the degradation.
+        throw err;
+      }
+      const kind = err instanceof QwenError ? err.kind : "network";
+      attempts.push({ model, ok: false, latencyMs, errorKind: kind });
+      logActivity(opts.task, model, false, latencyMs, kind);
+      remaining -= latencyMs;
+      if (isLast) throw err;
+      // else: move to the next model with the remaining budget
+    }
+  }
+
+  // Unreachable (loop returns or throws), kept for type safety.
+  throw new QwenError("Qwen model chain exhausted", "network");
 }
 
 /** Fire-and-forget: the meter must never slow down or break a request. */
@@ -140,7 +255,11 @@ function logActivity(
     });
 }
 
-async function qwenChatOnce(opts: QwenChatOptions): Promise<QwenChatResult> {
+async function qwenChatOnce(
+  opts: QwenChatOptions,
+  model: string,
+  timeoutMs: number
+): Promise<{ content: string; model: string }> {
   const apiKey = process.env.QWEN_API_KEY?.trim();
   if (!apiKey) {
     throw new QwenError("QWEN_API_KEY is not set", "not_configured");
@@ -149,9 +268,6 @@ async function qwenChatOnce(opts: QwenChatOptions): Promise<QwenChatResult> {
     /\/+$/,
     ""
   );
-  const model = opts.model ?? qwenModel();
-  const timeoutMs =
-    opts.timeoutMs ?? (Number(process.env.QWEN_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS);
 
   const body: Record<string, unknown> = {
     model,

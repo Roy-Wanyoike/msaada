@@ -13,10 +13,22 @@ interface Step {
   calls: number;
 }
 
+interface ModelHealth {
+  model: string;
+  calls: number;
+  ok: number;
+  okRate: number | null;
+  p50LatencyMs: number | null;
+  p95LatencyMs: number | null;
+  fallbackShare: number | null;
+}
+
 interface Activity {
   days: number;
   coverage: { qwenSteps: number; totalSteps: number; percent: number; activeQwenSteps: number };
   totals: { calls: number; ok: number; successRate: number | null };
+  primaryModel?: string;
+  modelHealth?: ModelHealth[];
   steps: Step[];
   models: { model: string; calls: number }[];
 }
@@ -115,10 +127,40 @@ export function QwenImpactCard({ days }: { days: number }) {
         ))}
       </ol>
 
+      {data.modelHealth && data.modelHealth.length > 0 && (
+        <div className="border-t border-border px-5 py-3">
+          <p className="text-xs font-medium text-muted-foreground">
+            Model health — failover chain, measured per model (ok rate · p50/p95 latency)
+          </p>
+          <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+            {data.modelHealth.slice(0, 4).map((m) => (
+              <div
+                key={m.model}
+                className="flex items-center justify-between gap-2 rounded bg-muted/50 px-2.5 py-1.5 text-xs"
+              >
+                <span className="min-w-0 flex-1 truncate font-mono text-foreground" title={m.model}>
+                  {m.model.split("/").pop()}
+                  {m.model === data.primaryModel && (
+                    <span className="ml-1.5 rounded bg-brand-950 px-1 py-px font-sans text-[10px] font-medium text-white">
+                      primary
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 tabular-nums text-muted-foreground">
+                  {m.okRate === null ? "—" : `${m.okRate}%`} · {m.p50LatencyMs === null ? "—" : `${m.p50LatencyMs}ms`}
+                  {m.p95LatencyMs !== null && ` / ${m.p95LatencyMs}ms`}
+                  {m.fallbackShare !== null && m.fallbackShare > 0 && ` · failover ${m.fallbackShare}%`}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <p className="px-5 py-3 text-xs text-muted-foreground">
         Safety routing and the audit trail stay on fixed, versioned rules by design: Qwen interprets,
-        rules decide who gets escalated, people control care.
-        {data.models.length > 0 && ` Models: ${data.models.map((m) => m.model).join(", ")}.`}
+        rules decide who gets escalated, people control care. If a model is down the next in the chain
+        answers; if the whole chain fails, deterministic rules take over — the CHV always gets a result.
       </p>
     </Card>
   );
