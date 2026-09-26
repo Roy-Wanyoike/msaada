@@ -217,11 +217,30 @@ export function LandingPage({ onLogin, onSignup, onDashboard, onDemo, demoLoadin
                 <span className="text-brand-700 dark:text-brand-400">followed through.</span>
               </h1>
               <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
-                Msaada connects Community Health Volunteers, health facilities,
-                county teams and the Ministry of Health, turning what CHVs
-                observe into tracked follow-ups, referrals and de-identified
-                community intelligence.
+                Msaada turns what CHVs actually say in the field — in
+                Kiswahili, Sheng, English or a mixture of them — into
+                structured observations, safe follow-ups and referrals, and
+                live community intelligence for county health teams.
               </p>
+              <div
+                className="mt-5 flex flex-wrap items-center gap-2"
+                aria-label="Platform principles"
+              >
+                {[
+                  "Voice-first",
+                  "Qwen-powered",
+                  "Human-verified",
+                  "Safety-controlled",
+                  "Offline-ready",
+                ].map((chip) => (
+                  <span
+                    key={chip}
+                    className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground"
+                  >
+                    {chip}
+                  </span>
+                ))}
+              </div>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button onClick={onDemo} disabled={demoLoading} size="lg" className="h-11 px-5">
                   {demoLoading ? (
