@@ -8,7 +8,10 @@ import { db } from "@/lib/db";
  *   Organization → Community Health Unit
  *     → Household (×8, one inactive) → HouseholdMember (×14)
  *       → Encounter (×16, backdated 0…9d, mixed capture/connectivity)
- *         → TriageRecord (×16: routine / follow-up / referral / crisis)
+ *         → TriageRecord (×16: routine / follow-up / referral / crisis;
+ *            each carries the English next action AND its natural Kiswahili
+ *            equivalent — chpNextActionSw — mirroring the bilingual output
+ *            the live Qwen pipeline produces for every triage)
  *           → Referral (×5: completed / in_progress / acknowledged / sent / created)
  *           → FollowUp (×6: done / pending / missed)
  *         → AuditLog (one entry per seeded triage)
@@ -23,6 +26,10 @@ import { db } from "@/lib/db";
  *    MSD-*-SEED-N codes (@unique); the triage for each encounter is keyed
  *    by the encounter (one triage per encounter in the seed); follow-ups
  *    are keyed by triageRecordId. Re-running never duplicates.
+ *    UPGRADE IN PLACE: triage rows seeded before MVP-39 (chpNextActionSw
+ *    still null, aiModel = seed model) are backfilled with their Kiswahili
+ *    action on the next run — already-deployed databases upgrade without
+ *    a reset, and live-pipeline rows are never touched.
  *  - DE-IDENTIFIED: kinship labels only (Mama/Baba/Bibi/Mtoto), coarse
  *    wards, no names/phones/addresses — same convention as every seed in
  *    this codebase. The "transcripts" below are in-memory only; only the
@@ -71,6 +78,9 @@ interface VisitSpec {
   observedIndicators: string[];
   aggregateTag: string;
   chpNextAction: string;
+  /** Natural Kiswahili equivalent of chpNextAction — what the live Qwen
+   *  pipeline returns as chp_next_action_sw for every triage. */
+  chpNextActionSw?: string | null;
   confidenceNote: string;
   workflowClass:
     | "routine"
@@ -145,6 +155,8 @@ const VISITS: VisitSpec[] = [
     aggregateTag: "severe_distress",
     chpNextAction:
       "Refer to nearest Level 4+ facility for clinical assessment. Revisit to confirm acknowledgement.",
+    chpNextActionSw:
+      "Mpe rufaa kwenda hospitali ya karibu ya Level 4+ kupimwa. Rudi tena kuhakikisha amefika na ameanzishiwa huduma.",
     confidenceNote:
       "Indicators meet the threshold for a facility-level mental health assessment.",
     workflowClass: "referral_required",
@@ -173,6 +185,8 @@ const VISITS: VisitSpec[] = [
     observedIndicators: ["sleeping well", "appetite normal", "mood stable", "socially active"],
     aggregateTag: "routine_wellbeing",
     chpNextAction: "Continue routine home visits. No follow-up required unless condition changes.",
+    chpNextActionSw:
+      "Endelea na ziara za kawaida za nyumbani. Hakuna ufuatiliaji maalum isipokuwa hali yake itabadilika.",
     confidenceNote: null as unknown as string,
     workflowClass: "routine",
   },
@@ -193,6 +207,8 @@ const VISITS: VisitSpec[] = [
     aggregateTag: "social_withdrawal",
     chpNextAction:
       "Revisit within 48h. Encourage gradual social contact. Escalate immediately if self-harm ideation emerges.",
+    chpNextActionSw:
+      "Rudi ndani ya saa 48. Mhimize kuwasiliana na watu taratibu. Iwapo mawazo ya kujidhuru yatajitokeza, ripoti mara moja.",
     confidenceNote:
       "Behavioral indicators are consistent but not severe enough for facility referral yet.",
     workflowClass: "follow_up_required",
@@ -212,6 +228,7 @@ const VISITS: VisitSpec[] = [
     observedIndicators: ["playing normally", "appetite normal", "sleeping well", "no fever"],
     aggregateTag: "child_health_routine",
     chpNextAction: "Continue routine child-health monitoring per eCHIS schedule.",
+    chpNextActionSw: "Endelea kufuatilia afya ya mtoto kwa ratiba ya kawaida ya eCHIS.",
     confidenceNote: null as unknown as string,
     workflowClass: "routine",
   },
@@ -234,6 +251,8 @@ const VISITS: VisitSpec[] = [
     aggregateTag: "crisis_self_harm",
     chpNextAction:
       "Do not leave the household unaccompanied. Contact supervisor and nearest Level 4+ facility immediately.",
+    chpNextActionSw:
+      "Usiache nyumba hii bila mtu ukiwa naye. Wasiliana na simanzi wako na hospitali ya karibu ya Level 4+ mara moja.",
     confidenceNote: "Unambiguous crisis signals — policy crisis_override applied.",
     workflowClass: "crisis_override",
     referral: {
@@ -264,6 +283,7 @@ const VISITS: VisitSpec[] = [
     observedIndicators: ["mood stable", "sleeping well", "adherence good"],
     aggregateTag: "routine_wellbeing",
     chpNextAction: "Continue routine monthly visits.",
+    chpNextActionSw: "Endelea na ziara za kila mwezi kama kawaida.",
     confidenceNote: null as unknown as string,
     workflowClass: "routine",
   },
@@ -278,6 +298,7 @@ const VISITS: VisitSpec[] = [
     observedIndicators: ["managing well", "socializing again", "appetite back"],
     aggregateTag: "routine_recovery",
     chpNextAction: "Sync when connectivity returns; no action needed.",
+    chpNextActionSw: "Sawazisha data mara mtandao unaporejea; hakuna hatua nyingine inayohitajika.",
     confidenceNote: null as unknown as string,
     workflowClass: "routine",
   },
@@ -292,6 +313,7 @@ const VISITS: VisitSpec[] = [
     observedIndicators: ["sleep disruption returning", "mild withdrawal"],
     aggregateTag: "early_relapse_signals",
     chpNextAction: "Revisit within 48h to confirm the trend before escalating.",
+    chpNextActionSw: "Rudi ndani ya saa 48 kuhakiki hali inavyoendelea kabla ya kuchukua hatua nyingine.",
     confidenceNote: "Early signals — below referral threshold but above routine.",
     workflowClass: "follow_up_required",
     followUp: {
@@ -312,6 +334,7 @@ const VISITS: VisitSpec[] = [
     observedIndicators: ["school attendance steady", "no reported concerns"],
     aggregateTag: "adolescent_routine",
     chpNextAction: "Continue routine monitoring.",
+    chpNextActionSw: "Endelea kumfuatilia kama kawaida.",
     confidenceNote: null as unknown as string,
     workflowClass: "routine",
   },
@@ -330,6 +353,7 @@ const VISITS: VisitSpec[] = [
     ],
     aggregateTag: "anxiety_functional_impairment",
     chpNextAction: "Refer for clinical assessment; accompany to facility intake.",
+    chpNextActionSw: "Mpe rufaa apimwe kliniki; msindikize hadi hospitalini aanze kupokea huduma.",
     confidenceNote: "Functional impairment meets facility-referral threshold.",
     workflowClass: "referral_required",
     referral: {
@@ -351,6 +375,7 @@ const VISITS: VisitSpec[] = [
     observedIndicators: ["recovering well", "no medication complaints"],
     aggregateTag: "post_referral_recovery",
     chpNextAction: "Routine follow-up only.",
+    chpNextActionSw: "Ufuatiliaji wa kawaida tu.",
     confidenceNote: null as unknown as string,
     workflowClass: "routine",
   },
@@ -365,6 +390,7 @@ const VISITS: VisitSpec[] = [
     observedIndicators: ["night terrors reported", "declining school performance"],
     aggregateTag: "child_distress_signals",
     chpNextAction: "Revisit within 48h; engage guardian on sleep hygiene.",
+    chpNextActionSw: "Rudi ndani ya saa 48; zungumza na mlezi kuhusu mtindo wa usingizi mzima.",
     confidenceNote: "Child indicators need one more data point before routing.",
     workflowClass: "follow_up_required",
     followUp: {
@@ -385,6 +411,7 @@ const VISITS: VisitSpec[] = [
     observedIndicators: ["mobility stable", "carer support consistent"],
     aggregateTag: "elderly_routine",
     chpNextAction: "Continue welfare visits per eCHIS schedule.",
+    chpNextActionSw: "Endelea na ziara za ustawi kwa ratiba ya eCHIS.",
     confidenceNote: null as unknown as string,
     workflowClass: "routine",
   },
@@ -403,6 +430,7 @@ const VISITS: VisitSpec[] = [
     ],
     aggregateTag: "postpartum_mental_health",
     chpNextAction: "Refer to maternal mental health program; revisit in 48h.",
+    chpNextActionSw: "Munganishe na programu ya afya ya akili kwa mama; rudi ndani ya saa 48.",
     confidenceNote: "Postpartum indicators meet referral threshold (policy v1.0.0).",
     workflowClass: "referral_required",
     referral: {
@@ -428,6 +456,7 @@ const VISITS: VisitSpec[] = [
     observedIndicators: ["stabilizing on treatment", "guardian engaged", "attending school half-days"],
     aggregateTag: "crisis_aftercare",
     chpNextAction: "Aftercare: keep weekly visits; escalation line stays open.",
+    chpNextActionSw: "Uhudumu baada ya rufaa: endelea na ziara za kila wiki; mawasiliano ya dharura yako wazi.",
     confidenceNote: null as unknown as string,
     workflowClass: "routine",
   },
@@ -449,6 +478,7 @@ const VISITS: VisitSpec[] = [
     ],
     aggregateTag: "acute_child_distress",
     chpNextAction: "Complete referral to the county facility; confirm transport.",
+    chpNextActionSw: "Kamilisha rufaa kwenda hospitali ya kaunti; hakikisha usafiri umepangwa.",
     confidenceNote: "Acute presentation — referral created, dispatch pending.",
     workflowClass: "referral_required",
     referral: {
@@ -626,10 +656,25 @@ export async function seedDemoData(
     // One triage per seeded encounter (idempotency key for the record).
     const existingTriage = await db.triageRecord.findFirst({
       where: { encounterId },
-      select: { id: true },
+      select: { id: true, aiModel: true, chpNextActionSw: true },
     });
 
     let triageRecordId = existingTriage?.id;
+    if (
+      existingTriage &&
+      existingTriage.aiModel === AI_MODEL &&
+      !existingTriage.chpNextActionSw &&
+      v.chpNextActionSw
+    ) {
+      // MVP-39 in-place upgrade: databases seeded before the Kiswahili
+      // actions existed get backfilled on the next bootstrap run. Guarded
+      // by the seed model string + null field → idempotent (no duplicate
+      // writes) and never touches rows produced by the live pipeline.
+      await db.triageRecord.update({
+        where: { id: existingTriage.id },
+        data: { chpNextActionSw: v.chpNextActionSw },
+      });
+    }
     if (!triageRecordId) {
       const triage = await db.triageRecord.create({
         data: {
@@ -642,6 +687,7 @@ export async function seedDemoData(
           observedIndicators: JSON.stringify(v.observedIndicators),
           aggregateTag: v.aggregateTag,
           chpNextAction: v.chpNextAction,
+          chpNextActionSw: v.chpNextActionSw ?? null,
           chpInstruction: v.escalation
             ? "Do not leave the household unaccompanied. Contact your CHV supervisor and the nearest Level 4+ facility immediately. If immediate danger, call Kenya Red Cross Emergency: 1199."
             : null,
