@@ -31,7 +31,11 @@ type State = "idle" | "recording" | "uploading";
 function pickMimeType(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
   for (const t of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]) {
-    if (MediaRecorder.isTypeSupported(t)) return t;
+    try {
+      if (MediaRecorder.isTypeSupported(t)) return t;
+    } catch {
+      // Some older WebKit builds lack isTypeSupported — try the next mime.
+    }
   }
   return undefined;
 }
@@ -42,12 +46,29 @@ function fmt(seconds: number) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+export interface VoiceRecorderError {
+  /** API error code (e.g. "ASR_NOT_AVAILABLE") or a client-side marker like
+   *  "MIC_BLOCKED" / "INSECURE_CONTEXT" / "NO_RECORDER" / null for unknown. */
+  code: string | null;
+  message: string;
+}
+
 export function VoiceRecorder({
   onTranscript,
   disabled,
+  maxSeconds = MAX_SECONDS,
+  onError,
+  onRecordingChange,
 }: {
   onTranscript: (text: string) => void;
   disabled?: boolean;
+  /** Recording hard cap in seconds (default 180 — the original behavior). */
+  maxSeconds?: number;
+  /** Optional error side-channel so a parent can react to persistent
+   *  failures (e.g. hide the mic and offer the typed path). */
+  onError?: (info: VoiceRecorderError) => void;
+  /** Optional recording-state notification for parent-driven UI. */
+  onRecordingChange?: (recording: boolean) => void;
 }) {
   const [state, setState] = useState<State>("idle");
   const [seconds, setSeconds] = useState(0);
@@ -81,38 +102,48 @@ export function VoiceRecorder({
       const res = await fetch("/api/transcribe", { method: "POST", body: form });
       const data = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
       if (!res.ok || !data.text) {
-        setError(
+        const message =
           (data.error && ERROR_MESSAGES[data.error]) ??
-            "Couldn't transcribe the recording. Try again, or type your observation."
-        );
+            "Couldn't transcribe the recording. Try again, or type your observation.";
+        setError(message);
+        onError?.({ code: data.error ?? null, message });
         return;
       }
       onTranscript(data.text);
+      onError?.({ code: null, message: "" });
     } catch {
-      setError("Network error while uploading. Check your connection and try again.");
+      const message = "Network error while uploading. Check your connection and try again.";
+      setError(message);
+      onError?.({ code: null, message });
     } finally {
       setState("idle");
+      onRecordingChange?.(false);
     }
   }
 
   async function start() {
     setError(null);
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      setError(
-        "The microphone needs a secure connection. Open the app via https:// or http://localhost."
-      );
+      const message =
+        "The microphone needs a secure connection. Open the app via https:// or http://localhost.";
+      setError(message);
+      onError?.({ code: "INSECURE_CONTEXT", message });
       return;
     }
     const mimeType = pickMimeType();
     if (!mimeType) {
-      setError("This browser can't record audio. Type your observation instead.");
+      const message = "This browser can't record audio. Type your observation instead.";
+      setError(message);
+      onError?.({ code: "NO_RECORDER", message });
       return;
     }
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      setError("Microphone access was blocked. Allow it in your browser settings to record.");
+      const message = "Microphone access was blocked. Allow it in your browser settings to record.";
+      setError(message);
+      onError?.({ code: "MIC_BLOCKED", message });
       return;
     }
     streamRef.current = stream;
@@ -133,9 +164,10 @@ export function VoiceRecorder({
     recorder.start();
     setSeconds(0);
     setState("recording");
+    onRecordingChange?.(true);
     timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
     // Hard cap so a forgotten recording can't grow past the upload limit.
-    capRef.current = setTimeout(stop, MAX_SECONDS * 1000);
+    capRef.current = setTimeout(stop, maxSeconds * 1000);
   }
 
   function stop() {
@@ -169,7 +201,7 @@ export function VoiceRecorder({
         {state === "recording" && (
           <span className="flex items-center gap-2 text-sm tabular-nums text-muted-foreground" aria-live="polite">
             <span className="size-2 animate-pulse rounded-full bg-red-500" aria-hidden />
-            {fmt(seconds)} / {fmt(MAX_SECONDS)}
+            {fmt(seconds)} / {fmt(maxSeconds)}
           </span>
         )}
       </div>
