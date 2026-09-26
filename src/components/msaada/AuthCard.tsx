@@ -179,28 +179,43 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
   async function handleDemoAccount() {
     setDemoLoading(true);
     try {
-      const provisionRes = await fetch("/api/demo-chv", { method: "POST" });
-      const provisionData = await provisionRes.json();
-      if (!provisionRes.ok || provisionData.error) {
-        toast.error("Demo login failed", {
-          description: authErrorDescription(provisionData.error),
+      const signInDemo = async () => {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: DEMO_EMAIL, password: DEMO_PASSWORD }),
         });
-        return;
+        const body = (await response.json()) as { error?: string; chv?: Chv };
+        return { response, body };
+      };
+
+      // The seeded account normally already exists, so sign in immediately.
+      // Provisioning on every click adds an unnecessary Supabase Admin request
+      // and can make a live demo fail because of a transient admin-API error.
+      let attempt = await signInDemo();
+      if (
+        attempt.response.status === 401 &&
+        attempt.body.error === "INVALID_CREDENTIALS"
+      ) {
+        const provisionRes = await fetch("/api/demo-chv", { method: "POST" });
+        const provisionData = (await provisionRes.json()) as { error?: string };
+        if (!provisionRes.ok || provisionData.error) {
+          toast.error("Demo login failed", {
+            description: authErrorDescription(provisionData.error),
+          });
+          return;
+        }
+        attempt = await signInDemo();
       }
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: DEMO_EMAIL, password: DEMO_PASSWORD }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) {
+
+      if (!attempt.response.ok || attempt.body.error || !attempt.body.chv) {
         toast.error("Demo login failed", {
-          description: authErrorDescription(data.error),
+          description: authErrorDescription(attempt.body.error),
         });
         return;
       }
       toast.success("Signed in with the demo account");
-      onAuthed(data.chv as Chv);
+      onAuthed(attempt.body.chv);
     } catch {
       toast.error("Network error");
     } finally {
