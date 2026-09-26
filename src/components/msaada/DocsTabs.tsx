@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { BookOpen, AlertCircle, FileText, ArrowLeft } from "lucide-react";
+import { BookOpen, AlertCircle, FileText, ArrowLeft, Presentation } from "lucide-react";
 import Link from "next/link";
 import { AppNav } from "@/components/msaada/AppNav";
 import { cn } from "@/lib/utils";
@@ -29,7 +29,7 @@ export function DocsTabs({ readme, problem, license }: DocsTabsProps) {
   const content = tab === "readme" ? readme : tab === "problem" ? problem : license;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background lg:pl-64">
       <AppNav />
       <main id="main" className="flex-1">
         <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -49,6 +49,26 @@ export function DocsTabs({ readme, problem, license }: DocsTabsProps) {
               Switch between the README, the problem statement, and the license.
             </p>
           </header>
+
+          {/* Pitch deck card — the presentation lives at /presentation */}
+          <Link
+            href="/presentation"
+            className="group mb-6 flex items-center gap-4 rounded-xl border border-emerald-600/30 bg-emerald-50/60 p-4 transition-colors hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40"
+          >
+            <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+              <Presentation className="size-5" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-foreground">
+                Presentation — Msaada pitch deck
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                12 slides with speaker notes, keyboard navigation, and a
+                downloadable .pptx — open the in-app deck viewer.
+              </span>
+            </span>
+            <Presentation className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
+          </Link>
 
           {/* Tab bar */}
           <div className="mb-6 flex gap-1 rounded-lg border border-border bg-muted/30 p-1">
@@ -89,7 +109,7 @@ export function DocsTabs({ readme, problem, license }: DocsTabsProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.2 }}
-              className="prose prose-sm prose-headings:font-bold prose-headings:tracking-tight prose-h1:text-2xl prose-h1:border-b prose-h1:border-border prose-h1:pb-2 prose-h2:text-xl prose-h2:mt-6 prose-h3:text-lg prose-a:text-emerald-600 prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:text-sm prose-code:before:hidden prose-code:after:hidden prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-blockquote:border-l-emerald-500 prose-table:text-sm prose-th:border prose-td:border prose-th:bg-muted/50 max-w-none"
+              className="prose prose-sm prose-headings:font-bold prose-headings:tracking-tight prose-h1:text-2xl prose-h1:border-b prose-h1:border-border prose-h1:pb-2 prose-h2:text-xl prose-h2:mt-6 prose-h3:text-lg prose-a:text-emerald-600 prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:text-sm prose-code:before:hidden prose-code:after:hidden prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-blockquote:border-l-emerald-500 prose-table:text-sm prose-table:block prose-table:overflow-x-auto prose-table:max-w-full prose-th:border prose-td:border prose-th:bg-muted/50 max-w-none"
             >
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {content}

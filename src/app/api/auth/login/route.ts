@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { verifyPassword, setSession, rateLimitIdentifier } from "@/lib/auth";
+import {
+  verifyPassword,
+  setSession,
+  rateLimitIdentifier,
+  logAuthEvent,
+} from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 // Cookie-session writes → never static.
@@ -16,6 +21,8 @@ export const dynamic = "force-dynamic";
  *  - 403 ACCOUNT_SUSPENDED if creds are valid but authState !== "active"
  *    (covers suspended / deactivated / not-yet-onboarded states)
  *  - 429 RATE_LIMITED after 5 attempts / 60s per (ip, email) pair
+ *  - 503 SERVER_NOT_CONFIGURED when the deployment is missing
+ *    MSAADA_SESSION_SECRET (production fail-fast guard)
  */
 export async function POST(req: Request) {
   let body: unknown;
@@ -59,10 +66,31 @@ export async function POST(req: Request) {
     );
   }
 
-  const chv = await db.chvUser.findUnique({
-    where: { email: email.trim().toLowerCase() },
-  });
+  const emailNormalized = email.trim().toLowerCase();
+  let chv: Awaited<ReturnType<typeof db.chvUser.findUnique>>;
+  try {
+    chv = await db.chvUser.findUnique({
+      where: { email: emailNormalized },
+    });
+  } catch {
+    // DB outage: fail closed with the same shaped-error taxonomy as the
+    // missing-secret case (no stack, no internals in the response body).
+    console.error("[login] credential lookup failed (database unreachable)");
+    return NextResponse.json(
+      { error: "SERVER_ERROR", message: "Authentication is temporarily unavailable." },
+      { status: 503 }
+    );
+  }
   if (!chv || !verifyPassword(password, chv.passwordHash)) {
+    // Audit trail: record the failed attempt (outcome detail is server-side
+    // only — the response below stays identical for unknown accounts and
+    // wrong passwords, so no enumeration leak is introduced).
+    await logAuthEvent({
+      event: "login_failed",
+      userId: chv?.id ?? null,
+      emailAttempt: emailNormalized,
+      detail: chv ? "invalid_password" : "unknown_account",
+    });
     return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
   }
 
@@ -74,10 +102,44 @@ export async function POST(req: Request) {
   //   invited | verification_pending | verified | credentials_created |
   //   device_registered | active | suspended | deactivated
   if (chv.authState && chv.authState !== "active") {
+    await logAuthEvent({
+      event: "login_failed",
+      userId: chv.id,
+      emailAttempt: emailNormalized,
+      detail: `auth_state:${chv.authState}`,
+    });
     return NextResponse.json({ error: "ACCOUNT_SUSPENDED" }, { status: 403 });
   }
 
-  await setSession(chv.id);
+  // setSession() resolves the session secret, which fails fast in production
+  // when MSAADA_SESSION_SECRET is missing/too short (deliberate P0 guard).
+  // Surface that as an explicit 503 instead of an opaque 500-with-empty-body,
+  // so an operator testing a fresh deployment immediately knows it is a
+  // configuration problem, not a code or credential problem. The message
+  // names the env var only — its VALUE is never echoed.
+  try {
+    await setSession(chv.id);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("MSAADA_SESSION_SECRET")) {
+      console.error("[login] server misconfigured:", msg.slice(0, 160));
+      return NextResponse.json(
+        {
+          error: "SERVER_NOT_CONFIGURED",
+          message:
+            "MSAADA_SESSION_SECRET must be set to a >=32 char string in the deployment environment.",
+        },
+        { status: 503 }
+      );
+    }
+    throw err;
+  }
+  await logAuthEvent({
+    event: "login_succeeded",
+    userId: chv.id,
+    emailAttempt: emailNormalized,
+    detail: null,
+  });
   return NextResponse.json(
     {
       chv: {

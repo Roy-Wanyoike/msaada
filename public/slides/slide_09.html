@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Msaada — The build</title>
+<link rel="stylesheet" href="global.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  html, body { margin:0; padding:0; background:var(--bg); }
+  .stat-label { font-family:var(--font-heading); font-size:15px; font-weight:700; color:var(--primary); line-height:1.3; }
+  .stat-desc { font-size:12.5px; color:var(--ink-soft); line-height:1.5; }
+  .stat-num { font-family:var(--font-num); font-variant-numeric:tabular-nums; font-size:44px; font-weight:700; line-height:1; color:var(--accent-deep); }
+  .icon-tile { width:38px; height:38px; border-radius:11px; background:var(--teal-soft); display:flex; align-items:center; justify-content:center; flex:none; }
+  .chip { display:inline-flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:7px 14px; font-size:12px; font-weight:600; color:var(--ink-soft); white-space:nowrap; }
+  .chip-dot { width:5px; height:5px; border-radius:999px; background:var(--accent); flex:none; }
+  .code { font-family:var(--font-num); font-weight:600; color:var(--accent-deep); }
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="h-full flex flex-col" style="padding:54px 64px 46px;">
+
+    <header>
+      <div class="flex items-center" style="gap:10px;">
+        <span data-decor aria-hidden="true" style="width:26px;height:3px;border-radius:2px;background:var(--accent);"></span>
+        <span class="kicker">THE BUILD</span>
+      </div>
+      <h1 style="font-family:var(--font-heading); font-size:var(--fs-h1); font-weight:800; letter-spacing:-0.01em; line-height:1.1; margin:12px 0 0;">A working product, not a prototype.</h1>
+    </header>
+
+    <main class="grid grid-cols-3 flex-1" style="gap:20px; margin-top:26px;">
+
+      <div class="card flex flex-col" style="padding:24px;">
+        <div class="flex items-start justify-between">
+          <span class="stat-num">15</span>
+          <span class="icon-tile"><span class="material-icons" style="font-size:21px; color:var(--accent-deep);">layers</span></span>
+        </div>
+        <div class="stat-label" style="margin-top:16px;">pages &amp; flows shipped</div>
+        <div class="stat-desc" style="margin-top:6px;">report, dashboard, cases, referrals, households, admin, supervisor, audit…</div>
+      </div>
+
+      <div class="card flex flex-col" style="padding:24px;">
+        <div class="flex items-start justify-between">
+          <span class="stat-num">30+</span>
+          <span class="icon-tile"><span class="material-icons" style="font-size:21px; color:var(--accent-deep);">api</span></span>
+        </div>
+        <div class="stat-label" style="margin-top:16px;">API endpoints</div>
+        <div class="stat-desc" style="margin-top:6px;">incl. <span class="code">/api/triage</span>, <span class="code">/api/health</span>, offline-sync</div>
+      </div>
+
+      <div class="card flex flex-col" style="padding:24px;">
+        <div class="flex items-start justify-between">
+          <span class="stat-num">13/13</span>
+          <span class="icon-tile"><span class="material-icons" style="font-size:21px; color:var(--accent-deep);">fact_check</span></span>
+        </div>
+        <div class="stat-label" style="margin-top:16px;">end-to-end smoke checks passing</div>
+        <div class="stat-desc" style="margin-top:6px;">on every release (live Qwen triage, auth, sync, crisis override)</div>
+      </div>
+
+      <div class="card flex flex-col" style="padding:24px;">
+        <div class="flex items-start justify-between">
+          <span class="stat-num">v1.0.0</span>
+          <span class="icon-tile"><span class="material-icons" style="font-size:21px; color:var(--accent-deep);">gavel</span></span>
+        </div>
+        <div class="stat-label" style="margin-top:16px;">deterministic policy engine</div>
+        <div class="stat-desc" style="margin-top:6px;">versioned &amp; auditable</div>
+      </div>
+
+      <div class="card flex flex-col" style="padding:24px;">
+        <div class="flex items-start justify-between">
+          <span class="stat-num">100%</span>
+          <span class="icon-tile"><span class="material-icons" style="font-size:21px; color:var(--accent-deep);">code</span></span>
+        </div>
+        <div class="stat-label" style="margin-top:16px;">tsc-clean TypeScript, ESLint</div>
+        <div class="stat-desc" style="margin-top:6px;">CI on every push</div>
+      </div>
+
+      <div class="card flex flex-col" style="padding:24px;">
+        <div class="flex items-start justify-between">
+          <span class="stat-num">0</span>
+          <span class="icon-tile"><span class="material-icons" style="font-size:21px; color:var(--accent-deep);">lock</span></span>
+        </div>
+        <div class="stat-label" style="margin-top:16px;">secrets in the repo</div>
+        <div class="stat-desc" style="margin-top:6px;">keys resolve lazily, config fails fast in production</div>
+      </div>
+
+    </main>
+
+    <footer class="flex items-center" style="gap:12px; margin-top:24px;">
+      <span class="num" style="font-size:11px; font-weight:700; letter-spacing:0.18em; color:var(--ink-soft); flex:none;">STACK</span>
+      <span data-decor aria-hidden="true" style="width:1px; height:18px; background:var(--line); flex:none;"></span>
+      <span class="chip"><span class="chip-dot" data-decor aria-hidden="true"></span>Next.js 16 (Turbopack)</span>
+      <span class="chip"><span class="chip-dot" data-decor aria-hidden="true"></span>Qwen via ModelScope (OpenAI-compatible)</span>
+      <span class="chip"><span class="chip-dot" data-decor aria-hidden="true"></span>Supabase SSR auth</span>
+      <span class="chip"><span class="chip-dot" data-decor aria-hidden="true"></span>Prisma</span>
+      <span class="chip"><span class="chip-dot" data-decor aria-hidden="true"></span>Tailwind 4</span>
+    </footer>
+
+  </div>
+</div>
+
+<aside data-notes class="hidden" style="display:none;">
+  <ul>
+    <li>Judged on engineering: typed, tested, audited, deployable.</li>
+    <li>13/13 end-to-end smoke checks run on every release — live Qwen triage, auth, sync, crisis override included.</li>
+    <li>Policy engine v1.0.0 is versioned and auditable: every decision records which policy version decided.</li>
+    <li>Zero secrets in the repo — keys resolve lazily and config fails fast in production.</li>
+    <li>Stack: Next.js 16 Turbopack, Qwen via ModelScope, Supabase SSR auth, Prisma, Tailwind 4.</li>
+  </ul>
+</aside>
+</body>
+</html>

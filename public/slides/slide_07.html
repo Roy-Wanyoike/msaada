@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Msaada — Built for Kenya's health system</title>
+<link rel="stylesheet" href="global.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  body{margin:0;background:var(--bg);}
+  .bento{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:26px 28px;display:flex;flex-direction:column;min-height:0;}
+  .bento-icon{width:48px;height:48px;border-radius:12px;background:var(--teal-soft);display:flex;align-items:center;justify-content:center;}
+  .bento-num{position:absolute;top:22px;right:26px;font-family:var(--font-num);font-size:20px;font-weight:700;color:var(--ink-faint);}
+</style>
+</head>
+<body>
+<div class="slide" style="display:flex;flex-direction:column;padding:56px 64px;">
+  <!-- Header -->
+  <header style="margin-bottom:24px;">
+    <div class="kicker">Built for the system</div>
+    <h1 style="font-family:var(--font-heading);font-weight:800;font-size:40px;line-height:1.16;color:var(--primary);margin:10px 0 0;">
+      Aligned with the policy window — <span style="color:var(--accent-deep);">not against it.</span>
+    </h1>
+  </header>
+
+  <!-- 2x2 bento -->
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:22px;">
+    <section class="bento">
+      <span class="bento-num" aria-hidden="true">01</span>
+      <div class="bento-icon"><span class="material-icons" aria-hidden="true" style="font-size:26px;color:var(--accent-deep);">flag</span></div>
+      <h2 style="font-family:var(--font-heading);font-size:19px;font-weight:700;color:var(--primary);margin:16px 0 0;line-height:1.3;">Kenya Mental Health Policy <span class="num">2015–2030</span></h2>
+      <p style="font-size:15px;line-height:1.55;color:var(--ink-soft);margin:8px 0 0;">Explicitly calls for community-level mental-health integration — the exact layer Msaada fills.</p>
+    </section>
+
+    <section class="bento">
+      <span class="bento-num" aria-hidden="true">02</span>
+      <div class="bento-icon"><span class="material-icons" aria-hidden="true" style="font-size:26px;color:var(--accent-deep);">hub</span></div>
+      <h2 style="font-family:var(--font-heading);font-size:19px;font-weight:700;color:var(--primary);margin:16px 0 0;line-height:1.3;">Community Health Strategy &amp; eCHIS</h2>
+      <p style="font-size:15px;line-height:1.55;color:var(--ink-soft);margin:8px 0 0;">The CHV platform is being digitised nationally; Msaada adds the intelligence + safety layer on top.</p>
+    </section>
+
+    <section class="bento">
+      <span class="bento-num" aria-hidden="true">03</span>
+      <div class="bento-icon"><span class="material-icons" aria-hidden="true" style="font-size:26px;color:var(--accent-deep);">verified_user</span></div>
+      <h2 style="font-family:var(--font-heading);font-size:19px;font-weight:700;color:var(--primary);margin:16px 0 0;line-height:1.3;">ODPC-aligned by construction</h2>
+      <p style="font-size:15px;line-height:1.55;color:var(--ink-soft);margin:8px 0 0;">De-identification at the data layer — sensitive personal data handled per the Data Protection Act.</p>
+    </section>
+
+    <section class="bento">
+      <span class="bento-num" aria-hidden="true">04</span>
+      <div class="bento-icon"><span class="material-icons" aria-hidden="true" style="font-size:26px;color:var(--accent-deep);">account_tree</span></div>
+      <h2 style="font-family:var(--font-heading);font-size:19px;font-weight:700;color:var(--primary);margin:16px 0 0;line-height:1.3;">Institution-led onboarding</h2>
+      <p style="font-size:15px;line-height:1.55;color:var(--ink-soft);margin:8px 0 0;">County admin → community health officers → CHVs; no self-signup, every account traces to an institution.</p>
+    </section>
+  </div>
+</div>
+
+<aside data-notes class="hidden" style="display:none;">
+  <ul>
+    <li>We ride the eCHIS digitisation wave instead of inventing a parallel system.</li>
+    <li>Kenya Mental Health Policy 2015–2030 explicitly calls for community-level integration — the exact layer Msaada fills.</li>
+    <li>ODPC alignment is by construction: de-identification at the data layer, sensitive personal data handled per the Data Protection Act.</li>
+    <li>Institution-led onboarding: county admin → community health officers → CHVs; no self-signup, every account traces to an institution.</li>
+  </ul>
+</aside>
+</body>
+</html>

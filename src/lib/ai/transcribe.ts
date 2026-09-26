@@ -8,10 +8,18 @@ import { qwenChat, type ChatMessage } from "@/lib/ai/client";
  * edits it before submitting; the submitted text is then PII-scrubbed by
  * /api/triage like any typed observation.
  *
- * Env: QWEN_ASR_MODEL (default "qwen3-asr-flash"). Works with both kinds of
- * audio model: dedicated ASR models (name contains "asr"; take asr_options)
- * and general audio-understanding "omni" models, which need a written
- * instruction and may answer NO_SPEECH.
+ * Env: QWEN_ASR_MODEL (default "qwen3-asr-flash") and QWEN_ASR_BASE_URL.
+ *
+ * ModelScope's inference endpoint hosts chat models only — it rejects
+ * qwen3-asr-flash with 400 "Invalid model id". When Msaada runs on ModelScope
+ * (Hack for Humanity with Qwen), /api/transcribe degrades gracefully: the
+ * client surfaces kind="invalid_model" and the route answers 501
+ * ASR_NOT_AVAILABLE, so the UI tells the CHV to type instead. Set
+ * QWEN_ASR_BASE_URL (e.g. https://dashscope.aliyuncs.com/compatible-mode/v1)
+ * + QWEN_ASR_MODEL with a DashScope key to re-enable voice notes. Works with
+ * both kinds of audio model: dedicated ASR models (name contains "asr"; take
+ * asr_options) and general audio-understanding "omni" models, which need a
+ * written instruction and may answer NO_SPEECH.
  */
 
 const DEFAULT_ASR_MODEL = "qwen3-asr-flash";
@@ -79,12 +87,15 @@ export async function transcribeAudio(
       ];
 
   const { content, model: usedModel } = await qwenChat({
-        task: "transcribe",
+    task: "transcribe",
     model,
     messages,
     temperature: 0,
     // ASR models reject enable_thinking; omni models are faster without it.
     disableThinking: !isAsrModel,
+    // ASR models live on DashScope, not ModelScope — allow a per-call host
+    // override without touching the chat endpoint.
+    baseUrl: process.env.QWEN_ASR_BASE_URL?.trim() || undefined,
     // ASR only: auto-detect language, keep numbers and names as spoken.
     extraBody: isAsrModel ? { asr_options: { enable_itn: false } } : undefined,
     timeoutMs: 60_000,

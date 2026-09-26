@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Msaada — Roadmap</title>
+<link rel="stylesheet" href="global.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  html, body { margin:0; padding:0; background:var(--bg); }
+  .stage-tag { font-family:var(--font-num); font-size:12.5px; font-weight:700; letter-spacing:0.15em; color:var(--ink-soft); background:var(--bg); padding:0 10px 0 2px; position:relative; }
+  .stage-title { font-family:var(--font-heading); font-size:17px; font-weight:700; color:var(--primary); line-height:1.25; }
+  .stage-desc { font-size:13px; color:var(--ink-soft); line-height:1.55; margin-top:8px; }
+  .icon-tile { width:40px; height:40px; border-radius:12px; background:var(--teal-soft); display:flex; align-items:center; justify-content:center; flex:none; }
+  .ghost-num { position:absolute; right:14px; bottom:2px; font-family:var(--font-num); font-size:72px; font-weight:700; line-height:1; color:rgba(14,58,61,0.055); }
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="h-full flex flex-col" style="padding:54px 64px 46px;">
+
+    <header>
+      <div class="flex items-center" style="gap:10px;">
+        <span data-decor aria-hidden="true" style="width:26px;height:3px;border-radius:2px;background:var(--accent);"></span>
+        <span class="kicker">ROADMAP</span>
+      </div>
+      <h1 style="font-family:var(--font-heading); font-size:var(--fs-h1); font-weight:800; letter-spacing:-0.01em; line-height:1.1; margin:12px 0 0;">Shipped today, designed for what&rsquo;s next.</h1>
+    </header>
+
+    <main class="flex-1 relative" style="margin-top:32px; min-height:0;">
+      <div data-decor aria-hidden="true" class="absolute" style="left:4px; right:4px; top:7px; height:2px; background:var(--line);"></div>
+
+      <div class="grid grid-cols-4 h-full" style="gap:20px;">
+
+        <!-- NOW -->
+        <div class="flex flex-col" style="min-width:0;">
+          <div class="flex items-center" style="height:16px;">
+            <span data-decor aria-hidden="true" style="width:14px; height:14px; border-radius:999px; background:var(--accent); box-shadow:0 0 0 4px var(--teal-soft); flex:none;"></span>
+            <span class="stage-tag" style="color:var(--accent-deep);">NOW</span>
+          </div>
+          <div class="card-teal relative flex-1 flex flex-col overflow-hidden" style="margin-top:20px; padding:22px; border:1.5px solid var(--accent);">
+            <span class="num absolute" style="top:16px; right:16px; font-size:10.5px; font-weight:700; letter-spacing:0.14em; color:var(--accent-deep); background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:4px 10px;">SHIPPED</span>
+            <div class="icon-tile" style="background:var(--surface);"><span class="material-icons" style="font-size:22px; color:var(--accent-deep);">rocket_launch</span></div>
+            <div class="stage-title" style="margin-top:14px;">Working MVP</div>
+            <div class="stage-desc">This demo: triage, crisis override, referrals, dashboards, offline sync.</div>
+            <span data-decor aria-hidden="true" class="ghost-num">01</span>
+          </div>
+        </div>
+
+        <!-- NEXT -->
+        <div class="flex flex-col" style="min-width:0;">
+          <div class="flex items-center" style="height:16px;">
+            <span data-decor aria-hidden="true" style="width:12px; height:12px; margin-left:1px; border-radius:999px; background:var(--bg); border:2px solid var(--ink-faint); flex:none;"></span>
+            <span class="stage-tag">NEXT</span>
+          </div>
+          <div class="card relative flex-1 flex flex-col overflow-hidden" style="margin-top:20px; padding:22px;">
+            <div class="icon-tile"><span class="material-icons" style="font-size:22px; color:var(--accent-deep);">mic</span></div>
+            <div class="stage-title" style="margin-top:14px;">Voice notes</div>
+            <div class="stage-desc">ASR via DashScope escape hatch — chat stays on ModelScope, speech runs on <span class="num" style="font-weight:600; color:var(--accent-deep);">qwen3-asr</span>.</div>
+            <span data-decor aria-hidden="true" class="ghost-num">02</span>
+          </div>
+        </div>
+
+        <!-- THEN -->
+        <div class="flex flex-col" style="min-width:0;">
+          <div class="flex items-center" style="height:16px;">
+            <span data-decor aria-hidden="true" style="width:12px; height:12px; margin-left:1px; border-radius:999px; background:var(--bg); border:2px solid var(--ink-faint); flex:none;"></span>
+            <span class="stage-tag">THEN</span>
+          </div>
+          <div class="card relative flex-1 flex flex-col overflow-hidden" style="margin-top:20px; padding:22px;">
+            <div class="icon-tile"><span class="material-icons" style="font-size:22px; color:var(--accent-deep);">sms</span></div>
+            <div class="stage-title" style="margin-top:14px;">Reach</div>
+            <div class="stage-desc">SMS/USSD fallback for feature phones, PWA install, Kiswahili-first UI.</div>
+            <span data-decor aria-hidden="true" class="ghost-num">03</span>
+          </div>
+        </div>
+
+        <!-- LATER -->
+        <div class="flex flex-col" style="min-width:0;">
+          <div class="flex items-center" style="height:16px;">
+            <span data-decor aria-hidden="true" style="width:12px; height:12px; margin-left:1px; border-radius:999px; background:var(--bg); border:2px solid var(--ink-faint); flex:none;"></span>
+            <span class="stage-tag">LATER</span>
+          </div>
+          <div class="card relative flex-1 flex flex-col overflow-hidden" style="margin-top:20px; padding:22px;">
+            <div class="icon-tile"><span class="material-icons" style="font-size:22px; color:var(--accent-deep);">balance</span></div>
+            <div class="stage-title" style="margin-top:14px;">Haki integration</div>
+            <div class="stage-desc">Companion governance/legal-rights product, deliberately deferred so Msaada ships focused.</div>
+            <span data-decor aria-hidden="true" class="ghost-num">04</span>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <footer class="card flex items-center" style="margin-top:24px; padding:15px 22px; gap:14px; border-left:3px solid var(--accent);">
+      <span class="material-icons" style="font-size:22px; color:var(--accent-deep); flex:none;">verified_user</span>
+      <p style="margin:0; font-size:14.5px; font-weight:600; color:var(--primary); line-height:1.4;">Every stage reuses the same deterministic safety layer — new input channels, unchanged guarantees.</p>
+    </footer>
+
+  </div>
+</div>
+
+<aside data-notes class="hidden" style="display:none;">
+  <ul>
+    <li>NOW is shipped — everything else is design intent on a working core.</li>
+    <li>Voice: chat stays on ModelScope; speech via DashScope qwen3-asr escape hatch.</li>
+    <li>Name Haki as a conscious scope decision, not vaporware.</li>
+    <li>Same deterministic safety layer at every stage — new input channels, unchanged guarantees.</li>
+  </ul>
+</aside>
+</body>
+</html>

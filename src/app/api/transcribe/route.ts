@@ -65,9 +65,20 @@ export async function POST(req: Request) {
       err instanceof Error ? err.message : err
     );
     const timeout = err instanceof QwenError && err.kind === "timeout";
+    // ModelScope (Hack for Humanity with Qwen) hosts chat models only — an ASR
+    // model id is rejected with 400 "Invalid model id". Distinguish that from
+    // a generic failure: 501 + ASR_NOT_AVAILABLE lets the UI say "type your
+    // observation instead" instead of "try again later".
+    const noAsr = err instanceof QwenError && err.kind === "invalid_model";
     return NextResponse.json(
-      { error: timeout ? "TRANSCRIBE_TIMEOUT" : "TRANSCRIBE_FAILED" },
-      { status: timeout ? 504 : 502 }
+      {
+        error: noAsr
+          ? "ASR_NOT_AVAILABLE"
+          : timeout
+            ? "TRANSCRIBE_TIMEOUT"
+            : "TRANSCRIBE_FAILED",
+      },
+      { status: noAsr ? 501 : timeout ? 504 : 502 }
     );
   }
 }

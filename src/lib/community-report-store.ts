@@ -184,7 +184,8 @@ function toReportDTO(row: {
     aiConfidence: row.aiConfidence,
     aiProcessedAt: row.aiProcessedAt ? row.aiProcessedAt.toISOString() : null,
     policyVersion: row.policyVersion,
-    policyDecision: row.policyDecision,
+    // policyDecision JSON stays DB/audit-only — the DTO is privilege-minimal
+    // (exposes policyVersion + policyWorkflowClass, not the raw decision blob).
     policyWorkflowClass: row.policyWorkflowClass,
     responseCaseCount,
   };

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Msaada — Continuity of care</title>
+<link rel="stylesheet" href="global.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  body{margin:0;background:var(--bg);}
+  .microlabel{font-family:var(--font-body);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);}
+  .pipe-chip{display:inline-flex;align-items:center;background:var(--surface);border:1px solid var(--accent);border-radius:999px;padding:10px 13px;font-family:var(--font-num);font-size:12px;font-weight:700;letter-spacing:0.08em;color:var(--primary);white-space:nowrap;}
+  .pipe-chip--done{background:var(--accent-deep);border-color:var(--accent-deep);color:#FFFFFF;}
+  .step-row{display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 16px;}
+</style>
+</head>
+<body>
+<div class="slide" style="display:flex;flex-direction:column;padding:56px 64px;">
+  <!-- Header -->
+  <header>
+    <div class="kicker">Continuity of care</div>
+    <h1 style="font-family:var(--font-heading);font-weight:800;font-size:40px;line-height:1.16;color:var(--primary);margin:10px 0 0;">
+      &ldquo;Referral created&rdquo; is not <span style="color:var(--accent-deep);">&ldquo;help received&rdquo;</span>.
+    </h1>
+  </header>
+
+  <!-- Comparison -->
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:430px 1fr;gap:26px;margin:24px 0 18px;">
+    <!-- Left: typical tools -->
+    <section class="card" style="padding:26px 28px;display:flex;flex-direction:column;min-height:0;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="width:48px;height:48px;border-radius:12px;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <span class="material-icons" aria-hidden="true" style="font-size:26px;color:var(--ink-faint);">link_off</span>
+        </div>
+        <div style="font-family:var(--font-heading);font-size:19px;font-weight:700;color:var(--ink-soft);">Typical tools stop here</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px;margin-top:14px;">
+        <div class="step-row">
+          <span class="material-icons" aria-hidden="true" style="font-size:19px;color:var(--ink-faint);">post_add</span>
+          <span style="font-size:14.5px;color:var(--ink-soft);">Referral created</span>
+        </div>
+        <span class="material-icons" aria-hidden="true" style="font-size:18px;color:var(--ink-faint);margin-left:22px;">south</span>
+        <div class="step-row">
+          <span class="material-icons" aria-hidden="true" style="font-size:19px;color:var(--ink-faint);">inventory</span>
+          <span style="font-size:14.5px;color:var(--ink-soft);">Record closed</span>
+        </div>
+        <span class="material-icons" aria-hidden="true" style="font-size:18px;color:var(--ink-faint);margin-left:22px;">south</span>
+        <div class="step-row" style="border-style:dashed;">
+          <span class="material-icons" aria-hidden="true" style="font-size:19px;color:var(--ink-faint);">visibility_off</span>
+          <span style="font-size:14.5px;font-weight:600;color:var(--ink-soft);">County never learns the outcome</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: Msaada lifecycle -->
+    <section class="card-teal" style="padding:28px 30px;display:flex;flex-direction:column;justify-content:space-between;min-height:0;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="width:48px;height:48px;border-radius:12px;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <span class="material-icons" aria-hidden="true" style="font-size:26px;color:var(--accent-deep);">all_inclusive</span>
+        </div>
+        <div style="font-family:var(--font-heading);font-size:19px;font-weight:700;color:var(--primary);">Msaada tracks the lifecycle</div>
+      </div>
+
+      <div>
+        <div class="microlabel">Referral lifecycle</div>
+        <div style="display:flex;align-items:center;gap:7px;margin-top:10px;">
+          <span class="pipe-chip">CREATED</span>
+          <span class="material-icons" aria-hidden="true" style="font-size:17px;color:var(--accent-deep);">chevron_right</span>
+          <span class="pipe-chip">SENT</span>
+          <span class="material-icons" aria-hidden="true" style="font-size:17px;color:var(--accent-deep);">chevron_right</span>
+          <span class="pipe-chip">ACKNOWLEDGED</span>
+          <span class="material-icons" aria-hidden="true" style="font-size:17px;color:var(--accent-deep);">chevron_right</span>
+          <span class="pipe-chip">IN_PROGRESS</span>
+          <span class="material-icons" aria-hidden="true" style="font-size:17px;color:var(--accent-deep);">chevron_right</span>
+          <span class="pipe-chip pipe-chip--done">COMPLETED</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="microlabel">Follow-ups</div>
+        <div style="display:flex;align-items:center;gap:7px;margin-top:10px;">
+          <span class="pipe-chip">PENDING</span>
+          <span class="material-icons" aria-hidden="true" style="font-size:17px;color:var(--accent-deep);">chevron_right</span>
+          <span class="pipe-chip">DONE</span>
+          <span style="font-family:var(--font-num);font-size:13px;font-weight:700;color:var(--ink-soft);padding:0 2px;">/</span>
+          <span class="pipe-chip">MISSED</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Identity chain strip -->
+  <div class="card" style="display:flex;align-items:center;gap:16px;padding:17px 24px;border-left:4px solid var(--accent);">
+    <span class="material-icons" aria-hidden="true" style="font-size:24px;color:var(--accent-deep);">account_tree</span>
+    <p style="font-size:15px;line-height:1.5;color:var(--primary);margin:0;">
+      Households are linked to <strong>encounters</strong>, encounters to <strong>triage records</strong>, records to <strong>referrals</strong> — the full identity chain is queryable for audit and supervision.
+    </p>
+  </div>
+</div>
+
+<aside data-notes class="hidden" style="display:none;">
+  <ul>
+    <li>Core claim: "referral created" is not "help received" — typical tools close the record and go dark.</li>
+    <li>Msaada tracks the full lifecycle: CREATED, SENT, ACKNOWLEDGED, IN_PROGRESS, COMPLETED — plus follow-ups PENDING, DONE or MISSED.</li>
+    <li>Outcome-tracking is what counties actually buy: visibility into results, not activity.</li>
+    <li>Volunteers get follow-up reminders instead of forgotten cases.</li>
+    <li>Households → encounters → triage records → referrals: the identity chain is queryable for audit and supervision.</li>
+  </ul>
+</aside>
+</body>
+</html>

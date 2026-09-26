@@ -1,4 +1,15 @@
+# Internal z-ai agent tooling (not part of the product)
 skills/
+
+# Dev-server log
+dev.log
+
+# Binary SQLite DBs, regenerated locally via `bun run db:push`
+db/*.db
+
+# Repo standardizes on bun + bun.lock; npm lockfile is stale/unused
+package-lock.json
+
 node_modules/
 seed-all.cjs
 
@@ -22,5 +33,18 @@ validation-test.cjs
 *.cjs
 
 # Local secrets (API keys) — never commit. Next.js loads these automatically.
+# (.env itself is a tracked, secret-free defaults file: DATABASE_URL only.)
 .env.local
 .env*.local
+.env.development
+.env.production
+
+# Smoke-test artifacts (contain live endpoint traffic, may echo env values)
+smoke-test.sh
+smoke-jar.txt
+smoke-server.log
+server.log
+tsconfig.tsbuildinfo
+
+# Internal development log (platform-agent artifact, not part of the product)
+/worklog.md

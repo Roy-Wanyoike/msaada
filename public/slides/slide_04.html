@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=1280, initial-scale=1"/>
+<title>Msaada — How It Works</title>
+<link rel="stylesheet" href="global.css"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<style>html,body{margin:0;padding:0;background:var(--bg);}</style>
+</head>
+<body>
+<div class="slide flex flex-col" style="padding:56px 60px 50px;">
+
+  <!-- header -->
+  <div>
+    <div class="flex items-center gap-3">
+      <span style="display:inline-block;width:24px;height:4px;border-radius:999px;background:var(--accent);"></span>
+      <span class="kicker">How It Works</span>
+    </div>
+    <h1 class="mt-4" style="font-family:var(--font-heading);font-size:36px;font-weight:700;letter-spacing:-0.015em;line-height:1.2;color:var(--primary);">From a spoken sentence to a tracked outcome in one visit.</h1>
+  </div>
+
+  <!-- 5-step flow -->
+  <div class="flex flex-1 items-center min-h-0">
+    <div class="flex w-full items-stretch">
+
+      <div class="card flex min-h-[212px] flex-1 flex-col" style="padding:18px 16px;">
+        <div class="flex items-center justify-between">
+          <span class="num" style="font-size:21px;font-weight:700;color:var(--accent-deep);">01</span>
+          <span class="material-icons" style="font-size:20px;color:var(--accent);">mic</span>
+        </div>
+        <p class="mt-2.5" style="font-family:var(--font-heading);font-size:16.5px;font-weight:700;color:var(--primary);">Speak or type</p>
+        <p class="mt-2" style="font-size:13px;line-height:1.55;color:var(--ink-soft);">CHV dictates the visit naturally (English / Kiswahili / Sheng)</p>
+      </div>
+
+      <div class="flex items-center px-1"><span class="material-icons" style="font-size:22px;color:var(--accent);">arrow_forward</span></div>
+
+      <div class="card flex min-h-[212px] flex-1 flex-col" style="padding:18px 16px;">
+        <div class="flex items-center justify-between">
+          <span class="num" style="font-size:21px;font-weight:700;color:var(--accent-deep);">02</span>
+          <span class="material-icons" style="font-size:20px;color:var(--accent);">filter_alt</span>
+        </div>
+        <p class="mt-2.5" style="font-family:var(--font-heading);font-size:16.5px;font-weight:700;color:var(--primary);">Scrub</p>
+        <p class="mt-2" style="font-size:13px;line-height:1.55;color:var(--ink-soft);">PII scrubber strips names, phones, landmarks before anything is stored; the raw observation is <span style="font-weight:800;color:var(--primary);">NEVER</span> persisted</p>
+      </div>
+
+      <div class="flex items-center px-1"><span class="material-icons" style="font-size:22px;color:var(--accent);">arrow_forward</span></div>
+
+      <div class="card flex min-h-[212px] flex-1 flex-col" style="padding:18px 16px;">
+        <div class="flex items-center justify-between">
+          <span class="num" style="font-size:21px;font-weight:700;color:var(--accent-deep);">03</span>
+          <span class="material-icons" style="font-size:20px;color:var(--accent);">psychology</span>
+        </div>
+        <p class="mt-2.5" style="font-family:var(--font-heading);font-size:16.5px;font-weight:700;color:var(--primary);">Structure</p>
+        <p class="mt-2" style="font-size:13px;line-height:1.55;color:var(--ink-soft);">Qwen (ModelScope) extracts classification, observed indicators, aggregate tag, confidence</p>
+      </div>
+
+      <div class="flex items-center px-1"><span class="material-icons" style="font-size:22px;color:var(--accent);">arrow_forward</span></div>
+
+      <div class="card flex min-h-[212px] flex-1 flex-col" style="padding:18px 16px;">
+        <div class="flex items-center justify-between">
+          <span class="num" style="font-size:21px;font-weight:700;color:var(--accent-deep);">04</span>
+          <span class="material-icons" style="font-size:20px;color:var(--accent);">gavel</span>
+        </div>
+        <p class="mt-2.5" style="font-family:var(--font-heading);font-size:16.5px;font-weight:700;color:var(--primary);">Decide</p>
+        <p class="mt-2" style="font-size:13px;line-height:1.55;color:var(--ink-soft);">versioned deterministic policy engine evaluates: routine / follow-up / referral / <span class="num" style="font-weight:700;color:var(--crisis);">crisis_override</span></p>
+      </div>
+
+      <div class="flex items-center px-1"><span class="material-icons" style="font-size:22px;color:var(--accent);">arrow_forward</span></div>
+
+      <div class="card flex min-h-[212px] flex-1 flex-col" style="padding:18px 16px;">
+        <div class="flex items-center justify-between">
+          <span class="num" style="font-size:21px;font-weight:700;color:var(--accent-deep);">05</span>
+          <span class="material-icons" style="font-size:20px;color:var(--accent);">alt_route</span>
+        </div>
+        <p class="mt-2.5" style="font-family:var(--font-heading);font-size:16.5px;font-weight:700;color:var(--primary);">Route &amp; track</p>
+        <p class="mt-2" style="font-size:13px;line-height:1.55;color:var(--ink-soft);">referral lifecycle + follow-ups + de-identified county dashboard</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- before / after strip -->
+  <div class="card-teal flex shrink-0 items-center gap-3.5" style="padding:15px 24px;">
+    <span class="flex items-center justify-center shrink-0" style="width:38px;height:38px;border-radius:10px;background:var(--surface);">
+      <span class="material-icons" style="font-size:20px;color:var(--accent-deep);">sync_alt</span>
+    </span>
+    <span class="num shrink-0" style="font-size:12px;font-weight:700;letter-spacing:0.08em;color:var(--ink-soft);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px 9px;">BEFORE</span>
+    <p class="whitespace-nowrap" style="font-size:13px;color:var(--ink-soft);">notebook <span style="color:var(--accent-deep);font-weight:600;">→</span> pocket <span style="color:var(--accent-deep);font-weight:600;">→</span> acute incident at facility</p>
+    <span style="color:var(--ink-faint);font-weight:700;font-size:16px;">·</span>
+    <span class="num shrink-0" style="font-size:12px;font-weight:700;letter-spacing:0.08em;color:#FFFFFF;background:var(--accent-deep);border-radius:6px;padding:3px 9px;">AFTER</span>
+    <p class="whitespace-nowrap" style="font-size:13px;font-weight:600;color:var(--primary);">observation <span style="color:var(--accent-deep);">→</span> structured signal <span style="color:var(--accent-deep);">→</span> early community-level intervention</p>
+  </div>
+
+</div>
+<aside data-notes class="hidden" style="display:none;">
+  <ul>
+    <li>Walk the five steps left to right in under a minute, using one concrete example sentence.</li>
+    <li>Emphasise steps 2 and 4 are NOT AI steps — deterministic code and a versioned policy engine.</li>
+    <li>Step 2: the raw observation is never persisted; PII is stripped before anything is stored.</li>
+    <li>Step 4: crisis_override fires by rule, not by model confidence.</li>
+    <li>Land on the BEFORE→AFTER strip: notebook-to-acute-incident becomes early community-level intervention.</li>
+  </ul>
+</aside>
+</body>
+</html>

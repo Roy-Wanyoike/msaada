@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Toaster as RadixToaster } from "@/components/ui/toaster";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,6 +19,33 @@ export const metadata: Metadata = {
   title: "Msaada — CHV mental-health triage",
   description:
     "Community health volunteer home-visit observation triage. Demo build — not a diagnostic tool. Crisis line: Kenya Red Cross 1199 / Befrienders Kenya +254 722 178 177.",
+  applicationName: "Msaada",
+  keywords: [
+    "Msaada",
+    "community health",
+    "CHV",
+    "mental health triage",
+    "Kenya",
+    "Qwen",
+  ],
+  openGraph: {
+    title: "Msaada — CHV mental-health triage",
+    description:
+      "Help reaches the household first: natural-language observation → deterministic safety policy → tracked referral. Built for Kenya's 90,000+ community health volunteers.",
+    type: "website",
+    siteName: "Msaada",
+    locale: "en_KE",
+  },
+  twitter: {
+    card: "summary",
+    title: "Msaada — CHV mental-health triage",
+    description:
+      "Help reaches the household first: AI structures the observation, deterministic policy decides, humans deliver care.",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0E3A3D",
 };
 
 export default function RootLayout({
@@ -47,6 +75,7 @@ export default function RootLayout({
             @/hooks/use-toast, which renders into <Toaster /> below. Without it,
             dashboard toasts are invisible. The two coexist fine. */}
         <RadixToaster />
+        <Analytics />
       </body>
     </html>
   );

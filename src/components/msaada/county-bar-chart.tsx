@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -122,7 +121,6 @@ export function CountyBarChart({ data }: Props) {
               content={<ChartTooltip />}
               cursor={{ fill: "currentColor", fillOpacity: 0.06 }}
             />
-            <Legend renderer={() => null} />
             <Bar
               dataKey="routine"
               name="Routine"
@@ -232,7 +230,6 @@ export function DailyTrendChart({ data }: DailyTrendProps) {
               content={<ChartTooltip />}
               cursor={{ stroke: "currentColor", strokeOpacity: 0.2 }}
             />
-            <Legend renderer={() => null} />
             <Line
               type="monotone"
               dataKey="routine"
