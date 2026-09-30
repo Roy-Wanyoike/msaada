@@ -9,14 +9,29 @@ import {
 } from "@/lib/auth";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { isDemoMode } from "@/lib/deployment-mode";
+import { hashPassword } from "@/lib/local-session";
 
 // Cookie/DB writes → never static.
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/demo-chv
- * Idempotent: creates the demo CHV (demo@msaada.health / msaada123) if missing,
- * returns the credentials so the UI can prefill / display them.
+ * Idempotent: ensures the two demo accounts exist
+ * (demo@msaada.health / msaada123 and county.admin@msaada.health / msaada123)
+ * and returns the CHV credentials so the UI can prefill / display them.
+ *
+ * Provider selection:
+ *  - Supabase (primary): when the admin client is available, the documented
+ *    demo credentials are synchronized into Supabase Auth (create or update
+ *    by email) and the local rows keep the SUPABASE_PASSWORD_MARKER.
+ *  - Local (fallback, issue #53): when no admin client is available AND the
+ *    deployment is in demo mode, the two rows are ensured locally with real
+ *    scrypt `passwordHash` values — set ONLY when the row is missing or
+ *    still carries the marker (never overwrites a real local credential an
+ *    operator may have set, and never rewrites a row's email identity).
+ *    This is the flow the AuthCard retry (login → provision → login) relies
+ *    on for zero-config local demos.
+ *  - No admin client and NOT demo mode → 404 (route does not exist there).
  *
  * TODO (production): remove this route or gate behind a feature flag.
  */
@@ -26,11 +41,80 @@ export async function POST() {
   }
 
   const supabase = createAdminClient();
+
+  // ── Local fallback (demo mode, issue #53) ──────────────────────────────
+  // Ensures both demo users exist with real local hashes so the login
+  // fallback can verify them. Idempotent by email; the response shape is
+  // identical to the Supabase branch below.
   if (!supabase) {
-    return NextResponse.json(
-      { error: "SERVER_NOT_CONFIGURED" },
-      { status: 503 }
-    );
+    const ensureLocalDemoUser = async (input: {
+      email: string;
+      password: string;
+      fullName: string;
+      role: string;
+    }) => {
+      const existing = await db.chvUser.findUnique({
+        where: { email: input.email },
+      });
+      if (!existing) {
+        return db.chvUser.create({
+          data: {
+            email: input.email,
+            passwordHash: hashPassword(input.password),
+            fullName: input.fullName,
+            county: "Kilifi",
+            ward: "Malindi Town",
+            role: input.role,
+          },
+        });
+      }
+      if (existing.passwordHash.startsWith(SUPABASE_PASSWORD_MARKER)) {
+        // Marker row (created under a Supabase-managed deployment) — give it
+        // a usable local credential. Email identity is untouched.
+        return db.chvUser.update({
+          where: { id: existing.id },
+          data: { passwordHash: hashPassword(input.password) },
+        });
+      }
+      return existing;
+    };
+
+    try {
+      const chv = await ensureLocalDemoUser({
+        email: DEMO_CHV_EMAIL,
+        password: DEMO_CHV_PASSWORD,
+        fullName: "Demo CHV",
+        role: "chv",
+      });
+      await ensureLocalDemoUser({
+        email: DEMO_ADMIN_EMAIL,
+        password: DEMO_ADMIN_PASSWORD,
+        fullName: "County Admin (Demo)",
+        role: "county_admin",
+      });
+
+      return NextResponse.json(
+        {
+          email: DEMO_CHV_EMAIL,
+          password: DEMO_CHV_PASSWORD,
+          chv: {
+            id: chv.id,
+            email: chv.email,
+            fullName: chv.fullName,
+            county: chv.county,
+            ward: chv.ward,
+          },
+        },
+        { status: 200 }
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(
+        "[demo-auth] local demo provisioning failed:",
+        msg.slice(0, 120)
+      );
+      return NextResponse.json({ error: "SERVER_ERROR" }, { status: 503 });
+    }
   }
 
   let chv = await db.chvUser.findUnique({

@@ -23,6 +23,11 @@ fail() { printf '\033[1;31m✘ %s\033[0m\n' "$1"; exit 1; }
 
 step "verify ($MODE) — runner: $RUNNER"
 
+# The smoke script IS the operator making the explicit demo-mode choice on a
+# throwaway DB: without Supabase env vars the local auth fallback (issue #53)
+# is only reachable in demo mode. Static runs never set it.
+[ "$MODE" = "smoke" ] && export MSAADA_DEMO_MODE=true
+
 # 1 ─ Prisma client (needed by tsc; idempotent)
 step "1/4 prisma generate"
 $RUNNER run db:generate >/dev/null 2>&1 || npx prisma generate >/dev/null 2>&1 \
@@ -66,7 +71,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-step "5/7 boot standalone server (throwaway DB: $TMPDB)"
+step "5/8 boot standalone server (throwaway DB: $TMPDB)"
 rm -f "$TMPDB"
 NODE_ENV=production PORT=$PORT DATABASE_URL="file:$TMPDB" \
   MSAADA_SESSION_SECRET="$SECRET" \
@@ -81,11 +86,19 @@ for i in $(seq 1 30); do
 done
 pass "server healthy on :$PORT"
 
-step "6/7 probe /api/health + demo login + /presentation"
+step "6/8 health + unauthenticated 401 gates (RBAC)"
 HEALTH=$(curl -sf -m 10 "$BASE/api/health") || fail "/api/health unreachable"
 echo "$HEALTH" | rg -q '"ok"' || echo "$HEALTH" | rg -qi 'ok' || fail "/api/health not ok: $HEALTH"
 pass "/api/health ok"
 
+# Issue #54: the aggregate/compliance surfaces must NEVER answer anonymously.
+for EP in /api/audit /api/supervisor/roster /api/dashboard; do
+  CODE=$(curl -s -m 10 -o /dev/null -w '%{http_code}' "$BASE$EP")
+  [ "$CODE" = "401" ] || fail "unauthenticated GET $EP returned $CODE (expected 401)"
+  pass "unauthenticated GET $EP → 401"
+done
+
+step "7/8 demo CHV login (local fallback) + RBAC smoke"
 curl -sf -m 10 -c "$COOKIE" -X POST "$BASE/api/auth/login" \
   -H 'Content-Type: application/json' \
   -d '{"email":"demo@msaada.health","password":"msaada123"}' >/dev/null \
@@ -93,11 +106,17 @@ curl -sf -m 10 -c "$COOKIE" -X POST "$BASE/api/auth/login" \
 [ -s "$COOKIE" ] || fail "login set no session cookie"
 pass "demo CHV login ok (session cookie issued)"
 
+# Authenticated CHV on their own county slice (scope=mine) must be 200.
+DASH_CODE=$(curl -s -m 10 -o /dev/null -w '%{http_code}' \
+  -b "$COOKIE" "$BASE/api/dashboard?scope=mine")
+[ "$DASH_CODE" = "200" ] || fail "authed GET /api/dashboard?scope=mine returned $DASH_CODE (expected 200)"
+pass "authed GET /api/dashboard?scope=mine → 200"
+
 curl -sf -m 10 -b "$COOKIE" "$BASE/presentation" | rg -qi 'Msaada' \
   || fail "/presentation did not render"
 pass "/presentation renders"
 
-step "7/7 revoked-cookie replay rejected (revocable sessions)"
+step "8/8 revoked-cookie replay rejected (revocable sessions)"
 SESSION_COOKIE=$(rg -o 'msaada_session\s+(\S+)' "$COOKIE" | awk '{print $2}' | head -1)
 [ -n "$SESSION_COOKIE" ] || fail "could not read session cookie from jar"
 curl -sf -m 10 -b "$COOKIE" -X POST "$BASE/api/auth/logout" >/dev/null || true

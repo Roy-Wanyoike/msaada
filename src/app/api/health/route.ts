@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
  * Response shape:
  *   { status: "ok" | "degraded",
  *     checks: { database, qwen, supabase },   // "ok" | "error" | "not_configured"
- *     timestamp: <ISO string>, version: "1.0.0" }
+ *     sessionSecret: "configured" | "ephemeral" | "demo",  // mode only, never the value (issue #53)
+ *     timestamp: <ISO string>, version: "1.2.0" }
  *
  * Always HTTP 200 with status words only: missing configuration is reported
  * as "not_configured" (not an endpoint failure), errors as "error". No env
@@ -37,6 +38,8 @@ export async function GET() {
     const report: HealthReport = {
       status: "degraded",
       checks,
+      // Unreachable in practice; conservative mode value (never the secret).
+      sessionSecret: "demo",
       timestamp: new Date().toISOString(),
       version: HEALTH_VERSION,
     };

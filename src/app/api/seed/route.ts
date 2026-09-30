@@ -3,12 +3,16 @@ import { db } from "@/lib/db";
 import {
   SUPABASE_PASSWORD_MARKER,
   DEMO_CHV_EMAIL,
+  DEMO_CHV_PASSWORD,
 } from "@/lib/auth";
-import { classifyObservation } from "@/lib/ai/triage";
-import { insertTriageRecord, writeAuditEntry } from "@/lib/triage-store";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isDemoMode } from "@/lib/deployment-mode";
 import { generateCode } from "@/lib/identity-types";
+import { getSessionChv } from "@/lib/auth";
+import { createAdminClient } from "@/utils/supabase/admin";
+import { hashPassword } from "@/lib/local-session";
+import { classifyObservation } from "@/lib/ai/triage";
+import { insertTriageRecord, writeAuditEntry } from "@/lib/triage-store";
 import {
   evaluatePolicy,
   getDestinationForCategory,
@@ -63,7 +67,10 @@ export const dynamic = "force-dynamic";
  *    escalation=true; the policy engine creates an emergency referral
  *    so the dashboard Referrals list is non-empty).
  *
- * TODO (production): remove or gate behind admin auth.
+ * Auth contract (issue #54): demo-mode gated (404 otherwise) AND requires a
+ * session (401 without one) — the seed endpoint spawns LLM + DB write
+ * batches, so even in demo mode it is never anonymous. Any authenticated
+ * role may seed its own demo data; rate limiting below still applies.
  */
 
 interface Transcript {
@@ -214,7 +221,13 @@ async function ensureDemoChv() {
     chv = await db.chvUser.create({
       data: {
         email: DEMO_CHV_EMAIL,
-        passwordHash: SUPABASE_PASSWORD_MARKER,
+        // Supabase owns the credential when its admin client is available
+        // (marker); otherwise the row needs a real local hash so the
+        // demo-mode login fallback can verify it (issue #53 parity with
+        // db-bootstrap / POST /api/demo-chv).
+        passwordHash: createAdminClient()
+          ? SUPABASE_PASSWORD_MARKER
+          : hashPassword(DEMO_CHV_PASSWORD),
         fullName: "Demo CHV",
         county: "Kilifi",
         ward: "Malindi Town",
@@ -350,6 +363,13 @@ function toInterpretation(
 export async function POST(req: Request) {
   if (!isDemoMode()) {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+  }
+
+  // Auth gate (issue #54): seeding is a signed-in convenience, even in
+  // demo mode. Anonymous callers are pointed at sign-in.
+  const chv = await getSessionChv();
+  if (!chv) {
+    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
   // Rate-limit per request IP. Each seed call spawns 9 Qwen LLM calls

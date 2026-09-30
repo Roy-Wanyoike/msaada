@@ -22,8 +22,12 @@
 import { db } from "@/lib/db";
 import { qwenConfigured } from "@/lib/ai/client";
 import { supabaseConfig } from "@/utils/supabase/config";
+import {
+  sessionSecretMode,
+  type SessionSecretMode,
+} from "@/lib/local-session";
 
-export const HEALTH_VERSION = "1.1.0";
+export const HEALTH_VERSION = "1.2.0";
 
 export type CheckStatus = "ok" | "error" | "not_configured";
 
@@ -36,6 +40,10 @@ export interface Checks {
 export interface HealthReport {
   status: "ok" | "degraded";
   checks: Checks;
+  /** How the local-session signing secret was resolved (mode only — never
+   *  the secret): "configured" | "ephemeral" | "demo". Additive field
+   *  (issue #53): "ephemeral" explains why sessions reset across restarts. */
+  sessionSecret: SessionSecretMode;
   timestamp: string;
   version: string;
 }
@@ -118,6 +126,16 @@ export async function runHealthChecks(): Promise<HealthReport> {
 
   const checks: Checks = { database, qwen, supabase };
 
+  // Local-session secret mode (additive, issue #53). sessionSecretMode() is
+  // memoized and never throws; the mode is informational — the secret value
+  // itself is never surfaced anywhere.
+  let sessionSecret: SessionSecretMode = "demo";
+  try {
+    sessionSecret = sessionSecretMode();
+  } catch {
+    // Resolution unavailable in this context — report the conservative default.
+  }
+
   // Overall policy: all three "ok" → "ok"; anything else ("error" or
   // "not_configured") → "degraded". Rationale in the module docblock.
   const status =
@@ -130,6 +148,7 @@ export async function runHealthChecks(): Promise<HealthReport> {
   return {
     status,
     checks,
+    sessionSecret,
     timestamp: new Date().toISOString(),
     version: HEALTH_VERSION,
   };

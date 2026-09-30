@@ -6,8 +6,11 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/auth/logout
- * Revokes the current Supabase refresh token and clears its auth cookies.
- * The logout is recorded in the AuthEvent audit trail (best-effort).
+ * Revokes the current session and clears its auth cookies. Provider is
+ * selected inside clearSession(): with Supabase configured it revokes the
+ * Supabase refresh token; without Supabase it revokes the local DB-backed
+ * AuthSession row (issue #53 fallback). The logout is recorded in the
+ * AuthEvent audit trail (best-effort) whenever a userId was resolved.
  */
 export async function POST() {
   const signedOutUserId = await clearSession();
