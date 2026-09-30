@@ -80,6 +80,7 @@ CREATE TABLE "TriageRecord" (
     "promptVersion" TEXT,
     "aiReasoning" TEXT,
     "chpNextActionSw" TEXT,
+    "missingInformation" TEXT,
     "submittedById" TEXT NOT NULL,
     "encounterId" TEXT,
     CONSTRAINT "TriageRecord_submittedById_fkey" FOREIGN KEY ("submittedById") REFERENCES "ChvUser" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -252,6 +253,8 @@ CREATE TABLE "ResponseCase" (
     "resolutionNote" TEXT,
     "outcomeCategory" TEXT,
     "outcomeSummary" TEXT,
+    "aiSummary" TEXT,
+    "aiSummaryAt" DATETIME,
     CONSTRAINT "ResponseCase_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "CommunityReport" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 

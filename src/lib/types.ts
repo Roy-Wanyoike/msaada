@@ -41,6 +41,13 @@ export interface NormalResult {
   escalation: false;
   classification: Classification;
   observed_indicators: string[];
+  /**
+   * Up to 3 short strings naming what the observation does NOT say
+   * (issue #55, mirrors report-intake's missing_information). When the
+   * model omits or fails the field, the caller derives it from the
+   * classification (see deriveMissingInformation in ai/triage.ts).
+   */
+  missing_information: string[];
   chp_next_action: string;
   confidence_note: string | null;
   aggregate_tag: string;
@@ -70,6 +77,13 @@ export interface TriageRecordDTO {
   crisisLine: string | null;
   confidenceNote: string | null;
   fallbackUsed: boolean;
+  /**
+   * Up to 3 short strings naming what the observation did NOT cover —
+   * what the CHV should ask next visit. ALWAYS a well-shaped array:
+   * derived deterministically from the classification when the model
+   * omits/fails the field (issue #55). Empty for routine records.
+   */
+  missingInformation: string[];
   /** Links to the Encounter that generated this observation (section 6, 15). */
   encounterId: string | null;
   /** Qwen's explanation of the classification (null on fallback / crisis). */

@@ -116,12 +116,21 @@ async function run(): Promise<BootstrapResult> {
   //    org/authz upgrade). findFirst always projects the selected columns,
   //    so a pre-MVP-44 AuditLog fails this query even when empty — which is
   //    exactly what forces the ALTER TABLE upgrade path on old databases.
+  //  - TriageRecord.missingInformation + ResponseCase.aiSummary columns
+  //    (issue #55): a pre-#55 database fails these probes, forcing the DDL
+  //    (and its ALTER TABLE upgrades) to run and add the new columns.
   let schemaReady = false;
   try {
     await Promise.all([
       db.aiActivity.findFirst({ select: { id: true } }),
       db.auditLog.findFirst({
         select: { id: true, organizationId: true, authorizationRole: true },
+      }),
+      db.triageRecord.findFirst({
+        select: { id: true, missingInformation: true },
+      }),
+      db.responseCase.findFirst({
+        select: { id: true, aiSummary: true, aiSummaryAt: true },
       }),
     ]);
     schemaReady = true;

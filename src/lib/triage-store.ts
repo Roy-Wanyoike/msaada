@@ -24,8 +24,15 @@ export async function insertTriageRecord(args: {
   /** AI transparency: model id (or "fallback") and prompt version used. */
   aiModel?: string;
   promptVersion?: string;
+  /**
+   * Missing-information list (issue #55) — ALWAYS a well-shaped string[]
+   * (≤3 × ≤120 chars); the route resolves model-value-vs-derivation before
+   * calling. Empty array for routine records. Stored JSON-encoded exactly
+   * like observedIndicators.
+   */
+  missingInformation?: string[];
 }): Promise<TriageRecordDTO> {
-  const { submittedById, county, ward, output, fallbackUsed, encounterId, aiModel, promptVersion } = args;
+  const { submittedById, county, ward, output, fallbackUsed, encounterId, aiModel, promptVersion, missingInformation } = args;
   const isCrisis = output.escalation === true;
 
   const created = await db.triageRecord.create({
@@ -46,6 +53,10 @@ export async function insertTriageRecord(args: {
       promptVersion: promptVersion ?? null,
       aiReasoning: isCrisis ? null : output.reasoning ?? null,
       chpNextActionSw: isCrisis ? null : output.chp_next_action_sw ?? null,
+      // Issue #55: missing_information — well-shaped string[] (JSON-encoded,
+      // same convention as observedIndicators). Crisis records carry the
+      // crisis trio; the route computes it for every path.
+      missingInformation: JSON.stringify(missingInformation ?? []),
       chpInstruction: isCrisis ? output.chp_instruction : null,
       crisisLine: isCrisis ? output.crisis_line : null,
       confidenceNote: isCrisis
@@ -82,6 +93,8 @@ function toDTO(
     chpNextActionSw?: string | null;
     aiModel?: string | null;
     promptVersion?: string | null;
+    /** JSON-encoded string[]; null on pre-#55 rows — read as []. */
+    missingInformation?: string | null;
   }
 ): TriageRecordDTO {
   let indicators: string[] = [];
@@ -90,6 +103,19 @@ function toDTO(
     if (Array.isArray(parsed)) indicators = parsed.filter((x) => typeof x === "string");
   } catch {
     indicators = [];
+  }
+  // Issue #55: tolerant read — legacy rows store null (column didn't exist);
+  // malformed JSON must never break a record read.
+  let missingInformation: string[] = [];
+  if (row.missingInformation) {
+    try {
+      const parsedMissing = JSON.parse(row.missingInformation);
+      if (Array.isArray(parsedMissing)) {
+        missingInformation = parsedMissing.filter((x) => typeof x === "string");
+      }
+    } catch {
+      missingInformation = [];
+    }
   }
   return {
     id: row.id,
@@ -105,6 +131,7 @@ function toDTO(
     crisisLine: row.crisisLine,
     confidenceNote: row.confidenceNote,
     fallbackUsed: row.fallbackUsed,
+    missingInformation,
     encounterId: row.encounterId,
     aiReasoning: row.aiReasoning ?? null,
     chpNextActionSw: row.chpNextActionSw ?? null,

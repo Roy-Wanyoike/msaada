@@ -134,6 +134,10 @@ export async function analyzeCommunityReport(
         escalation: false,
         classification: obj.classification,
         observed_indicators: stringList(obj.observed_indicators, 8),
+        // Report intake has no missing-information contract of its own (the
+        // report's own missingInformation lives on the intake block below);
+        // the field exists on the shared NormalResult shape since #55.
+        missing_information: [],
         chp_next_action:
           typeof obj.chp_next_action === "string" ? obj.chp_next_action : "",
         confidence_note: null,

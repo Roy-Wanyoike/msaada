@@ -31,6 +31,7 @@ import { AuditStrip } from "@/components/msaada/AuditStrip";
 import { AppNav } from "@/components/msaada/AppNav";
 import { AiSummaryCard } from "@/components/msaada/AiSummaryCard";
 import { QwenImpactCard } from "@/components/msaada/QwenImpactCard";
+import { AiEvalPanel } from "@/components/msaada/AiEvalPanel";
 import { FollowUpKpiCard } from "@/components/msaada/FollowUpKpiCard";
 import { CommunityIntelligenceWidget } from "@/components/msaada/CommunityIntelligenceWidget";
 import { EarlyWarningPanel } from "@/components/msaada/EarlyWarningPanel";
@@ -732,6 +733,10 @@ function DashboardView({
 
       {/* How much of the workflow Qwen performs, with live evidence. */}
       <QwenImpactCard days={days} />
+
+      {/* AI evaluation scorecard (issue #55) — deterministic baseline always
+          runs; live scores only when QWEN_API_KEY is configured. */}
+      <AiEvalPanel />
 
       {/* Insights */}
       <section aria-label="Insight callouts" aria-live="polite">

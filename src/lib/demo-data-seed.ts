@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { deriveMissingInformation } from "@/lib/ai/triage";
 
 /**
  * Hermetic demo-data seeder — populates the FULL identity chain so every
@@ -87,6 +88,13 @@ interface VisitSpec {
     | "follow_up_required"
     | "referral_required"
     | "crisis_override";
+  /**
+   * Missing-information items (issue #55). Optional: defaults to the same
+   * deterministic per-classification derivation the live pipeline applies
+   * (deriveMissingInformation via the workflowClass map below), so seed
+   * rows and live rows always agree on the field's shape.
+   */
+  missingInformation?: string[];
   referral?: {
     code: string;
     category: string;
@@ -673,8 +681,26 @@ export async function seedDemoData(
     // One triage per seeded encounter (idempotency key for the record).
     const existingTriage = await db.triageRecord.findFirst({
       where: { encounterId },
-      select: { id: true, aiModel: true, chpNextActionSw: true },
+      select: {
+        id: true,
+        aiModel: true,
+        chpNextActionSw: true,
+        missingInformation: true,
+      },
     });
+
+    // Issue #55: every seeded triage carries a well-shaped missing-info
+    // list derived from its workflow class (same mapping the live pipeline
+    // uses). Counts unchanged — this only fills the new column.
+    const seedMissing =
+      v.missingInformation ??
+      deriveMissingInformation(
+        v.workflowClass === "follow_up_required"
+          ? "needs_followup"
+          : v.workflowClass === "referral_required"
+            ? "needs_facility_referral"
+            : v.workflowClass
+      );
 
     let triageRecordId = existingTriage?.id;
     if (
@@ -692,6 +718,19 @@ export async function seedDemoData(
         data: { chpNextActionSw: v.chpNextActionSw },
       });
     }
+    if (
+      existingTriage &&
+      existingTriage.aiModel === AI_MODEL &&
+      existingTriage.missingInformation == null
+    ) {
+      // Issue #55 in-place upgrade: pre-#55 seed rows get their missing-info
+      // list backfilled on the next bootstrap run (same guard pattern as the
+      // Kiswahili backfill above — seed model + null column only).
+      await db.triageRecord.update({
+        where: { id: existingTriage.id },
+        data: { missingInformation: JSON.stringify(seedMissing) },
+      });
+    }
     if (!triageRecordId) {
       const triage = await db.triageRecord.create({
         data: {
@@ -702,6 +741,7 @@ export async function seedDemoData(
           escalation: v.escalation ?? false,
           fallbackUsed: false,
           observedIndicators: JSON.stringify(v.observedIndicators),
+          missingInformation: JSON.stringify(seedMissing),
           aggregateTag: v.aggregateTag,
           chpNextAction: v.chpNextAction,
           chpNextActionSw: v.chpNextActionSw ?? null,

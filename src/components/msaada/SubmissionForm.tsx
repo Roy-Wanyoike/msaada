@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   ChevronDown,
   CloudOff,
+  Info,
   Loader2,
   Lock,
   Mic,
@@ -24,6 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -544,7 +546,45 @@ export function SubmissionForm({
 
       {/* ---- Result card (non-crisis) ---- */}
       {status === "result" && result && (
-        <TriageResultCard record={result} onSubmitAnother={resetForAnother} />
+        <>
+          <TriageResultCard record={result} onSubmitAnother={resetForAnother} />
+          {/* Information still needed (issue #55) — the model (or the
+              deterministic derivation) names what the observation did NOT
+              cover. Advisory tone; hidden entirely when the list is empty
+              (routine records). */}
+          {result.missingInformation && result.missingInformation.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, ease: "easeOut", delay: 0.06 }}
+              className="mt-3 rounded-xl border border-border bg-muted/40 p-4"
+            >
+              <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <Info className="h-3.5 w-3.5" aria-hidden="true" />
+                Information still needed
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Ask the household about these on the next contact:
+              </p>
+              <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                {result.missingInformation.map((item, i) => (
+                  <li
+                    key={`${item}-${i}`}
+                    className="flex items-start gap-2 rounded-md bg-background/80 px-3 py-1.5 text-sm"
+                  >
+                    <Badge
+                      variant="outline"
+                      className="mt-0.5 h-5 shrink-0 rounded-full bg-background px-2 text-[10px] font-semibold text-muted-foreground"
+                    >
+                      {i + 1}
+                    </Badge>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          )}
+        </>
       )}
 
       {/* ---- Error inline banner ---- */}

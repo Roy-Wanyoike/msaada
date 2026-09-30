@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSessionChv } from "@/lib/auth";
-import { classifyObservation } from "@/lib/ai/triage";
+import {
+  classifyObservation,
+  deriveMissingInformation,
+  resolveMissingInformation,
+} from "@/lib/ai/triage";
 import { scrubPII } from "@/lib/pii-scrub";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
@@ -129,6 +133,16 @@ export async function POST(req: Request) {
     };
     const policyDecision = evaluatePolicy(interpretation);
 
+    // 4b. Missing information (issue #55) — ALWAYS a well-shaped array:
+    //  - crisis: the fixed crisis trio (confirm safety / location / company),
+    //  - normal path: the model's list when it provided one (≤3 × ≤120 chars),
+    //    otherwise derived from the classification (routine → []).
+    //  - fallback path: derived from needs_followup (inside fallbackTriage) —
+    //    resolveMissingInformation covers it too.
+    const missingInformation = output.escalation
+      ? deriveMissingInformation("crisis_override")
+      : resolveMissingInformation(output);
+
     // 5. Persist the de-identified observation (linked to the encounter if provided).
     const record = await insertTriageRecord({
       submittedById: chv.id,
@@ -139,6 +153,7 @@ export async function POST(req: Request) {
       aiModel,
       promptVersion,
       encounterId: encounterId || undefined,
+      missingInformation,
     });
 
     // 6. Execute the policy decision -- create a Referral if the policy says
@@ -230,7 +245,7 @@ export async function POST(req: Request) {
         record.classification
       } fallback=${fallbackUsed} policy=${policyDecision.policyVersion}:${
         policyDecision.workflowClass
-      } referral=${referralId ?? "-"} scrubbed=${JSON.stringify(redactionCount)}`
+      } referral=${referralId ?? "-"} missing=${missingInformation.length} scrubbed=${JSON.stringify(redactionCount)}`
     );
 
     // Return the record + the policy decision (the client shows the
