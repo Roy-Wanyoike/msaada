@@ -113,6 +113,8 @@ interface VisitSpec {
   };
 }
 
+import { createOrFind, isUniqueViolation } from "@/lib/seed-race";
+
 // ---- Households (Kilifi · Malindi Town — the demo CHV's catchment) --------
 const HOUSEHOLDS = [
   { code: "MSD-HH-SEED-1", label: "Household 12 · Shella", ward: "Malindi Town", status: "active" },
@@ -600,7 +602,15 @@ export async function seedDemoData(
       result.skippedCount += 1;
       continue;
     }
-    const created = await db.household.create({
+    const created = await createOrFind({
+      // Race-safe (issue #58): householdCode is @unique.
+      find: () =>
+        db.household.findUnique({
+          where: { householdCode: hh.code },
+          select: { id: true },
+        }),
+      create: () =>
+        db.household.create({
       data: {
         householdCode: hh.code,
         chwId: chvId,
@@ -612,9 +622,11 @@ export async function seedDemoData(
         updatedAt: daysAgo(30),
       },
       select: { id: true },
+        }),
     });
-    householdIds.push(created.id);
-    result.householdsCreated += 1;
+    householdIds.push(created.row.id);
+    if (created.created) result.householdsCreated += 1;
+    else result.skippedCount += 1;
   }
 
   // ---- Members --------------------------------------------------------------
@@ -629,7 +641,15 @@ export async function seedDemoData(
       result.skippedCount += 1;
       continue;
     }
-    const created = await db.householdMember.create({
+    const created = await createOrFind({
+      // Race-safe (issue #58): memberCode is @unique.
+      find: () =>
+        db.householdMember.findUnique({
+          where: { memberCode: m.code },
+          select: { id: true },
+        }),
+      create: () =>
+        db.householdMember.create({
       data: {
         memberCode: m.code,
         householdId: householdIds[m.hh],
@@ -640,9 +660,11 @@ export async function seedDemoData(
         updatedAt: daysAgo(30),
       },
       select: { id: true },
+        }),
     });
-    memberIds.push(created.id);
-    result.membersCreated += 1;
+    memberIds.push(created.row.id);
+    if (created.created) result.membersCreated += 1;
+    else result.skippedCount += 1;
   }
 
   // ---- Visits: Encounter → TriageRecord → Referral → FollowUp → AuditLog ---
@@ -658,7 +680,15 @@ export async function seedDemoData(
       encounterId = existingEnc.id;
       result.skippedCount += 1;
     } else {
-      const enc = await db.encounter.create({
+      // Race-safe (issue #58): encounterCode is @unique.
+      const encRow = await createOrFind({
+        find: () =>
+          db.encounter.findUnique({
+            where: { encounterCode: v.encounterCode },
+            select: { id: true },
+          }),
+        create: () =>
+          db.encounter.create({
         data: {
           encounterCode: v.encounterCode,
           householdId: householdIds[v.householdIndex],
@@ -673,9 +703,10 @@ export async function seedDemoData(
           updatedAt: when,
         },
         select: { id: true },
+          }),
       });
-      encounterId = enc.id;
-      result.encountersCreated += 1;
+      encounterId = encRow.row.id;
+      if (encRow.created) result.encountersCreated += 1;
     }
 
     // One triage per seeded encounter (idempotency key for the record).
@@ -776,43 +807,53 @@ export async function seedDemoData(
       if (existingRef) {
         referralId = existingRef.id;
       } else {
-        const ref = await db.referral.create({
+        // Race-safe (issue #58): referralCode is @unique.
+        const refSpec = v.referral;
+        const refRow = await createOrFind({
+          find: () =>
+            db.referral.findUnique({
+              where: { referralCode: refSpec.code },
+              select: { id: true },
+            }),
+          create: () =>
+            db.referral.create({
           data: {
-            referralCode: v.referral.code,
+            referralCode: refSpec.code,
             encounterId,
             householdId: householdIds[v.householdIndex],
             memberId: memberIds[v.memberIndex],
-            category: v.referral.category,
-            priority: v.referral.priority,
-            destination: v.referral.destination,
-            status: v.referral.status,
+            category: refSpec.category,
+            priority: refSpec.priority,
+            destination: refSpec.destination,
+            status: refSpec.status,
             createdBy: "Demo CHV",
             createdById: chvId,
             createdAt: when,
             acknowledgedBy: ["acknowledged", "in_progress", "completed"].includes(
-              v.referral.status
+              refSpec.status
             )
-              ? v.referral.status === "completed"
+              ? refSpec.status === "completed"
                 ? "Malindi Sub-County Hospital"
                 : "Kilifi County Referral Hospital"
               : null,
             acknowledgedAt: ["acknowledged", "in_progress", "completed"].includes(
-              v.referral.status
+              refSpec.status
             )
-              ? v.referral.status === "completed"
+              ? refSpec.status === "completed"
                 ? daysAgo(v.daysAgo - 0.2)
                 : v.daysAgo === 0
                   ? hoursFromNow(-2)
                   : daysAgo(v.daysAgo - 0.2)
               : null,
             completedAt:
-              v.referral.status === "completed" ? daysAgo(v.daysAgo - 3) : null,
+              refSpec.status === "completed" ? daysAgo(v.daysAgo - 3) : null,
             followUpRequired: true,
           },
           select: { id: true },
+            }),
         });
-        referralId = ref.id;
-        result.referralsCreated += 1;
+        referralId = refRow.row.id;
+        if (refRow.created) result.referralsCreated += 1;
       }
     }
 
@@ -826,7 +867,10 @@ export async function seedDemoData(
         const dueAt = v.followUp.dueHoursFromNow
           ? hoursFromNow(v.followUp.dueHoursFromNow)
           : daysAgo(v.followUp.dueDaysAgo ?? 1);
-        await db.followUp.create({
+        try {
+          // Race-safe (issue #58): @@unique(triageRecordId) — the
+          // winner of a concurrent cold start created it; skip.
+          await db.followUp.create({
           data: {
             createdAt: when,
             dueAt,
@@ -841,7 +885,10 @@ export async function seedDemoData(
             referralId,
           },
         });
-        result.followUpsCreated += 1;
+          result.followUpsCreated += 1;
+        } catch (err) {
+          if (!isUniqueViolation(err)) throw err;
+        }
       }
     }
 
@@ -908,7 +955,9 @@ export async function seedDemoData(
         select: { id: true },
       });
       if (existing) continue;
-      await db.invitation.create({
+      try {
+        // Race-safe (issue #58): token is @unique.
+        await db.invitation.create({
         data: {
           token: inv.token,
           email: inv.email,
@@ -922,7 +971,10 @@ export async function seedDemoData(
           createdAt: daysAgo(22),
         },
       });
-      result.invitationsCreated += 1;
+        result.invitationsCreated += 1;
+      } catch (err) {
+        if (!isUniqueViolation(err)) throw err;
+      }
     }
   }
 

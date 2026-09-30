@@ -81,6 +81,11 @@ model Organization {
 
   @@index([parentId])
   @@index([type])
+  /// Uniqueness is the cold-start race guard (issue #58): two serverless
+  /// instances seeding concurrently must converge on ONE row — the loser of
+  /// the create gets a P2002 and re-reads the winner's row instead of
+  /// silently forking the tenant hierarchy.
+  @@unique([name, type])
 }
 
 /// Community Health Unit — the operational unit CHVs are assigned to (§5).
@@ -101,6 +106,8 @@ model CommunityHealthUnit {
 
   @@index([county])
   @@index([organizationId])
+  /// Cold-start race guard (issue #58) — see Organization comment.
+  @@unique([name, county])
 }
 
 /// Invitation — institution-led onboarding (§3, §10).
@@ -283,6 +290,11 @@ model FollowUp {
   @@index([dueAt])
   @@index([status])
   @@index([referralId])
+  /// Domain rule "max one follow-up per triage" enforced at the DB level.
+  /// Both the seeder and the live triage flow use check-then-create, which
+  /// races under concurrent submissions; the loser now gets P2002 and
+  /// re-reads instead of duplicating. Cold-start race guard (issue #58).
+  @@unique([triageRecordId])
 }
 
 // =====================================================================
