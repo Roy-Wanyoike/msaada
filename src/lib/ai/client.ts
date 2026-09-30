@@ -48,6 +48,7 @@ export type AiTask =
   | "assignment"
   | "referral_handover"
   | "case_outcome"
+  | "case_summary"
   | "chv_weekly"
   | "supervisor_briefing"
   | "dashboard_summary"

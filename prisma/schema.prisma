@@ -165,6 +165,11 @@ model TriageRecord {
   // and the next action in Kiswahili. Describes behaviours, never text.
   aiReasoning       String?
   chpNextActionSw   String?
+  // Missing-information detection (issue #55): up to 3 short strings naming
+  // what the observation does NOT say (e.g. "duration of symptoms"). Stored
+  // as a JSON-encoded string[] exactly like observedIndicators (SQLite has
+  // no arrays); null on legacy rows — every reader treats null/absent as [].
+  missingInformation String?
 
   // Submission audit / ownership (mirrors the `submitted_by` RLS column)
   submittedById     String
@@ -213,7 +218,8 @@ model AuditLog {
   //                           community_response_created | community_response_assigned |
   //                           community_response_accepted | community_response_started |
   //                           community_response_attended | community_response_resolved |
-  //                           community_response_unable_to_reach
+  //                           community_response_unable_to_reach |
+  //                           community_case_summary_generated (issue #55, advisory AI)
   //  - onboarding:            invitation_created | invitation_accepted
   //  - demo tooling:          demo_seed
   event          String
@@ -527,6 +533,14 @@ model ResponseCase {
   // reached_doing_well | reached_needs_support | referred_to_facility | not_reached | other
   outcomeCategory String?
   outcomeSummary  String?
+
+  // ---- AI case summary cache (issue #55, advisory only) ----
+  // Latest supervisor-facing summary narrative built ONLY from structured
+  // fields. Cached so repeated case opens never re-bill the model; a refresh
+  // request forces regeneration. aiSummaryAt is the generation timestamp
+  // (null = never generated).
+  aiSummary       String?
+  aiSummaryAt     DateTime?
 
   @@index([reportId])
   @@index([assignedChvId, status])

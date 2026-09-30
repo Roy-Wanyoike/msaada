@@ -33,6 +33,7 @@ export const COMMUNITY_REPORT_EVENTS = [
   "community_response_attended",  // the CHV marked attendance (encounter link)
   "community_response_resolved",  // the case reached a resolution
   "community_response_unable_to_reach", // the CHV could not reach the subject (MVP-44)
+  "community_case_summary_generated", // advisory AI case summary requested (issue #55)
 ] as const;
 
 export type CommunityReportEvent = (typeof COMMUNITY_REPORT_EVENTS)[number];

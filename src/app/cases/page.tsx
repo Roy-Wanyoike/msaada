@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { AppNav } from "@/components/msaada/AppNav";
+import { CaseSummaryPanel } from "@/components/msaada/CaseSummaryPanel";
 
 /**
  * /cases — CHV Response Workflow dashboard (CR-009).
@@ -789,6 +790,10 @@ function CaseCard({
         </p>
 
         {c.aiIntake && <AiIntakePanel intake={c.aiIntake} />}
+
+        {/* Advisory AI case summary (issue #55) — collapsed by default,
+            fetched lazily; server-side cached so re-opens are free. */}
+        <CaseSummaryPanel caseId={c.id} />
 
         {/* Assignment reason + time */}
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">

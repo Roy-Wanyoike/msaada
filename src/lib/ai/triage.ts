@@ -1,4 +1,4 @@
-import { qwenChat, qwenModel, QwenError, type ChatMessage } from "@/lib/ai/client";
+import { qwenChat, qwenModel, QwenError, stringList, type ChatMessage, type QwenAttempt } from "@/lib/ai/client";
 import {
   CLASSIFICATIONS,
   type Classification,
@@ -16,7 +16,7 @@ export const TRIAGE_SYSTEM_PROMPT = `You are Msaada, an AI triage-support tool f
 CRISIS OVERRIDE (check first, always): If the observation contains any indication of suicidal ideation, expressed intent to self-harm, a means/plan mentioned, or acute danger to self or others, output ONLY: {"escalation": true, "chp_instruction": "Do not leave the household unaccompanied. Contact your CHV supervisor and the nearest Level 4+ facility immediately. If immediate danger, call Kenya Red Cross Emergency: 1199.", "crisis_line": "Kenya Red Cross Emergency: 1199 | Befrienders Kenya: +254 722 178 177", "record_for_reporting": true}
 
 Otherwise classify into exactly one of: routine, needs_followup, needs_facility_referral. Never diagnose. Describe only observed behavioral indicators (sleep, appetite, withdrawal, expressed distress) — never clinical labels. Output valid JSON only, no other text:
-{"escalation": false, "classification": "...", "observed_indicators": ["..."], "chp_next_action": "...", "chp_next_action_sw": "the same next action, in natural Kiswahili", "reasoning": "1-2 plain sentences for the CHV explaining why this classification, citing only the behaviours described (no names or places)", "confidence_note": null or "...", "aggregate_tag": "short_category_like_sleep_disturbance"}
+{"escalation": false, "classification": "...", "observed_indicators": ["..."], "missing_information": ["up to 3 short strings naming what the observation does NOT say, e.g. 'duration of symptoms', 'sleep pattern', 'who else is in the household' — omit the field or use [] when the observation is complete"], "chp_next_action": "...", "chp_next_action_sw": "the same next action, in natural Kiswahili", "reasoning": "1-2 plain sentences for the CHV explaining why this classification, citing only the behaviours described (no names or places)", "confidence_note": null or "...", "aggregate_tag": "short_category_like_sleep_disturbance"}
 
 If information is too limited to classify confidently, default to needs_followup rather than routine — under-triage is the higher-risk error.`;
 
@@ -24,8 +24,9 @@ If information is too limited to classify confidently, default to needs_followup
  * Version of the prompt + parsing contract above. Bump it whenever
  * TRIAGE_SYSTEM_PROMPT or the output schema changes; it is stored on every
  * TriageRecord so each classification can be traced to the prompt that made it.
+ * triage-v1.3: added missing_information to the output schema (issue #55).
  */
-export const TRIAGE_PROMPT_VERSION = "triage-v1.2";
+export const TRIAGE_PROMPT_VERSION = "triage-v1.3";
 
 /** Recorded as the model when no model produced the result. */
 export const FALLBACK_MODEL = "fallback";
@@ -66,6 +67,56 @@ export const CRISIS_OUTPUT: CrisisResult = {
   record_for_reporting: true,
 };
 
+// ---- Missing-information derivation (issue #55) ---------------------------
+// Deterministic fallback when the model omits/fails missing_information:
+// derived from the classification so the field is ALWAYS a well-shaped array
+// on every record (empty for routine — there is nothing the policy needs).
+
+/** What a crisis record must always establish next. */
+export const CRISIS_MISSING_INFORMATION = [
+  "confirm immediate safety",
+  "exact location",
+  "who is with the person",
+] as const;
+
+/**
+ * Derive the missing-information list from the (workflow) classification.
+ * Pure function — no model, no DB. The values mirror the exact mapping in
+ * issue #55 and are reused by fallbackTriage, the triage route and the eval
+ * fixtures' gold labels.
+ */
+export function deriveMissingInformation(
+  classification: Classification | "crisis_override"
+): string[] {
+  switch (classification) {
+    case "crisis_override":
+      return [...CRISIS_MISSING_INFORMATION];
+    case "needs_facility_referral":
+      return ["symptom duration", "severity progression"];
+    case "needs_followup":
+      return ["symptom duration", "sleep/appetite change"];
+    case "routine":
+      return [];
+  }
+}
+
+/**
+ * Resolve the persisted missing_information for a normal-path verdict:
+ * the model's list when it provided a non-empty one (≤3 × ≤120 chars),
+ * otherwise the deterministic per-classification derivation.
+ */
+export function resolveMissingInformation(output: NormalResult): string[] {
+  const provided = (output.missing_information ?? []).filter(
+    (x) => typeof x === "string" && x.trim().length > 0
+  );
+  if (provided.length > 0) {
+    return provided
+      .map((x) => x.trim().slice(0, 120))
+      .slice(0, 3);
+  }
+  return deriveMissingInformation(output.classification);
+}
+
 function stripJsonFence(raw: string): string {
   let s = raw.trim();
   // Remove ```json ... ``` fences if the model wraps output.
@@ -87,6 +138,9 @@ function coerceNormal(obj: Record<string, unknown>): NormalResult | null {
   const observedIndicators = Array.isArray(obj.observed_indicators)
     ? obj.observed_indicators.filter((x): x is string => typeof x === "string")
     : [];
+  // Issue #55 — same field-naming/casing style as report-intake's
+  // missing_information: array of short strings, ≤3 items, ≤120 chars each.
+  const missingInformation = stringList(obj.missing_information, 3, 120);
   const chpNextAction =
     typeof obj.chp_next_action === "string" ? obj.chp_next_action : "";
   const confidenceNote =
@@ -103,6 +157,7 @@ function coerceNormal(obj: Record<string, unknown>): NormalResult | null {
     escalation: false,
     classification,
     observed_indicators: observedIndicators,
+    missing_information: missingInformation,
     chp_next_action: chpNextAction,
     confidence_note: confidenceNote,
     aggregate_tag: aggregateTag,
@@ -157,6 +212,12 @@ export interface QwenCallResult {
   /** Model that produced `output`, or FALLBACK_MODEL. */
   model: string;
   promptVersion: string;
+  /**
+   * Per-attempt telemetry from the failover chain (issue #55 eval harness):
+   * one entry per API call actually made, model + ok + latency per attempt.
+   * Absent on paths that never reached the client (pure-deterministic).
+   */
+  chainAttempts?: QwenAttempt[];
 }
 
 /**
@@ -182,7 +243,9 @@ export interface QwenCallResult {
  * Never silently drops a failed classification.
  */
 export async function classifyObservation(
-  observationText: string
+  observationText: string,
+  opts?: { /** Overrides the QWEN_TIMEOUT_MS budget for these calls (eval harness). */
+    timeoutMs?: number }
 ): Promise<QwenCallResult> {
   const buildMessages = (strict: boolean) => {
     // The base system prompt already mandates "valid JSON only, no other
@@ -208,14 +271,15 @@ export async function classifyObservation(
     try {
       // Inside the try: a missing key, timeout or HTTP error must reach the
       // fallback below, not crash the request with a 500.
-      const { content, model } = await qwenChat({
+      const { content, model, attempts: chainAttempts } = await qwenChat({
         task: "triage",
         messages: buildMessages(strict === 1),
         json: true,
         temperature: 0.1,
         maxTokens: 800,
+        ...(opts?.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
       });
-      const parsed = parseModelOutput(content);
+      let parsed = parseModelOutput(content);
       if (parsed) {
         // Safety net on the model-SUCCESS path (issue #45): the model's
         // non-escalation verdict must not be trusted when the deterministic
@@ -234,6 +298,16 @@ export async function classifyObservation(
             attempts,
             model,
             promptVersion: TRIAGE_PROMPT_VERSION,
+            chainAttempts,
+          };
+        }
+        // Issue #55: the model may omit/empty missing_information — the
+        // persisted field must always be well-shaped, so resolve it here
+        // (model value wins when non-empty, else deterministic derivation).
+        if (!parsed.escalation) {
+          parsed = {
+            ...parsed,
+            missing_information: resolveMissingInformation(parsed),
           };
         }
         return {
@@ -242,6 +316,7 @@ export async function classifyObservation(
           attempts,
           model,
           promptVersion: TRIAGE_PROMPT_VERSION,
+          chainAttempts,
         };
       }
       // If the first (already-strict) attempt failed to parse, the retry uses
@@ -290,6 +365,9 @@ export function fallbackTriage(text: string, attempts: number): QwenCallResult {
     escalation: false,
     classification: "needs_followup",
     observed_indicators: [],
+    // Issue #55: the fallback derivation for needs_followup — the field is
+    // always a well-shaped array, never undefined.
+    missing_information: deriveMissingInformation("needs_followup"),
     chp_next_action:
       "Revisit the household within 48 hours to gather a more complete observation. If new concern arises, escalate.",
     confidence_note:
