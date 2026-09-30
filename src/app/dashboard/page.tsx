@@ -77,6 +77,9 @@ import {
 
 type LoadState = "loading" | "ready" | "error";
 
+/** Auth-gate result from /api/dashboard (issue #54 graceful degradation). */
+type AuthDenied = "unauthenticated" | "forbidden" | null;
+
 /**
  * County Triage Dashboard.
  *
@@ -101,6 +104,7 @@ export default function DashboardPage() {
   const [scopeMode, setScopeMode] = useState<"mine" | "all">("all");
   const [state, setState] = useState<LoadState>("loading");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [authDenied, setAuthDenied] = useState<AuthDenied>(null);
   const [seeding, setSeeding] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [days, setDays] = useState<7 | 14 | 30>(14);
@@ -124,12 +128,22 @@ export default function DashboardPage() {
           `/api/dashboard?days=${rangeDays}&scope=${scopeQ}`,
           { cache: "no-store" }
         );
+        // Auth-gate degradation (issue #54): 401 → sign-in prompt, 403 →
+        // not-authorized card. Neither is an "error" to toast about.
+        if (res.status === 401 || res.status === 403) {
+          if (reqId !== reqIdRef.current) return null;
+          setAuthDenied(res.status === 401 ? "unauthenticated" : "forbidden");
+          setErrorMsg(null);
+          setState("ready");
+          return null;
+        }
         if (!res.ok) {
           throw new Error(`Dashboard endpoint returned HTTP ${res.status}`);
         }
         const data = (await res.json()) as DashboardPayload;
         // Drop stale responses (a newer refresh superseded us).
         if (reqId !== reqIdRef.current) return null;
+        setAuthDenied(null);
         setStats({
           byCounty: data.byCounty,
           byDay: data.byDay,
@@ -319,7 +333,11 @@ export default function DashboardPage() {
             lastUpdated={lastUpdated}
           />
 
-          {state === "loading" ? (
+          {authDenied === "unauthenticated" ? (
+            <AuthGateCard variant="unauthenticated" what="the county triage dashboard" />
+          ) : authDenied === "forbidden" ? (
+            <AuthGateCard variant="forbidden" what="this view" />
+          ) : state === "loading" ? (
             <DashboardSkeleton />
           ) : state === "error" ? (
             <ErrorState
@@ -353,6 +371,66 @@ export default function DashboardPage() {
 
       <DashboardFooter />
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Auth gate (issue #54)                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Centered auth-gate card for 401/403 from /api/dashboard. Styling follows
+ * the page's existing Card/Badge conventions — deliberately NOT a restyle.
+ */
+function AuthGateCard({
+  variant,
+  what,
+}: {
+  variant: "unauthenticated" | "forbidden";
+  what: string;
+}) {
+  return (
+    <Card className="mx-auto w-full max-w-md px-2 py-2">
+      <CardContent className="px-6 py-10 text-center">
+        <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-teal-50 text-teal-600 dark:bg-teal-950/40 dark:text-teal-300">
+          <ShieldCheck className="size-6" aria-hidden />
+        </span>
+        {variant === "unauthenticated" ? (
+          <>
+            <h2 className="mt-4 text-lg font-semibold text-foreground">
+              Sign in to view {what}
+            </h2>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+              This dashboard is scoped to signed-in health workers and county
+              officials. Sign in with your account — or the demo account — to
+              continue.
+            </p>
+            <Button asChild className="mt-6 min-h-[44px]">
+              <a href="/">Go to sign in</a>
+            </Button>
+          </>
+        ) : (
+          <>
+            <h2 className="mt-4 text-lg font-semibold text-foreground">
+              Not authorized for this view
+            </h2>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+              The all-county view needs a county-level or national role
+              (e.g. County Admin). Your account can still use its own county
+              scope. The demo County Admin account is county.admin@msaada.health
+              · msaada123.
+            </p>
+            <Button
+              variant="outline"
+              className="mt-6 min-h-[44px]"
+              onClick={() => window.location.reload()}
+            >
+              Reload
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

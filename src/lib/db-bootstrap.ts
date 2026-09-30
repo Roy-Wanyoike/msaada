@@ -93,8 +93,12 @@ async function run(): Promise<BootstrapResult> {
   const {
     SUPABASE_PASSWORD_MARKER,
     DEMO_CHV_EMAIL,
+    DEMO_CHV_PASSWORD,
     DEMO_ADMIN_EMAIL,
+    DEMO_ADMIN_PASSWORD,
   } = await import("@/lib/auth");
+  const { createAdminClient } = await import("@/utils/supabase/admin");
+  const { hashPassword } = await import("@/lib/local-session");
   const { seedCommunityReports } = await import("@/lib/community-report-seed");
   const { seedDemoData } = await import("@/lib/demo-data-seed");
 
@@ -147,41 +151,83 @@ async function run(): Promise<BootstrapResult> {
   // Schema is now guaranteed current — the demo-account lookups below can
   // hit any table safely.
 
-  // Demo CHV — identical semantics to POST /api/demo-chv.
-  let createdDemoChv = false;
-  let chv = await db.chvUser.findUnique({ where: { email: DEMO_CHV_EMAIL } });
-  if (!chv) {
-    chv = await db.chvUser.create({
+  // Credential ownership for the demo accounts (issue #53): when a Supabase
+  // admin client is available, Supabase Auth owns their credentials and the
+  // local rows carry the SUPABASE_PASSWORD_MARKER (POST /api/demo-chv keeps
+  // Supabase in sync). Without one, the rows get REAL local scrypt hashes so
+  // the demo-mode login fallback can verify them — the zero-config local
+  // demo must work on a fresh DB with no Supabase env vars. Idempotent:
+  // existing rows are only upgraded from the marker to a local hash (never
+  // the other way, and never a row's email identity); a real local hash is
+  // left untouched. createAdminClient() is null exactly when Supabase auth
+  // provisioning is unavailable, which is the same condition under which the
+  // login route routes credentials to the local verifier.
+  const supabaseAdmin = createAdminClient();
+
+  // Ensure-or-upgrade one demo identity. Returns [user, created].
+  const ensureDemoUser = async (input: {
+    email: string;
+    password: string;
+    fullName: string;
+    role?: string;
+  }): Promise<[Awaited<ReturnType<typeof db.chvUser.findUnique>>, boolean]> => {
+    // Supabase-managed deployments keep the marker (Supabase Auth owns the
+    // credential); local deployments hash the demo password with scrypt so
+    // the login fallback can verify it.
+    const passwordHash = supabaseAdmin
+      ? SUPABASE_PASSWORD_MARKER
+      : hashPassword(input.password);
+    const existing = await db.chvUser.findUnique({
+      where: { email: input.email },
+    });
+    if (existing) {
+      if (
+        !supabaseAdmin &&
+        existing.passwordHash.startsWith(SUPABASE_PASSWORD_MARKER)
+      ) {
+        // Supabase-managed marker row from an earlier Supabase-configured
+        // boot: Supabase is gone, so give the row a usable local credential
+        // (email identity untouched).
+        const upgraded = await db.chvUser.update({
+          where: { id: existing.id },
+          data: { passwordHash },
+        });
+        return [upgraded, false];
+      }
+      return [existing, false];
+    }
+    const created = await db.chvUser.create({
       data: {
-        email: DEMO_CHV_EMAIL,
-        passwordHash: SUPABASE_PASSWORD_MARKER,
-        fullName: "Demo CHV",
+        email: input.email,
+        passwordHash,
+        fullName: input.fullName,
         county: "Kilifi",
         ward: "Malindi Town",
+        ...(input.role ? { role: input.role } : {}),
       },
     });
-    createdDemoChv = true;
-  }
+    return [created, true];
+  };
+
+  // Demo CHV — identical semantics to POST /api/demo-chv.
+  const [chv, createdDemoChv] = await ensureDemoUser({
+    email: DEMO_CHV_EMAIL,
+    password: DEMO_CHV_PASSWORD,
+    fullName: "Demo CHV",
+  });
 
   // Demo county admin — the /admin page advertises these credentials on its
   // sign-in hint, so fresh deployments must have the account (county_admin
   // is one of the institutional roles the admin page gates on).
-  let createdDemoAdmin = false;
-  let admin = await db.chvUser.findUnique({
-    where: { email: DEMO_ADMIN_EMAIL },
+  const [admin, createdDemoAdmin] = await ensureDemoUser({
+    email: DEMO_ADMIN_EMAIL,
+    password: DEMO_ADMIN_PASSWORD,
+    fullName: "County Admin (Demo)",
+    role: "county_admin",
   });
-  if (!admin) {
-    admin = await db.chvUser.create({
-      data: {
-        email: DEMO_ADMIN_EMAIL,
-        passwordHash: SUPABASE_PASSWORD_MARKER,
-        fullName: "County Admin (Demo)",
-        county: "Kilifi",
-        ward: "Malindi Town",
-        role: "county_admin",
-      },
-    });
-    createdDemoAdmin = true;
+  if (!chv || !admin) {
+    // TS exhaustiveness: ensureDemoUser always returns a user or throws.
+    throw new Error("demo user provisioning returned no row");
   }
 
   // Demo community reports + response cases (idempotent by stable codes).

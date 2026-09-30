@@ -106,10 +106,58 @@ function fmtTime(iso: string): string {
   );
 }
 
+/**
+ * Centered auth-gate card for 401/403 from /api/audit (issue #54). Uses the
+ * page's existing Card/Button conventions — deliberately NOT a restyle.
+ */
+function AuthGateCard({
+  variant,
+}: {
+  variant: "unauthenticated" | "forbidden";
+}) {
+  return (
+    <Card className="mx-auto max-w-md px-6 py-12 text-center">
+      <ShieldCheck className="mx-auto size-8 text-muted-foreground/50" aria-hidden />
+      {variant === "unauthenticated" ? (
+        <>
+          <h2 className="mt-3 text-lg font-semibold text-foreground">
+            Sign in to view the audit log
+          </h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+            The compliance audit trail is restricted to signed-in compliance
+            and oversight roles.
+          </p>
+          <Button asChild className="mt-6 min-h-[44px]">
+            <a href="/">Go to sign in</a>
+          </Button>
+        </>
+      ) : (
+        <>
+          <h2 className="mt-3 text-lg font-semibold text-foreground">
+            Not authorized for this view
+          </h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+            Viewing the audit trail requires a compliance role — Auditor,
+            County Admin, Program Admin, or a national role. The demo County
+            Admin account is county.admin@msaada.health · msaada123.
+          </p>
+          <Button variant="outline" className="mt-6 min-h-[44px]" onClick={() => window.location.reload()}>
+            Reload
+          </Button>
+        </>
+      )}
+    </Card>
+  );
+}
+
 export default function AuditPage() {
   const [data, setData] = useState<AuditPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Auth-gate result from /api/audit (issue #54 graceful degradation). */
+  const [authDenied, setAuthDenied] = useState<
+    "unauthenticated" | "forbidden" | null
+  >(null);
   const [page, setPage] = useState(1);
   const [county, setCounty] = useState<string>("all");
   const [event, setEvent] = useState<string>("all");
@@ -126,6 +174,14 @@ export default function AuditPage() {
       if (event !== "all") params.set("event", event);
       if (escalationOnly) params.set("escalation", "true");
       const res = await fetch(`/api/audit?${params}`, { cache: "no-store" });
+      // Auth-gate degradation (issue #54): 401 → sign-in prompt, 403 →
+      // not-authorized card.
+      if (res.status === 401 || res.status === 403) {
+        setAuthDenied(res.status === 401 ? "unauthenticated" : "forbidden");
+        setData(null);
+        return;
+      }
+      setAuthDenied(null);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = (await res.json()) as AuditPage;
       setData(d);
@@ -246,6 +302,8 @@ export default function AuditPage() {
                 <Skeleton key={i} className="h-14 w-full rounded-md" />
               ))}
             </div>
+          ) : authDenied ? (
+            <AuthGateCard variant={authDenied} />
           ) : error ? (
             <Card className="px-6 py-8 text-center">
               <p className="text-sm text-muted-foreground">{error}</p>

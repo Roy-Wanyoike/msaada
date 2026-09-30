@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { rateLimitIdentifier, logAuthEvent } from "@/lib/auth";
+import {
+  SUPABASE_PASSWORD_MARKER,
+  rateLimitIdentifier,
+  logAuthEvent,
+} from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createClient as createSupabaseClient } from "@/utils/supabase/server";
+import { isDemoMode } from "@/lib/deployment-mode";
+import {
+  setLocalSession,
+  verifyPassword,
+} from "@/lib/local-session";
 
 // Cookie-session writes → never static.
 export const dynamic = "force-dynamic";
@@ -17,8 +26,21 @@ export const dynamic = "force-dynamic";
  *  - 403 ACCOUNT_SUSPENDED if creds are valid but authState !== "active"
  *    (covers suspended / deactivated / not-yet-onboarded states)
  *  - 429 RATE_LIMITED after 5 attempts / 60s per (ip, email) pair
- * Supabase Auth owns credential verification and the cookie session. The
- * local ChvUser row remains the authorization/operational profile.
+ *  - 503 SERVER_NOT_CONFIGURED when Supabase is unconfigured AND the
+ *    deployment is NOT in demo mode
+ *
+ * Provider selection:
+ *  - Supabase Auth (primary): owns credential verification and the cookie
+ *    session whenever it is configured. The local ChvUser row remains the
+ *    authorization/operational profile.
+ *  - Local fallback (demo mode only, issue #53): when no Supabase client is
+ *    available AND isDemoMode(), credentials are verified against the local
+ *    scrypt `passwordHash` and a DB-backed local session cookie is issued
+ *    (src/lib/local-session.ts). The response shape is identical to the
+ *    Supabase path. A Supabase-managed row (SUPABASE_PASSWORD_MARKER) is
+ *    rejected — its credentials are owned by Supabase and can never verify
+ *    locally. Any hash mismatch returns the same generic 401 as an unknown
+ *    account (no enumeration).
  */
 export async function POST(req: Request) {
   let body: unknown;
@@ -78,13 +100,87 @@ export async function POST(req: Request) {
     );
   }
   const supabase = await createSupabaseClient();
+
+  // ── Local fallback (demo mode, issue #53) ──────────────────────────────
+  // No Supabase client: without this branch every login was 503
+  // SERVER_NOT_CONFIGURED, breaking the zero-config local demo. In demo
+  // mode the local scrypt hash + DB-backed cookie session take over; the
+  // 503 now only fires for a NON-demo deployment that simply lacks Supabase.
   if (!supabase) {
+    if (!isDemoMode()) {
+      return NextResponse.json(
+        {
+          error: "SERVER_NOT_CONFIGURED",
+          message: "Supabase Auth is not configured.",
+        },
+        { status: 503 }
+      );
+    }
+
+    if (!chv) {
+      await logAuthEvent({
+        event: "login_failed",
+        userId: null,
+        emailAttempt: emailNormalized,
+        detail: "unknown_account",
+      });
+      return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
+    }
+
+    // A Supabase-managed row carries no local credential — its password is
+    // owned by Supabase Auth and must never be trusted (or guessed) locally.
+    // POST /api/demo-chv provisions real local hashes for the demo accounts.
+    if (chv.passwordHash.startsWith(SUPABASE_PASSWORD_MARKER)) {
+      await logAuthEvent({
+        event: "login_failed",
+        userId: chv.id,
+        emailAttempt: emailNormalized,
+        detail: "supabase_managed_no_local_hash",
+      });
+      return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
+    }
+
+    if (!verifyPassword(password, chv.passwordHash)) {
+      await logAuthEvent({
+        event: "login_failed",
+        userId: chv.id,
+        emailAttempt: emailNormalized,
+        detail: "invalid_password",
+      });
+      return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
+    }
+
+    // Auth-boundary check (C1) — identical policy to the Supabase path:
+    // only "active" accounts may obtain a session.
+    if (chv.authState && chv.authState !== "active") {
+      await logAuthEvent({
+        event: "login_failed",
+        userId: chv.id,
+        emailAttempt: emailNormalized,
+        detail: `auth_state:${chv.authState}`,
+      });
+      return NextResponse.json({ error: "ACCOUNT_SUSPENDED" }, { status: 403 });
+    }
+
+    await logAuthEvent({
+      event: "login_succeeded",
+      userId: chv.id,
+      emailAttempt: emailNormalized,
+      detail: null,
+    });
+    await setLocalSession(chv.id);
     return NextResponse.json(
       {
-        error: "SERVER_NOT_CONFIGURED",
-        message: "Supabase Auth is not configured.",
+        chv: {
+          id: chv.id,
+          email: chv.email,
+          fullName: chv.fullName,
+          county: chv.county,
+          ward: chv.ward,
+          role: chv.role,
+        },
       },
-      { status: 503 }
+      { status: 200 }
     );
   }
 

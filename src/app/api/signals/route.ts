@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSignals } from "@/lib/signals";
 import { getSessionChv } from "@/lib/auth";
+import { isCountyOrAbove } from "@/lib/rbac";
 
 // Signals are computed over windows that end "now" → never static.
 export const dynamic = "force-dynamic";
@@ -14,18 +15,22 @@ export const revalidate = 0;
  * for the thresholds and kinds). Pure threshold math — no AI is involved at
  * any point. Always 200 with `signals: []` on quiet windows.
  *
- * RBAC (county-level) — mirrors /api/dashboard exactly:
- *  - If a CHV session exists AND ?scope=mine is set, signals are computed
- *    for that CHV's county only. This mirrors the Supabase RLS policy
- *    "county official sees only their county's aggregates".
- *  - Otherwise (no session, or ?scope=all) returns all-county signals.
- *    The all-county path is the demo/judge view; production would require
- *    an admin/national role for it (RBAC TODO, same as the dashboard).
- *  - The response includes `scope: { county: string | null, mode: "mine" | "all" }`
- *    so the UI can state which slice the signals were computed over.
+ * Auth contract (issue #54) — mirrors /api/dashboard exactly:
+ *  - 401 {error:"UNAUTHORIZED"} — no session. The all-county signal
+ *    surface is never served anonymously.
+ *  - 403 {error:"FORBIDDEN"} — the requested scope exceeds the role:
+ *    scope=all requires isCountyOrAbove; ?scope=mine with a profile that
+ *    has no county also 403s (fail closed, no all-county fallback).
+ *  - 200 — payload (shape unchanged for authorized callers): with a
+ *    session AND ?scope=mine, signals are computed for the caller's county
+ *    only (Supabase RLS mirror: "county official sees only their county's
+ *    aggregates"). scope=all (default) returns all-county signals for
+ *    county-or-above roles. The response includes
+ *    `scope: { county: string | null, mode: "mine" | "all" }` so the UI
+ *    can state which slice the signals were computed over.
  *
  * Query params:
- *  - scope: "mine" | "all" (default "all"; "mine" requires a session).
+ *  - scope: "mine" | "all" (default "all").
  *    Any other value → 400 INVALID_SCOPE. Unknown params are ignored.
  */
 export async function GET(req: Request) {
@@ -43,14 +48,25 @@ export async function GET(req: Request) {
     );
   }
 
-  // Try to read an optional session CHV (for RBAC). Never fails — if no
-  // session or scope!=mine, we return the all-county demo view.
+  // Session is REQUIRED (same policy as /api/dashboard).
   const chv = await getSessionChv();
-  const wantMine = scopeParam === "mine" && chv && chv.county;
+  if (!chv) {
+    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+
+  const wantMine = scopeParam === "mine";
+  if (!wantMine) {
+    if (!isCountyOrAbove(chv.role)) {
+      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    }
+  } else if (!chv.county) {
+    // ?scope=mine without a county: nothing to scope to — fail closed.
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  }
 
   let result;
   let scopeCounty: string | null = null;
-  if (wantMine && chv?.county) {
+  if (wantMine && chv.county) {
     result = await getSignals({ county: chv.county });
     scopeCounty = chv.county;
   } else {

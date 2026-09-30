@@ -91,9 +91,59 @@ function fmtRelative(iso: string | null): string {
   return `${day}d ago`;
 }
 
+/**
+ * Centered auth-gate card for 401/403 from /api/supervisor/roster (issue
+ * #54). Uses the page's existing Card/Button conventions — deliberately NOT
+ * a restyle.
+ */
+function AuthGateCard({
+  variant,
+}: {
+  variant: "unauthenticated" | "forbidden";
+}) {
+  return (
+    <Card className="mx-auto max-w-md px-6 py-12 text-center">
+      <ShieldCheck className="mx-auto size-8 text-muted-foreground/50" aria-hidden />
+      {variant === "unauthenticated" ? (
+        <>
+          <h2 className="mt-3 text-lg font-semibold text-foreground">
+            Sign in to view the supervisor roster
+          </h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+            The per-CHV roster is restricted to signed-in supervisors and
+            county/national roles.
+          </p>
+          <Button asChild className="mt-6 min-h-[44px]">
+            <a href="/">Go to sign in</a>
+          </Button>
+        </>
+      ) : (
+        <>
+          <h2 className="mt-3 text-lg font-semibold text-foreground">
+            Not authorized for this view
+          </h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+            The roster requires a supervisor-level role (CHO Supervisor or
+            county/national admin). A plain CHV account cannot view peers&apos;
+            workload. The demo County Admin account is
+            county.admin@msaada.health · msaada123.
+          </p>
+          <Button variant="outline" className="mt-6 min-h-[44px]" onClick={() => window.location.reload()}>
+            Reload
+          </Button>
+        </>
+      )}
+    </Card>
+  );
+}
+
 export default function SupervisorPage() {
   const [data, setData] = useState<SupervisorRoster | null>(null);
   const [state, setState] = useState<LoadState>("loading");
+  /** Auth-gate result from /api/supervisor/roster (issue #54 degradation). */
+  const [authDenied, setAuthDenied] = useState<
+    "unauthenticated" | "forbidden" | null
+  >(null);
   const [county, setCounty] = useState<string>("all");
   const [days, setDays] = useState<7 | 14 | 30>(14);
 
@@ -104,6 +154,15 @@ export default function SupervisorPage() {
       const res = await fetch(`/api/supervisor/roster?days=${days}${c}`, {
         cache: "no-store",
       });
+      // Auth-gate degradation (issue #54): 401 → sign-in prompt, 403 →
+      // not-authorized card.
+      if (res.status === 401 || res.status === 403) {
+        setAuthDenied(res.status === 401 ? "unauthenticated" : "forbidden");
+        setData(null);
+        setState("ready");
+        return;
+      }
+      setAuthDenied(null);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData(await res.json());
       setState("ready");
@@ -241,6 +300,8 @@ export default function SupervisorPage() {
                 <Skeleton key={i} className="h-16 w-full rounded-md" />
               ))}
             </div>
+          ) : authDenied ? (
+            <AuthGateCard variant={authDenied} />
           ) : state === "error" ? (
             <Card className="px-6 py-8 text-center">
               <p className="text-sm text-muted-foreground">Couldn&apos;t load the roster.</p>

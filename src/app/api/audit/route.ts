@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuditPage } from "@/lib/triage-store";
+import { getSessionChv } from "@/lib/auth";
+import { canViewAudit } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -9,17 +11,30 @@ export const dynamic = "force-dynamic";
  * Paginated, filterable audit log (de-identified — truncated CHV labels,
  * never emails; never observation text). For the compliance-officer viewer.
  *
+ * Auth contract (issue #54):
+ *  - 401 {error:"UNAUTHORIZED"} — no session (or invalid/expired session).
+ *  - 403 {error:"FORBIDDEN"} — session role is not an audit viewer
+ *    (canViewAudit: auditor, moh_admin, moh_officer, county_admin,
+ *    program_admin, system_admin). A plain CHV or cho_supervisor does not
+ *    get the compliance trail.
+ *  - 200 — the audit page payload (shape unchanged for authorized callers).
+ *
  * Query params:
  *  - page: number (default 1)
  *  - pageSize: number (default 25, max 100)
  *  - county: string (filter)
  *  - event: string (filter — triage_classified | crisis_override | fallback_used)
  *  - escalation: "true" to filter to escalations only
- *
- * TODO (production): require a compliance-officer role (RBAC). Currently open
- * for the demo so judges can inspect the audit trail.
  */
 export async function GET(req: Request) {
+  const chv = await getSessionChv();
+  if (!chv) {
+    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (!canViewAudit(chv.role)) {
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  }
+
   const url = new URL(req.url);
   const page = url.searchParams.get("page");
   const pageSize = url.searchParams.get("pageSize");
