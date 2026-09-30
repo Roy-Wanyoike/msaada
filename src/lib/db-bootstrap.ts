@@ -26,6 +26,7 @@
 // in the Supabase layer (encounter drafts + community report mirror),
 // which activates once the NEXT_PUBLIC_SUPABASE_* env vars are set.
 import fs from "node:fs";
+import { isUniqueViolation } from "@/lib/seed-race";
 import path from "node:path";
 import { SQLITE_DDL } from "./db-ddl";
 
@@ -205,17 +206,28 @@ async function run(): Promise<BootstrapResult> {
       }
       return [existing, false];
     }
-    const created = await db.chvUser.create({
-      data: {
-        email: input.email,
-        passwordHash,
-        fullName: input.fullName,
-        county: "Kilifi",
-        ward: "Malindi Town",
-        ...(input.role ? { role: input.role } : {}),
-      },
-    });
-    return [created, true];
+    // Race-safe (issue #58): email is @unique — a concurrent cold start may
+    // have created the demo identity between the check above and this create.
+    try {
+      const created = await db.chvUser.create({
+        data: {
+          email: input.email,
+          passwordHash,
+          fullName: input.fullName,
+          county: "Kilifi",
+          ward: "Malindi Town",
+          ...(input.role ? { role: input.role } : {}),
+        },
+      });
+      return [created, true];
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+      const raced = await db.chvUser.findUnique({
+        where: { email: input.email },
+      });
+      if (!raced) throw err;
+      return [raced, false];
+    }
   };
 
   // Demo CHV — identical semantics to POST /api/demo-chv.

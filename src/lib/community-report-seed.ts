@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { isUniqueViolation } from "@/lib/seed-race";
 import { generateCode } from "@/lib/identity-types";
 
 /**
@@ -409,7 +410,11 @@ export async function seedCommunityReports(
 
     // Create the report. status="triaged" per the CR-011-SEED spec
     // (pre-processed — AI + policy fields already populated).
-    const report = await db.communityReport.create({
+    let report;
+    try {
+      // Race-safe (issue #58): reportCode is @unique — a concurrent
+      // cold start may have seeded it first; re-read the winner.
+      report = await db.communityReport.create({
       data: {
         reportCode: spec.reportCode,
         reporterType: "assisted",
@@ -432,6 +437,13 @@ export async function seedCommunityReports(
         policyWorkflowClass: spec.workflowClass,
       },
     });
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+      report = await db.communityReport.findUnique({
+        where: { reportCode: spec.reportCode },
+      });
+      if (!report) throw err;
+    }
 
     let caseId: string | null = null;
     let caseCode: string | null = null;
@@ -469,7 +481,17 @@ export async function seedCommunityReports(
         caseData.outcomeSummary =
           "Family reached and cooperating; supports activated; monitoring continues.";
       }
-      const responseCase = await db.responseCase.create({ data: caseData });
+      let responseCase;
+      try {
+        // Race-safe (issue #58): caseCode is @unique.
+        responseCase = await db.responseCase.create({ data: caseData });
+      } catch (err) {
+        if (!isUniqueViolation(err)) throw err;
+        responseCase = await db.responseCase.findUnique({
+          where: { caseCode: caseData.caseCode as string },
+        });
+        if (!responseCase) throw err;
+      }
       caseId = responseCase.id;
       caseCode = responseCase.caseCode;
     }

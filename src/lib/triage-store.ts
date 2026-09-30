@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { isUniqueViolation } from "@/lib/seed-race";
 import type { Classification, TriageRecordDTO } from "@/lib/types";
 import type { TriageModelOutput } from "@/lib/types";
 
@@ -246,16 +247,28 @@ export async function createFollowUp(args: {
   const dueAt = new Date();
   dueAt.setHours(dueAt.getHours() + dueInHours);
 
-  const created = await db.followUp.create({
-    data: {
-      triageRecordId: args.triageRecordId,
-      chvId: args.chvId,
-      dueAt,
-      referralId: args.referralId ?? null,
-    },
-    include: { triageRecord: { select: { county: true, ward: true, classification: true, escalation: true, aggregateTag: true, chpNextAction: true } } },
-  });
-  return toFollowUpDTO(created);
+  try {
+    const created = await db.followUp.create({
+      data: {
+        triageRecordId: args.triageRecordId,
+        chvId: args.chvId,
+        dueAt,
+        referralId: args.referralId ?? null,
+      },
+      include: { triageRecord: { select: { county: true, ward: true, classification: true, escalation: true, aggregateTag: true, chpNextAction: true } } },
+    });
+    return toFollowUpDTO(created);
+  } catch (err) {
+    // @@unique(triageRecordId) (issue #58): a concurrent submission for the
+    // same triage record won the create — return the existing follow-up
+    // instead of surfacing a 500 to the CHV.
+    if (!isUniqueViolation(err)) throw err;
+    const raced = await db.followUp.findFirst({
+      where: { triageRecordId: args.triageRecordId, status: "pending" },
+      include: { triageRecord: { select: { county: true, ward: true, classification: true, escalation: true, aggregateTag: true, chpNextAction: true } } },
+    });
+    return raced ? toFollowUpDTO(raced) : null;
+  }
 }
 
 /** Returns a CHV's follow-ups (ownership-scoped). Default: pending only. */

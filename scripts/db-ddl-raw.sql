@@ -314,10 +314,16 @@ CREATE INDEX "Organization_parentId_idx" ON "Organization"("parentId");
 CREATE INDEX "Organization_type_idx" ON "Organization"("type");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Organization_name_type_key" ON "Organization"("name", "type");
+
+-- CreateIndex
 CREATE INDEX "CommunityHealthUnit_county_idx" ON "CommunityHealthUnit"("county");
 
 -- CreateIndex
 CREATE INDEX "CommunityHealthUnit_organizationId_idx" ON "CommunityHealthUnit"("organizationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CommunityHealthUnit_name_county_key" ON "CommunityHealthUnit"("name", "county");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Invitation_token_key" ON "Invitation"("token");
@@ -369,6 +375,9 @@ CREATE INDEX "FollowUp_status_idx" ON "FollowUp"("status");
 
 -- CreateIndex
 CREATE INDEX "FollowUp_referralId_idx" ON "FollowUp"("referralId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "FollowUp_triageRecordId_key" ON "FollowUp"("triageRecordId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Household_householdCode_key" ON "Household"("householdCode");
