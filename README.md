@@ -34,6 +34,29 @@ The AI never makes the final safety decision. Qwen structures what the CHV obser
 
 Msaada addresses a major gap in community healthcare: CHVs are already present in communities and often observe important health and social signals, but information can remain fragmented across notebooks, memory, phone calls, WhatsApp messages, and disconnected reporting systems. This makes it difficult to identify people who need follow-up, track referrals, understand community-level trends, and give health managers timely intelligence.
 
+Kenya's community mental-health context makes this urgent. The mental-health treatment gap exceeds 90% (Kenya Mental Health Policy 2015–2030), and the ~90,000+ CHVs across the country's 47 counties — often the only health-system touchpoint a rural household has — capture those earliest signals nowhere structured. By the time a signal reaches a facility it has usually escalated to an acute incident. This is a **detection + routing failure, not a treatment failure**: the facilities, the volunteers and the policy framework all exist — the missing connective tissue is a tool that captures a natural observation, structures it safely, routes it to the right workflow, and gives county officials aggregate visibility before it becomes a crisis.
+
+Concretely, Msaada changes four things:
+
+1. **Capture** — from paper notebooks to natural voice/text in Kiswahili, Sheng or English; the CHV never has to translate a conversation into clinical forms.
+2. **Safety** — from "remember a phone number" to a deterministic policy engine that fires a non-dismissable crisis protocol (Kenya Red Cross 1199) at the point of observation.
+3. **Continuity** — from "referral created = job done" to a full referral lifecycle + follow-up tracking: "referral created" is not "help received".
+4. **Intelligence** — from zero visibility to de-identified aggregate county dashboards (the raw observation is never persisted; dashboards never read indicator text).
+
+The full problem narrative — who experiences it, why now, what we are deliberately **not** changing — is preserved in [`docs/PROBLEM.md`](docs/PROBLEM.md), also readable in-app at `/docs`.
+
+## Objectives
+
+What "done" means for this MVP — each objective is traceable to shipped code, a seeded demo fact, or a runnable gate:
+
+| # | Objective | Evidence |
+|---|---|---|
+| **O1** | **Voice-first capture that works in the field.** CHVs record observations in Kiswahili, Sheng, English or code-switched speech; `/api/transcribe` runs live Qwen omni ASR (`Qwen-Ambassador/Qwen3.8-Omni-Flash`), verified end-to-end; audio and raw observation text are never persisted. | Key Feature 4 · [AI provider notes](#ai-provider-notes) · `src/lib/ai/transcribe.ts` |
+| **O2** | **Structured, safe triage.** Qwen structures observations into indicators + next actions (English **and** Kiswahili); the deterministic policy engine (v1.0.0, separate from the model) decides escalation; the crisis override fires unconditionally; a human confirms every AI-generated record. | `/api/triage` · `src/lib/policy-engine.ts` (`POLICY_VERSION = "1.0.0"`) |
+| **O3** | **Close the referral loop.** 8-state referral lifecycle + follow-up tracking; the seeded demo data exercises every workflow class (routine, needs_followup, needs_facility_referral, crisis_override). | `/referrals` · `src/lib/demo-data-seed.ts` (16 seeded encounters → 5 referrals → 6 follow-ups) |
+| **O4** | **Community-to-CHV dispatch.** Public `/report` → AI intake → deterministic policy routing → response case → CHV assignment → resolution → encounter link, with community-intelligence aggregation for managers. | Key Feature 16 · `/cases` · `CommunityIntelligenceWidget` |
+| **O5** | **Judge-verifiable quality.** One-command gates (`npm run verify` / `verify:smoke`), policy-version-logged audit trail, live `/status` dependency page. | [Engineering workflow](#engineering-workflow) · `/audit` · `/status` |
+
 ## Proposed Solution
 
 Msaada creates a complete digital workflow:
@@ -186,9 +209,20 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<anon key>  # community-report mirror
 - CHV: `demo@msaada.health` / `msaada123`
 - County Admin (powers the `/admin` onboarding demo): `county.admin@msaada.health` / `msaada123`
 
-**Demo data** (also seeded automatically, idempotent by stable codes — safe on every cold start): a Kilifi County organization + Malindi Town CHU, 8 households with 14 members for the demo CHV, 16 backdated encounters (9 days → today, mixed text/voice capture, online/offline/intermittent connectivity) with structured triage verdicts covering every workflow class (routine, needs_followup, needs_facility_referral, crisis_override) — each with its English next action **and its Kiswahili equivalent** — 5 referrals across the referral lifecycle, 6 follow-ups, audit-log entries, and 4 community reports with response cases. Dashboards, households, referrals, follow-ups and the audit page are all populated the moment you sign in — no Qwen calls needed. `POST /api/seed` remains available for extra Qwen-generated synthetic transcripts.
+**Demo data** (also seeded automatically, idempotent by stable codes — safe on every cold start): a Kilifi County organization + Malindi Town CHU, 8 households with 14 members for the demo CHV, 16 backdated encounters (9 days → today, mixed text/voice capture, online/offline/intermittent connectivity) with structured triage verdicts covering every workflow class (routine, needs_followup, needs_facility_referral, crisis_override) — each with its English next action **and its Kiswahili equivalent** — 5 referrals across the referral lifecycle, 6 follow-ups, audit-log entries, and 6 community reports (4 of them seeded with response cases spanning assignment → acceptance → resolution). Dashboards, households, referrals, follow-ups and the audit page are all populated the moment you sign in — no Qwen calls needed. `POST /api/seed` remains available for extra Qwen-generated synthetic transcripts.
 
 **Tech Stack:** Next.js 16 (App Router, TypeScript) + Qwen (ModelScope OpenAI-compatible API) + Supabase (client helpers + session proxy) + Prisma + Tailwind CSS 4 + shadcn/ui + Recharts
+
+**Repository guide:**
+
+| Path | What lives there |
+|---|---|
+| `src/` | Application code — App Router pages in `src/app`, domain logic (policy engine, AI client, seed, mirrors) in `src/lib` |
+| `prisma/` | `schema.prisma` — source of the demo SQLite DDL |
+| `supabase/` | `schema.sql` — cloud-mirror tables (encounter-draft sync queue, community-report mirror) |
+| `scripts/` | `verify.sh` — the one-command quality gate |
+| `docs/` | Internal contributor docs — full problem narrative (`docs/PROBLEM.md`), agent/CLAUDE rules |
+| `public/slides/` | Markdown sources for the 12-slide `/presentation` deck |
 
 **GitHub:** https://github.com/Roy-Wanyoike/msaada
 
@@ -225,6 +259,7 @@ The app deploys to Vercel as-is (`next build` with Turbopack). Configure the env
 | `NEXT_PUBLIC_SUPABASE_URL` | Client+Server | Required Supabase project URL (public by design). |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Client+Server | Required Supabase publishable key — safe to expose in the browser. Never use a secret/service-role key here. |
 | `SUPABASE_SECRET_KEY` | Server | Server-only secret key used to provision trusted invitation and demo accounts. Never expose it through a `NEXT_PUBLIC_*` variable. |
+| `MSAADA_DEMO_MODE` | Server | Set `true` to enable demo-mode affordances in production deployments (zero-config demo login via the seeded local demo accounts when Supabase Auth is not configured). Leave unset/false for real deployments. Development environments default to demo mode. |
 
 Set the variables in **Vercel → Settings → Environment Variables**, then trigger a **Redeploy** so the running deployment picks them up. `NEXT_PUBLIC_*` values are inlined at **build** time — adding them without a redeploy changes nothing on the running site.
 
@@ -288,9 +323,9 @@ All routes are server-side; Supabase Auth owns password verification, refresh to
 | `/api/triage` | POST | Qwen classify + de-identified DB write (CHV encounter). Creates follow-up if needs_followup / needs_facility_referral. |
 | `/api/seed` `/demo-chv` | POST / POST | Synthetic transcripts + demo CHV seeding. |
 | `/api/dashboard` | GET | Aggregate stats (byCounty / byDay / byTag / totals) — never selects indicator text. |
-| `/api/records/mine` `/api/stats/mine` | GET / GET | CHV-scoped records + personal impact stats. |
+| `/api/records/mine` `/api/stats/mine` `/api/stats/mine/weekly` | GET / GET / GET | CHV-scoped records + personal impact stats + weekly activity summary. |
 | `/api/households` `/[id]` `/[id]/members` | GET,POST / GET / POST | Household CRUD + member creation. Ownership-scoped. |
-| `/api/encounters` | POST | Create encounter (identity-gated). |
+| `/api/encounters` `/api/encounters/drafts` | POST / POST | Create encounter (identity-gated). `/drafts` flushes the queued offline encounter drafts (client-uuid idempotent; metadata-only mirror to Supabase). |
 | `/api/referrals` | GET, PATCH | Referral lifecycle (8 states). |
 | `/api/followups` `/[id]` | GET / PATCH | Follow-up list (mine) + resolve (done / missed). |
 | `/api/audit` | GET | Audit-trail feed (policy-version-logged). |
@@ -303,7 +338,32 @@ All routes are server-side; Supabase Auth owns password verification, refresh to
 | `/api/response-cases/[id]` | GET, PATCH | Case lifecycle (assigned → accepted → in_progress → resolved). |
 | `/api/response-cases/[id]/assign` | POST | Deterministic CHV assignment (ownership-scoped; supervisor can re-assign). |
 | `/api/response-cases/[id]/encounter` | POST | Create an encounter from a case — closes the loop into the existing identity → encounter → referral → follow-up chain. |
+| `/api/transcribe` | POST | Live Qwen omni ASR for voice capture (Kiswahili/Sheng/English, code-switch aware). Authed + rate-limited; audio and transcripts are never persisted. |
+| `/api/signals` | GET | Deterministic early-warning signals — unusual aggregate changes between time windows, presented as flags for human investigation. |
+| `/api/ai/activity` | GET | "Qwen at work" evidence meter: workflow steps + per-model call counts, ok-rate, p50/p95 latency from `AiActivity`. |
+| `/api/dashboard/summary` `/api/supervisor/briefing` | GET / GET | AI-written narrative summary (county dashboard) and supervisor briefing (roster). |
+| `/api/followups/[id]/suggestions` `/api/referrals/[id]/handover` `/api/response-cases/[id]/suggest-assignment` | GET / GET / GET | AI copilot assists — follow-up questions, referral handover notes, assignment suggestions. Advisory only: a human applies every suggestion (assignment still goes through the deterministic `assign` endpoint). Endpoints return `AI_NOT_CONFIGURED` cleanly when Qwen is unset. |
+| `/api/response-cases/unassigned` | GET | Cases awaiting assignment — assigner roles only, scoped to the caller's county unless national. |
 | `/api/health` | GET | Public dependency probe (database / qwen / supabase) — always 200, status words only, never echoes config. |
+
+---
+
+## Recommendations (production roadmap)
+
+What we would build next, in three honest phases — anything not already shipped is marked accordingly:
+
+| Phase | Horizon | Commitments |
+|---|---|---|
+| **1 — Pilot hardening** | 0–6 months | Harden auth on **Supabase as the primary provider**, with the `MSAADA_DEMO_MODE` flag (**newly added**) gating zero-config demo login so real deployments never inherit demo affordances. Move the operational store from demo SQLite to **durable Postgres/Supabase** — today Supabase only mirrors encounter drafts + community reports, not the operational data. Per-CHU supervisor scoping + CHU-aware onboarding: the geo hierarchy is already modeled (`Organization` subcounty/CHU types, `CommunityHealthUnit.supervisorId`), but enforcement is ad-hoc — make it structural. |
+| **2 — Scale** | 6–18 months | **Offline-first device sync with conflict resolution** — the `encounter_drafts` queue (`supabase/schema.sql`, client-uuid idempotent) is the seed, not the destination. Android wrapper (the stated production target). Durable job/queue layer (NATS JetStream / Temporal — today only named as production targets). DHIS2 / Kenya HMIS interoperability (Key Feature 15). SMS/USSD fallbacks for CHVs without smartphones — not started. |
+| **3 — Institutional** | 18+ months | Kenya Data Protection Act 2019 compliance review + DPIA (pending). County health-system integration. Multi-program expansion beyond mental health (maternal / child / nutrition — the policy engine's category config already carries `maternal` + `child_health`). AI evaluation harness expansion: labeled multilingual datasets + per-model scorecards (issue #55). |
+
+**Engineering hygiene:**
+
+- **Branch protection on `main`** (PR required) — the no-direct-push rule is convention-enforced today; the GitHub setting is the owner's documented post-hackathon action (ENGINEERING.md §7).
+- **Token rotation discipline** — the GitHub token and Qwen key were exposed in chat during setup and are scheduled for rotation after the hackathon window.
+- **Observability** — partially shipped (`/status` dependency cards + the `AiActivity` per-model impact meter); alerting and metrics persistence are next.
+- **Backup/restore runbook** for the operational store — not started.
 
 ---
 
