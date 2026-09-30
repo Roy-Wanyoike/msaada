@@ -47,31 +47,60 @@ type View = "hero" | "login" | "signup";
 /**
  * Map a typed API error code to operator/CHV-actionable guidance.
  *
- * The login endpoint returns shaped `{ error: CODE }` bodies precisely so the
- * UI can react (see src/app/api/auth/login/route.ts). Without this mapping a
- * deployment misconfiguration (503 SERVER_NOT_CONFIGURED) surfaced as the raw
- * code or a generic "Please try again." — a dead end for whoever is setting
- * the demo up. Only the env-var NAME is ever mentioned; values are never
- * echoed by the API and never invented here.
+ * Both auth endpoints return shaped `{ error: CODE }` bodies precisely so the
+ * UI can react (see src/app/api/auth/login/route.ts and
+ * src/app/api/auth/signup/route.ts — every code either emits is mapped here).
+ * Each code gets DISTINCT copy with the right tone: config errors point at
+ * the fix, rate limits carry the server's retryAfter seconds, suspension is
+ * blame-free, credential failures stay generic (no account enumeration). Only
+ * the env-var NAME is ever mentioned; values are never echoed by the API and
+ * never invented here.
  */
-function authErrorDescription(error: string | undefined): string {
+function authErrorCopy(
+  error: string | undefined,
+  retryAfterSeconds?: number
+): string {
   switch (error) {
+    // ── shared by login + signup ────────────────────────────────────
     case "INVALID_CREDENTIALS":
+      // Deliberately generic: never reveal whether the email exists.
       return "Email or password is incorrect.";
     case "ACCOUNT_SUSPENDED":
-      return "This account is not active. Contact your county administrator.";
+      return "This account isn't active right now. Contact your supervisor or county administrator to have it reactivated.";
     case "EMAIL_NOT_CONFIRMED":
-      return "Confirm your email from the message Supabase sent, then sign in.";
+      return "Check your inbox for the confirmation email and verify your address, then sign in again.";
     case "WEAK_PASSWORD":
       return "Choose a stronger password with a mix of letters, numbers, and symbols.";
-    case "PROFILE_NOT_FOUND":
-      return "Your sign-in exists, but no Msaada profile is linked to it. Contact an administrator.";
     case "RATE_LIMITED":
-      return "Too many attempts. Wait a minute and try again.";
+      // The server sends retryAfter (seconds); echo it as a countdown hint.
+      return retryAfterSeconds
+        ? `Too many attempts — try again in ${retryAfterSeconds}s.`
+        : "Too many attempts — wait about a minute and try again.";
     case "SERVER_NOT_CONFIGURED":
-      return "Supabase Auth is not configured for this deployment. Check /status and the server environment.";
+      // Deployment misconfiguration, not the user's fault. The demo-credentials
+      // box sits below the form; phrased neutrally because the client cannot
+      // detect whether MSAADA_DEMO_MODE is enabled server-side.
+      return "This deployment hasn't connected Supabase Auth yet. Try the demo account below, or ask the operator to configure authentication.";
     case "SERVER_ERROR":
       return "Authentication is temporarily unavailable. Try again shortly.";
+    // ── signup-only codes ───────────────────────────────────────────
+    case "SIGNUP_DISABLED":
+      return "Self-signup is closed on this deployment. Ask your supervisor for an invitation.";
+    case "EMAIL_EXISTS":
+      return "That email is already registered. Log in instead.";
+    case "INVALID_EMAIL":
+      return "That email address doesn't look right — check it and try again.";
+    case "PASSWORD_TOO_SHORT":
+      return "Password must be at least 6 characters.";
+    case "MISSING_FULL_NAME":
+      return "Enter your full name.";
+    case "INVALID_COUNTY":
+      return "Select a valid county.";
+    case "WARD_NOT_IN_COUNTY":
+      return "That ward isn't in the county you selected — pick a ward from your county's list.";
+    case "SIGNUP_FAILED":
+      return "Couldn't create the account right now. Try again in a moment.";
+    // INVALID_JSON and anything unrecognized.
     default:
       return "Please try again.";
   }
@@ -104,18 +133,31 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
-      const data = await res.json();
+      // Tolerate non-JSON bodies (proxy HTML error pages) so they surface as
+      // "please try again" instead of a misleading network error.
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        retryAfter?: number;
+        chv?: Chv;
+      };
       if (!res.ok || data.error) {
         toast.error("Login failed", {
-          description: authErrorDescription(data.error),
+          description: authErrorCopy(
+            data.error,
+            typeof data.retryAfter === "number"
+              ? Math.ceil(data.retryAfter)
+              : undefined
+          ),
         });
         return;
       }
-      toast.success("Welcome back", { description: data.chv.fullName });
+      toast.success("Welcome back", { description: data.chv?.fullName });
       onAuthed(data.chv as Chv);
     } catch {
+      // fetch() only throws here on a genuine connection failure.
       toast.error("Network error", {
-        description: "Could not reach the server. Try again.",
+        description:
+          "You seem to be offline — check your connection and try again.",
       });
     } finally {
       setLoginLoading(false);
@@ -145,17 +187,20 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
           ward: suWard,
         }),
       });
-      const data = await res.json();
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        retryAfter?: number;
+        chv?: Chv;
+        confirmationRequired?: boolean;
+      };
       if (!res.ok || data.error) {
         toast.error("Sign-up failed", {
-          description:
-            data.error === "EMAIL_EXISTS"
-              ? "That email is already registered. Log in instead."
-              : data.error === "PASSWORD_TOO_SHORT"
-                ? "Password must be at least 6 characters."
-                : data.error === "INVALID_COUNTY"
-                  ? "Select a valid county."
-                  : authErrorDescription(data.error),
+          description: authErrorCopy(
+            data.error,
+            typeof data.retryAfter === "number"
+              ? Math.ceil(data.retryAfter)
+              : undefined
+          ),
         });
         return;
       }
@@ -167,10 +212,13 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
         setView("login");
         return;
       }
-      toast.success("Account created", { description: data.chv.fullName });
+      toast.success("Account created", { description: data.chv?.fullName });
       onAuthed(data.chv as Chv);
     } catch {
-      toast.error("Network error");
+      toast.error("Network error", {
+        description:
+          "You seem to be offline — check your connection and try again.",
+      });
     } finally {
       setSuLoading(false);
     }
@@ -185,7 +233,11 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: DEMO_EMAIL, password: DEMO_PASSWORD }),
         });
-        const body = (await response.json()) as { error?: string; chv?: Chv };
+        const body = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          retryAfter?: number;
+          chv?: Chv;
+        };
         return { response, body };
       };
 
@@ -198,10 +250,12 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
         attempt.body.error === "INVALID_CREDENTIALS"
       ) {
         const provisionRes = await fetch("/api/demo-chv", { method: "POST" });
-        const provisionData = (await provisionRes.json()) as { error?: string };
+        const provisionData = (await provisionRes
+          .json()
+          .catch(() => ({}))) as { error?: string };
         if (!provisionRes.ok || provisionData.error) {
           toast.error("Demo login failed", {
-            description: authErrorDescription(provisionData.error),
+            description: authErrorCopy(provisionData.error),
           });
           return;
         }
@@ -210,14 +264,22 @@ export function AuthCard({ onAuthed, onDashboard }: AuthCardProps) {
 
       if (!attempt.response.ok || attempt.body.error || !attempt.body.chv) {
         toast.error("Demo login failed", {
-          description: authErrorDescription(attempt.body.error),
+          description: authErrorCopy(
+            attempt.body.error,
+            typeof attempt.body.retryAfter === "number"
+              ? Math.ceil(attempt.body.retryAfter)
+              : undefined
+          ),
         });
         return;
       }
       toast.success("Signed in with the demo account");
       onAuthed(attempt.body.chv);
     } catch {
-      toast.error("Network error");
+      toast.error("Network error", {
+        description:
+          "You seem to be offline — check your connection and try again.",
+      });
     } finally {
       setDemoLoading(false);
     }

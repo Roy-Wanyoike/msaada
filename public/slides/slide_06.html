@@ -10,7 +10,9 @@
   body{margin:0;background:var(--bg);}
   .microlabel{font-family:var(--font-body);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);}
   .pipe-chip{display:inline-flex;align-items:center;background:var(--surface);border:1px solid var(--accent);border-radius:999px;padding:10px 13px;font-family:var(--font-num);font-size:12px;font-weight:700;letter-spacing:0.08em;color:var(--primary);white-space:nowrap;}
+  /* In-flight states sit on the teal lane; terminal states are visually distinct. */
   .pipe-chip--done{background:var(--accent-deep);border-color:var(--accent-deep);color:#FFFFFF;}
+  .pipe-chip--terminal{background:var(--surface);border:1.5px dashed var(--ink-faint);color:var(--ink-soft);}
   .step-row{display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 16px;}
 </style>
 </head>
@@ -53,17 +55,18 @@
     </section>
 
     <!-- Right: Msaada lifecycle -->
-    <section class="card-teal" style="padding:28px 30px;display:flex;flex-direction:column;justify-content:space-between;min-height:0;">
+    <section class="card-teal" style="padding:26px 30px;display:flex;flex-direction:column;justify-content:space-between;min-height:0;">
       <div style="display:flex;align-items:center;gap:14px;">
         <div style="width:48px;height:48px;border-radius:12px;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
           <span class="material-icons" aria-hidden="true" style="font-size:26px;color:var(--accent-deep);">all_inclusive</span>
         </div>
-        <div style="font-family:var(--font-heading);font-size:19px;font-weight:700;color:var(--primary);">Msaada tracks the lifecycle</div>
+        <div style="font-family:var(--font-heading);font-size:19px;font-weight:700;color:var(--primary);">Msaada tracks all <span class="num">8</span> states, to the outcome</div>
       </div>
 
+      <!-- In-flight lane -->
       <div>
-        <div class="microlabel">Referral lifecycle</div>
-        <div style="display:flex;align-items:center;gap:7px;margin-top:10px;">
+        <div class="microlabel">In flight</div>
+        <div style="display:flex;align-items:center;gap:7px;margin-top:10px;flex-wrap:nowrap;">
           <span class="pipe-chip">CREATED</span>
           <span class="material-icons" aria-hidden="true" style="font-size:17px;color:var(--accent-deep);">chevron_right</span>
           <span class="pipe-chip">SENT</span>
@@ -71,13 +74,24 @@
           <span class="pipe-chip">ACKNOWLEDGED</span>
           <span class="material-icons" aria-hidden="true" style="font-size:17px;color:var(--accent-deep);">chevron_right</span>
           <span class="pipe-chip">IN_PROGRESS</span>
-          <span class="material-icons" aria-hidden="true" style="font-size:17px;color:var(--accent-deep);">chevron_right</span>
-          <span class="pipe-chip pipe-chip--done">COMPLETED</span>
         </div>
       </div>
 
+      <!-- Terminal lane -->
       <div>
-        <div class="microlabel">Follow-ups</div>
+        <div class="microlabel">Terminal &mdash; one of four recorded outcomes</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:nowrap;">
+          <span class="material-icons" aria-hidden="true" style="font-size:18px;color:var(--ink-faint);margin-right:-2px;">south</span>
+          <span class="pipe-chip pipe-chip--done">COMPLETED</span>
+          <span class="pipe-chip pipe-chip--terminal">DECLINED</span>
+          <span class="pipe-chip pipe-chip--terminal">CANCELLED</span>
+          <span class="pipe-chip pipe-chip--terminal">EXPIRED</span>
+        </div>
+      </div>
+
+      <!-- Follow-ups -->
+      <div>
+        <div class="microlabel">Follow-ups after handover</div>
         <div style="display:flex;align-items:center;gap:7px;margin-top:10px;">
           <span class="pipe-chip">PENDING</span>
           <span class="material-icons" aria-hidden="true" style="font-size:17px;color:var(--accent-deep);">chevron_right</span>
@@ -86,6 +100,10 @@
           <span class="pipe-chip">MISSED</span>
         </div>
       </div>
+
+      <p style="font-size:13.5px;line-height:1.55;color:var(--primary);margin:0;border-top:1px solid var(--line);padding-top:12px;">
+        <span class="num" style="font-weight:700;">8</span>-state referral lifecycle with follow-up tracking &mdash; every transition is validated by the referral API, so a referral can only end in a recorded outcome.
+      </p>
     </section>
   </div>
 
@@ -101,9 +119,10 @@
 <aside data-notes class="hidden" style="display:none;">
   <ul>
     <li>Core claim: "referral created" is not "help received" — typical tools close the record and go dark.</li>
-    <li>Msaada tracks the full lifecycle: CREATED, SENT, ACKNOWLEDGED, IN_PROGRESS, COMPLETED — plus follow-ups PENDING, DONE or MISSED.</li>
+    <li>Msaada tracks the full 8-state lifecycle: created, sent, acknowledged, in_progress, then a terminal outcome — completed, declined, cancelled or expired. Terminal states are the dashed chips; completed is the filled one.</li>
+    <li>Every transition is validated by the referral API — a referral cannot silently vanish between states.</li>
     <li>Outcome-tracking is what counties actually buy: visibility into results, not activity.</li>
-    <li>Volunteers get follow-up reminders instead of forgotten cases.</li>
+    <li>Volunteers get follow-up reminders after handover instead of forgotten cases — pending, done or missed.</li>
     <li>Households → encounters → triage records → referrals: the identity chain is queryable for audit and supervision.</li>
   </ul>
 </aside>

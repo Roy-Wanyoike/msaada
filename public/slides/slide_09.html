@@ -33,7 +33,7 @@
 
       <div class="card flex flex-col" style="padding:24px;">
         <div class="flex items-start justify-between">
-          <span class="stat-num">15</span>
+          <span class="stat-num">14</span>
           <span class="icon-tile"><span class="material-icons" style="font-size:21px; color:var(--accent-deep);">layers</span></span>
         </div>
         <div class="stat-label" style="margin-top:16px;">pages &amp; flows shipped</div>
@@ -51,11 +51,11 @@
 
       <div class="card flex flex-col" style="padding:24px;">
         <div class="flex items-start justify-between">
-          <span class="stat-num">9/9</span>
+          <span class="stat-num">8/8</span>
           <span class="icon-tile"><span class="material-icons" style="font-size:21px; color:var(--accent-deep);">fact_check</span></span>
         </div>
         <div class="stat-label" style="margin-top:16px;">release smoke gates green</div>
-        <div class="stat-desc" style="margin-top:6px;">on every release (build, typecheck, boot, health, auth, revocation)</div>
+        <div class="stat-desc" style="margin-top:6px;">one command, 8 steps: prisma, typecheck, lint, build, then a live boot — health, RBAC 401s, demo login, revocation</div>
       </div>
 
       <div class="card flex flex-col" style="padding:24px;">
@@ -103,7 +103,7 @@
 <aside data-notes class="hidden" style="display:none;">
   <ul>
     <li>Judged on engineering: typed, tested, audited, deployable.</li>
-    <li>13/13 end-to-end smoke checks run on every release — live Qwen triage, auth, sync, crisis override included.</li>
+    <li>8/8 smoke-gate steps run on every release — typecheck and build, then a real server boot: health, RBAC 401 probes, demo CHV login, revoked-cookie replay.</li>
     <li>Policy engine v1.0.0 is versioned and auditable: every decision records which policy version decided.</li>
     <li>Zero secrets in the repo — keys resolve lazily and config fails fast in production.</li>
     <li>Stack: Next.js 16 Turbopack, Qwen via ModelScope, Supabase SSR auth, Prisma, Tailwind 4.</li>
