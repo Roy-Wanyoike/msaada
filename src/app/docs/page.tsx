@@ -24,7 +24,9 @@ async function readDoc(filename: string): Promise<string> {
 export default async function DocsPage() {
   const [readme, problem, license] = await Promise.all([
     readDoc("README.md"),
-    readDoc("PROBLEM.md"),
+    // PROBLEM.md moved into docs/ (MVP-57 repo-guide cleanup) — same file,
+    // traced into the standalone output via next.config.ts.
+    readDoc("docs/PROBLEM.md"),
     readDoc("LICENSE"),
   ]);
 

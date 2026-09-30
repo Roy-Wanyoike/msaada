@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   // server output so the standalone/Vercel deployment has them (otherwise the
   // page renders its "# ... not found" fallback there).
   outputFileTracingIncludes: {
-    "/docs": ["./README.md", "./PROBLEM.md", "./LICENSE"],
+    "/docs": ["./README.md", "./docs/PROBLEM.md", "./LICENSE"],
   },
   /* config options here */
   typescript: {
