@@ -38,10 +38,12 @@ import { queueDraft, removeDraft } from "@/lib/sync/draft-queue";
  * Mounted by /households over a just-started encounter. The existing typed
  * path on / (SubmissionForm) stays untouched as the fallback.
  *
- * Degradation is honest: no ASR on the provider (501) or no Qwen key (503)
- * auto-opens the typed path with an actionable explanation — triage still
- * completes either way. Draft queue semantics match SubmissionForm:
- * metadata only (never audio, never free text).
+ * Degradation is honest: no ASR on the provider (501), no Qwen key (503), or
+ * an unsupported recorder auto-opens the typed path with an actionable
+ * explanation; a hung upload is aborted client-side at 45s (see
+ * VoiceRecorder) and lands on the same typed path — triage still completes
+ * either way. Draft queue semantics match SubmissionForm: metadata only
+ * (never audio, never free text).
  */
 
 type Phase = "idle" | "voice" | "review" | "analyzing" | "result";
@@ -154,9 +156,9 @@ export function VoiceEncounterCapture({
       if (phase === "idle" || phase === "voice") {
         setPhase("review");
         if (info.code === "ASR_NOT_AVAILABLE") {
-          toast.error("Voice not available on this AI provider", {
+          toast.error("Voice not available on this deployment", {
             description:
-              "The provider hosts text models only. Type your observation instead — triage still works.",
+              "This AI provider can't transcribe audio. Type your observation instead — triage still works.",
           });
         } else if (info.code === "AI_NOT_CONFIGURED") {
           toast.error("Voice not set up on this server", {
@@ -167,18 +169,36 @@ export function VoiceEncounterCapture({
       }
       return;
     }
+    // Timeout — client-side abort (45s) or the server's 504 — releases the
+    // UI and opens the typed path directly instead of leaving the CHV on a
+    // dead recording screen.
+    if (info.code === "CLIENT_TIMEOUT" || info.code === "TRANSCRIBE_TIMEOUT") {
+      toast.error("Transcription timed out", {
+        description:
+          "Check your connection, or type your observation below instead.",
+      });
+      setPhase("review");
+      return;
+    }
+    if (info.code === "UNAUTHORIZED") {
+      toast.error("Session expired", { description: "Please sign in again." });
+      onLogout();
+      return;
+    }
     if (info.code === "NO_SPEECH_DETECTED") {
-      toast.error("No speech detected", {
+      toast.error("We couldn't hear speech", {
         description: "Try again a little closer to the microphone.",
       });
       setPhase("voice");
-    } else if (info.code === "TRANSCRIBE_TIMEOUT") {
-      toast.error("Transcription took too long", {
-        description: "Try a shorter recording, or type it instead.",
-      });
     } else if (info.code === "RATE_LIMITED") {
       toast.error("Too many recordings", {
-        description: "Wait a minute and try again.",
+        description: info.retryAfterSeconds
+          ? `Wait ${info.retryAfterSeconds}s and try again — or type your observation instead.`
+          : "Wait a minute and try again — or type your observation instead.",
+      });
+    } else if (info.code === "AUDIO_TOO_LARGE") {
+      toast.error("Recording too large", {
+        description: "Keep voice notes under 3 minutes, or type it instead.",
       });
     } else if (info.message) {
       toast.error("Couldn't transcribe", { description: info.message });

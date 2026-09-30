@@ -254,7 +254,8 @@ export default function ReportPage() {
                 <CardContent className="px-0">
                   {records.length === 0 ? (
                     <p className="py-3 text-center text-sm text-muted-foreground">
-                      No observations yet.
+                      No observations yet. Submit your first home-visit record
+                      from the home screen — it will appear here.
                     </p>
                   ) : (
                     <ul className="space-y-1.5">

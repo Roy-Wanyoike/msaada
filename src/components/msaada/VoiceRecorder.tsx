@@ -15,16 +15,45 @@ import { Button } from "@/components/ui/button";
 
 const MAX_SECONDS = 180;
 
+/**
+ * Client-side budget for the /api/transcribe upload.
+ *
+ * The server's own upstream ASR call is bounded (60s in
+ * src/lib/ai/transcribe.ts → qwenChat timeoutMs), but a HUNG network — proxy
+ * stall, captive portal, dead connection — delivers neither a response nor an
+ * error, which used to wedge the capture UI on "Transcribing…" forever. This
+ * AbortController fires at 45s (inside the server budget, so a slow-but-alive
+ * server can still win the race) and tears the request down: the catch path
+ * runs, the error is surfaced, and the recorder ALWAYS returns to idle.
+ */
+const TRANSCRIBE_TIMEOUT_MS = 45_000;
+
+/**
+ * Every error code /api/transcribe can emit (see
+ * src/app/api/transcribe/route.ts) plus client-side markers, each with its
+ * own actionable copy. Rate limiting is handled separately because its copy
+ * embeds the server's retryAfter seconds.
+ */
 const ERROR_MESSAGES: Record<string, string> = {
   AI_NOT_CONFIGURED: "Voice-to-text isn't set up on this server yet. Type your observation instead.",
-  ASR_NOT_AVAILABLE: "Voice-to-text isn't available on this AI provider. Type your observation instead.",
-  AUDIO_TOO_LARGE: "That recording is too long. Keep voice notes under 3 minutes.",
+  ASR_NOT_AVAILABLE: "Voice isn't available on this deployment's AI provider. Type your observation instead.",
+  AUDIO_TOO_LARGE: "That recording is too large to upload. Keep voice notes under 3 minutes.",
   UNSUPPORTED_AUDIO_TYPE: "This browser records in a format we can't transcribe. Type your observation instead.",
-  NO_SPEECH_DETECTED: "No speech was detected. Try again closer to the microphone.",
-  TRANSCRIBE_TIMEOUT: "Transcription took too long. Try a shorter recording.",
-  RATE_LIMITED: "Too many recordings in a short time. Wait a minute and try again.",
+  NO_SPEECH_DETECTED: "We couldn't hear speech — try again a little closer to the microphone.",
+  TRANSCRIBE_TIMEOUT: "Transcription timed out — check your connection, or type your observation instead.",
+  TRANSCRIBE_FAILED: "The transcription service hit an error. Try again, or type your observation instead.",
+  INVALID_FORM: "The recording didn't upload correctly. Try recording it once more.",
+  MISSING_AUDIO: "The recording didn't upload correctly. Try recording it once more.",
   UNAUTHORIZED: "Your session has expired. Sign in again.",
+  // Client-side AbortController fired (TRANSCRIBE_TIMEOUT_MS elapsed).
+  CLIENT_TIMEOUT: "Transcription timed out — check your connection, or type your observation instead.",
 };
+
+const DEFAULT_ERROR_MESSAGE =
+  "Couldn't transcribe the recording. Try again, or type your observation.";
+
+const NETWORK_ERROR_MESSAGE =
+  "Network error while uploading — check your connection (are you offline?) and try again, or type your observation instead.";
 
 type State = "idle" | "recording" | "uploading";
 
@@ -48,9 +77,12 @@ function fmt(seconds: number) {
 
 export interface VoiceRecorderError {
   /** API error code (e.g. "ASR_NOT_AVAILABLE") or a client-side marker like
-   *  "MIC_BLOCKED" / "INSECURE_CONTEXT" / "NO_RECORDER" / null for unknown. */
+   *  "MIC_BLOCKED" / "INSECURE_CONTEXT" / "NO_RECORDER" / "CLIENT_TIMEOUT" /
+   *  null for unknown. */
   code: string | null;
   message: string;
+  /** Seconds to wait before retrying — set only for RATE_LIMITED. */
+  retryAfterSeconds?: number;
 }
 
 export function VoiceRecorder({
@@ -77,6 +109,11 @@ export function VoiceRecorder({
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const capRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guards against a second upload while one is in flight (the async state
+  // update alone can't — two clicks can land inside one render gap).
+  const uploadBusyRef = useRef(false);
+  // The in-flight upload's controller, so unmount can abort it.
+  const uploadAbortRef = useRef<AbortController | null>(null);
 
   function clearTimers() {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -85,37 +122,77 @@ export function VoiceRecorder({
     capRef.current = null;
   }
 
-  // Release the microphone if the component unmounts mid-recording.
+  // Release the microphone — and abort any in-flight upload — if the
+  // component unmounts mid-recording or mid-upload.
   useEffect(() => {
     return () => {
       clearTimers();
       streamRef.current?.getTracks().forEach((t) => t.stop());
+      uploadAbortRef.current?.abort();
     };
   }, []);
 
   async function upload(blob: Blob) {
+    if (uploadBusyRef.current) return; // never double-submit
+    uploadBusyRef.current = true;
     setState("uploading");
+
+    const controller = new AbortController();
+    uploadAbortRef.current = controller;
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      TRANSCRIBE_TIMEOUT_MS
+    );
     try {
       const form = new FormData();
       const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
       form.append("audio", blob, `voice-note.${ext}`);
-      const res = await fetch("/api/transcribe", { method: "POST", body: form });
-      const data = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
+      const res = await fetch("/api/transcribe", {
+        method: "POST",
+        body: form,
+        signal: controller.signal,
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        text?: string;
+        error?: string;
+        retryAfter?: number;
+      };
       if (!res.ok || !data.text) {
-        const message =
-          (data.error && ERROR_MESSAGES[data.error]) ??
-            "Couldn't transcribe the recording. Try again, or type your observation.";
+        let message =
+          (data.error && ERROR_MESSAGES[data.error]) || DEFAULT_ERROR_MESSAGE;
+        let retryAfterSeconds: number | undefined;
+        if (data.error === "RATE_LIMITED") {
+          retryAfterSeconds =
+            typeof data.retryAfter === "number" && data.retryAfter > 0
+              ? Math.ceil(data.retryAfter)
+              : undefined;
+          message = retryAfterSeconds
+            ? `Too many recordings in a short time — wait ${retryAfterSeconds}s and try again.`
+            : "Too many recordings in a short time. Wait a minute and try again.";
+        }
         setError(message);
-        onError?.({ code: data.error ?? null, message });
+        onError?.({ code: data.error ?? null, message, retryAfterSeconds });
         return;
       }
       onTranscript(data.text);
       onError?.({ code: null, message: "" });
     } catch {
-      const message = "Network error while uploading. Check your connection and try again.";
+      // An aborted fetch throws here; distinguish our timeout from a genuine
+      // network failure so the copy stays honest.
+      const message = controller.signal.aborted
+        ? ERROR_MESSAGES.CLIENT_TIMEOUT
+        : NETWORK_ERROR_MESSAGE;
       setError(message);
-      onError?.({ code: null, message });
+      onError?.({
+        code: controller.signal.aborted ? "CLIENT_TIMEOUT" : null,
+        message,
+      });
     } finally {
+      clearTimeout(timeoutId);
+      uploadAbortRef.current = null;
+      uploadBusyRef.current = false;
+      // The recording state ALWAYS resolves — success, API error, timeout,
+      // or network failure all land here.
       setState("idle");
       onRecordingChange?.(false);
     }
@@ -123,6 +200,7 @@ export function VoiceRecorder({
 
   async function start() {
     setError(null);
+    if (uploadBusyRef.current) return; // uploading — no second take yet
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
       const message =
         "The microphone needs a secure connection. Open the app via https:// or http://localhost.";
@@ -188,6 +266,7 @@ export function VoiceRecorder({
             variant="outline"
             onClick={start}
             disabled={disabled || state === "uploading"}
+            aria-busy={state === "uploading"}
             className="h-11"
           >
             {state === "uploading" ? (
