@@ -131,7 +131,7 @@ A CHV can open assigned households while offline, capture an encounter, record v
 - Configurable retention and access policies.
 
 ### 14. AI transparency and evaluation
-Msaada records which AI model/version generated a structured interpretation and keeps the source observation separate from the AI interpretation. The system can be evaluated using synthetic multilingual datasets covering different languages, accents, incomplete information, ambiguity, code-switching, and safety-sensitive scenarios.
+Msaada records which AI model/version generated a structured interpretation and keeps the source observation separate from the AI interpretation. Triage responses surface **what the model still needs to know** (`missing_information`, deterministically derived when absent), and supervisors get **advisory, human-in-the-loop case summaries** built only from structured fields. The shipped evaluation harness (`/api/ai/eval`) scores classification accuracy, indicator overlap, missing-info recall, JSON validity and latency per model over a synthetic multilingual labeled set — with a deterministic baseline that runs even without a key.
 
 ### 15. Future interoperability
 The platform is designed so that Msaada can eventually connect with existing health information systems, referral networks, and benefits-navigation services rather than becoming another isolated health database.
@@ -315,12 +315,12 @@ Supabase Auth is the sole credential and session provider. The Prisma database r
 
 ## API surface
 
-All routes are server-side; Supabase Auth owns password verification, refresh tokens, and cookie sessions. Protected endpoints validate cryptographic JWT claims with `getClaims()`, then resolve the unique email to a local operational profile and enforce its server-side role/account state. Login/logout attempts remain in the append-only local `AuthEvent` audit trail (never passwords, tokens, or IPs), and sensitive endpoints remain rate-limited (`src/lib/rate-limit.ts`). The raw observation/reporter text is never persisted — only model-returned structured fields + de-identified metadata.
+All routes are server-side; Supabase Auth owns password verification, refresh tokens, and cookie sessions. When Supabase is not configured, demo-mode deployments (`MSAADA_DEMO_MODE=true`) fall back to local scrypt-hashed demo accounts with DB-backed revocable sessions — production stays closed. Aggregate and compliance surfaces (`/api/dashboard`, `/api/audit`, `/api/supervisor/*`, `/api/signals`) require an authenticated session with the appropriate role (401 unauthenticated / 403 role-denied). Protected endpoints validate cryptographic JWT claims with `getClaims()`, then resolve the unique email to a local operational profile and enforce its server-side role/account state. Login/logout attempts remain in the append-only local `AuthEvent` audit trail (never passwords, tokens, or IPs), and sensitive endpoints remain rate-limited (`src/lib/rate-limit.ts`). The raw observation/reporter text is never persisted — only model-returned structured fields + de-identified metadata.
 
 | Endpoint | Method | Purpose |
 |---|---|---|
 | `/api/auth/signup` `/login` `/logout` `/me` | POST / POST / POST / GET | Supabase email/password Auth with SSR cookies, verified JWT claims, local profile authorization and audit events. |
-| `/api/triage` | POST | Qwen classify + de-identified DB write (CHV encounter). Creates follow-up if needs_followup / needs_facility_referral. |
+| `/api/triage` | POST | Qwen classify + de-identified DB write (CHV encounter). Creates follow-up if needs_followup / needs_facility_referral. Response/record carry `missing_information` (≤ 3 items the model noticed were absent, deterministically derived when the model omits them) — rendered as "Information still needed" in the result card. |
 | `/api/seed` `/demo-chv` | POST / POST | Synthetic transcripts + demo CHV seeding. |
 | `/api/dashboard` | GET | Aggregate stats (byCounty / byDay / byTag / totals) — never selects indicator text. |
 | `/api/records/mine` `/api/stats/mine` `/api/stats/mine/weekly` | GET / GET / GET | CHV-scoped records + personal impact stats + weekly activity summary. |
@@ -338,9 +338,11 @@ All routes are server-side; Supabase Auth owns password verification, refresh to
 | `/api/response-cases/[id]` | GET, PATCH | Case lifecycle (assigned → accepted → in_progress → resolved). |
 | `/api/response-cases/[id]/assign` | POST | Deterministic CHV assignment (ownership-scoped; supervisor can re-assign). |
 | `/api/response-cases/[id]/encounter` | POST | Create an encounter from a case — closes the loop into the existing identity → encounter → referral → follow-up chain. |
+| `/api/response-cases/[id]/summary` | POST | Advisory AI case summary for supervisors, built ONLY from already-authorized structured fields (never raw text). Human-in-the-loop banner, cached on the case, fails soft to a deterministic bullet summary, audit-logged. |
 | `/api/transcribe` | POST | Live Qwen omni ASR for voice capture (Kiswahili/Sheng/English, code-switch aware). Authed + rate-limited; audio and transcripts are never persisted. |
 | `/api/signals` | GET | Deterministic early-warning signals — unusual aggregate changes between time windows, presented as flags for human investigation. |
 | `/api/ai/activity` | GET | "Qwen at work" evidence meter: workflow steps + per-model call counts, ok-rate, p50/p95 latency from `AiActivity`. |
+| `/api/ai/eval` | GET | Evaluation scorecard per model (classification accuracy, indicator overlap, missing-info recall, JSON validity, latency) over a 15-fixture English/Kiswahili/Sheng/code-switch labeled set. Runs live when `QWEN_API_KEY` is set; always returns a deterministic baseline otherwise. Supervisor-or-above. |
 | `/api/dashboard/summary` `/api/supervisor/briefing` | GET / GET | AI-written narrative summary (county dashboard) and supervisor briefing (roster). |
 | `/api/followups/[id]/suggestions` `/api/referrals/[id]/handover` `/api/response-cases/[id]/suggest-assignment` | GET / GET / GET | AI copilot assists — follow-up questions, referral handover notes, assignment suggestions. Advisory only: a human applies every suggestion (assignment still goes through the deterministic `assign` endpoint). Endpoints return `AI_NOT_CONFIGURED` cleanly when Qwen is unset. |
 | `/api/response-cases/unassigned` | GET | Cases awaiting assignment — assigner roles only, scoped to the caller's county unless national. |
